@@ -138,11 +138,17 @@ export default function MyPage() {
             return (
               <div
                 key={b.id}
-                title={`${b.label} · ${b.description ?? ""}${earned ? "" : ` (연속 ${b.streak_threshold}일 필요)`}`}
-                className={`flex flex-col items-center gap-1 text-center ${earned ? "" : "opacity-30 grayscale"}`}
+                className={`relative group flex flex-col items-center gap-1 text-center ${earned ? "" : "opacity-30 grayscale"}`}
               >
-                <div className="text-3xl">{b.icon}</div>
+                <div className="text-3xl cursor-default">{b.icon}</div>
                 <div className="text-[11px] text-muted leading-tight">{b.label}</div>
+                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-10 shadow-lg">
+                  <div className="font-bold mb-0.5">{b.label}</div>
+                  {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
+                  <div className="text-gold mt-1 font-bold">
+                    연속 {b.streak_threshold}일 달성{earned ? " ✓" : ""}
+                  </div>
+                </div>
               </div>
             );
           })}
