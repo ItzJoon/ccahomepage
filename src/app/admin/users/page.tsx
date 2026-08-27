@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { Profile } from "@/lib/types";
@@ -11,6 +11,15 @@ export default function AdminUsersPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [q, setQ] = useState("");
+  const [myId, setMyId] = useState<string | null>(null);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id ?? null));
+  }, [supabase]);
+
+  const me = rows.find((p) => p.id === myId);
+  const iAmSuperadmin = me?.role === "superadmin";
+  const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin");
 
   const changeRole = async (id: string, role: string) => {
     await supabase.from("profiles").update({ role }).eq("id", id);
@@ -24,6 +33,7 @@ export default function AdminUsersPage() {
       <h2 className="text-[22px] mb-2">회원 · 권한 관리</h2>
       <p className="text-muted mb-4">
         신규 가입자는 기본적으로 <code>student</code> 권한으로 생성됩니다. 관리 권한이 필요한 인원만 아래에서 역할을 변경하세요.
+        {!iAmSuperadmin && " admin 등급은 다른 사용자를 admin/superadmin으로 올릴 수 없고, 이미 admin/superadmin인 계정은 superadmin만 변경할 수 있습니다."}
       </p>
       <input
         className="border border-border rounded-lg px-3 py-2 text-sm mb-3.5 w-full max-w-sm"
@@ -40,21 +50,31 @@ export default function AdminUsersPage() {
           </tr>
         </thead>
         <tbody>
-          {list.map((p) => (
-            <tr key={p.id}>
-              <td className="p-2.5 border-b border-border text-sm">{p.name || "-"}</td>
-              <td className="p-2.5 border-b border-border text-sm">{p.email}</td>
-              <td className="p-2.5 border-b border-border">
-                <select
-                  className="border border-border rounded-lg px-2 py-1 text-sm"
-                  value={p.role}
-                  onChange={(e) => changeRole(p.id, e.target.value)}
-                >
-                  {ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
-                </select>
-              </td>
-            </tr>
-          ))}
+          {list.map((p) => {
+            const targetIsPrivileged = p.role === "admin" || p.role === "superadmin";
+            const canEdit = iAmSuperadmin || !targetIsPrivileged;
+            return (
+              <tr key={p.id}>
+                <td className="p-2.5 border-b border-border text-sm">{p.name || "-"}</td>
+                <td className="p-2.5 border-b border-border text-sm">{p.email}</td>
+                <td className="p-2.5 border-b border-border">
+                  {canEdit ? (
+                    <select
+                      className="border border-border rounded-lg px-2 py-1 text-sm"
+                      value={p.role}
+                      onChange={(e) => changeRole(p.id, e.target.value)}
+                    >
+                      {selectableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
+                    </select>
+                  ) : (
+                    <span className="text-sm text-muted" title="superadmin만 admin/superadmin 계정의 권한을 변경할 수 있습니다">
+                      {p.role} 🔒
+                    </span>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
           {list.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
       </table>

@@ -93,6 +93,10 @@ council-site/
 - **읽기**: 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물)는 로그인 여부와 무관하게 누구나 열람.
   Q&A 비공개 질문은 작성자 본인과 `admin` 이상만 조회 가능(행 단위로 DB가 강제).
 - **쓰기**: `editor` 이상만 콘텐츠 생성/수정/삭제, `admin` 이상만 회원 role 변경.
+- **role 승격 제한**: `admin`은 다른 사용자를 `editor`/`student`로 조정할 수 있지만, 자기 자신을 포함해
+  누구도 `admin`/`superadmin`으로 승격시킬 수 없고, 이미 `admin`/`superadmin`인 계정은 아예 수정할 수
+  없습니다(`superadmin`만 가능). `profiles_update_self` 정책만으로는 본인 row의 role 변경을 막을 수
+  없어서, `protect_profile_fields` 트리거가 실제 방어선 역할을 합니다.
 - 모든 정책은 Postgres RLS로 강제되므로, 프론트엔드 코드를 우회해도 DB 레벨에서 차단됩니다.
 - `/admin` 경로는 `middleware.ts`(1차) + `admin/layout.tsx`(2차)에서 이중으로 role을 확인합니다.
 

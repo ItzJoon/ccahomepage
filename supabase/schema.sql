@@ -274,6 +274,14 @@ returns boolean as $$
   );
 $$ language sql stable security definer;
 
+create or replace function is_superadmin()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role = 'superadmin'
+  );
+$$ language sql stable security definer;
+
 -- profiles: 본인 열람/수정, 관리자는 전체 열람, superadmin만 role 변경(앱 로직에서 별도 제한 권장)
 drop policy if exists "profiles_select_self_or_admin" on profiles;
 create policy "profiles_select_self_or_admin" on profiles for select
@@ -281,10 +289,12 @@ create policy "profiles_select_self_or_admin" on profiles for select
 drop policy if exists "profiles_update_self" on profiles;
 create policy "profiles_update_self" on profiles for update
   using (auth.uid() = id);
--- admin/superadmin은 다른 사용자의 role을 변경할 수 있음 (회원·권한 관리 화면에서 사용)
+-- admin/superadmin은 다른 사용자의 role을 변경할 수 있음 (회원·권한 관리 화면에서 사용).
+-- 단, admin(슈퍼어드민 아님)은 이미 admin/superadmin인 계정은 아예 건드릴 수 없음
+-- (권한 상승/탈취를 막기 위해 최상위 계정은 superadmin만 관리)
 drop policy if exists "profiles_update_admin" on profiles;
 create policy "profiles_update_admin" on profiles for update
-  using (is_admin());
+  using (is_admin() and (is_superadmin() or role not in ('admin', 'superadmin')));
 
 -- 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물): 누구나 열람, 관리자만 쓰기
 drop policy if exists "organizations_read_all" on organizations;
@@ -414,13 +424,22 @@ end $$;
 alter table profiles add column if not exists nickname text;
 alter table profiles add column if not exists bio text;
 
--- 학생이 본인 profiles row를 수정할 때 email/role은 절대 바뀌지 않도록 트리거로 강제.
--- (RLS의 USING 절만으로는 UPDATE 시 "새 값"을 막지 못하므로 이중 방어 차원의 트리거)
+-- 학생/편집자가 본인 profiles row를 수정할 때 email/role은 절대 바뀌지 않도록,
+-- 그리고 admin(슈퍼어드민 아님)이 자기 자신을 포함해 누구든 admin/superadmin으로
+-- 승격시키지 못하도록 트리거로 강제한다.
+-- (RLS의 USING 절만으로는 UPDATE 시 "새 값"을 막지 못하므로 이중 방어 차원의 트리거.
+--  profiles_update_self 정책은 본인 row를 auth.uid()=id 조건만으로 수정 허용하므로,
+--  admin이 본인 row의 role을 바로 'superadmin'으로 바꿔도 RLS만으로는 막을 수 없다.)
 create or replace function protect_profile_fields()
 returns trigger as $$
 begin
   if not is_admin() then
+    -- student/editor: email, role 변경 불가
     new.email := old.email;
+    new.role := old.role;
+  elsif not is_superadmin() and new.role in ('admin', 'superadmin') and new.role <> old.role then
+    -- admin(슈퍼어드민 아님)은 자기 자신을 포함해 누구도 admin/superadmin으로 승격시킬 수 없음
+    -- (admin -> editor/student로 강등시키는 것은 계속 허용)
     new.role := old.role;
   end if;
   return new;
