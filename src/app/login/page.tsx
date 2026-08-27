@@ -39,12 +39,10 @@ export default function LoginPage() {
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
       <div className="bg-white border border-border rounded-2xl p-8 max-w-sm w-full text-center">
-        <div className="font-serif font-bold text-lg text-navy mb-1 flex items-center justify-center gap-2">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gold text-white font-black">
-            學
-          </span>
-          학생자치회 로그인
-        </div>
+        <div className="font-bold text-lg text-navy mb-1 flex items-center justify-center gap-2">
+  <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white" />
+  학생자치회 로그인
+</div>
         <p className="text-muted text-sm my-3.5">
           Google 계정 또는 학교 이메일로 로그인하세요.
         </p>
