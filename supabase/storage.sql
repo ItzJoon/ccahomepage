@@ -9,11 +9,13 @@ values ('attachments', 'attachments', true)
 on conflict (id) do nothing;
 
 -- 공개 읽기: 누구나 첨부파일 다운로드 가능 (학생용 사이트에서 로그인 없이도 열람)
+drop policy if exists "attachments_bucket_public_read" on storage.objects;
 create policy "attachments_bucket_public_read"
 on storage.objects for select
 using (bucket_id = 'attachments');
 
 -- 업로드: editor 이상만 가능
+drop policy if exists "attachments_bucket_insert_editor" on storage.objects;
 create policy "attachments_bucket_insert_editor"
 on storage.objects for insert
 with check (
@@ -22,10 +24,12 @@ with check (
 );
 
 -- 수정/삭제: editor 이상만 가능
+drop policy if exists "attachments_bucket_update_editor" on storage.objects;
 create policy "attachments_bucket_update_editor"
 on storage.objects for update
 using (bucket_id = 'attachments' and public.is_editor_or_above());
 
+drop policy if exists "attachments_bucket_delete_editor" on storage.objects;
 create policy "attachments_bucket_delete_editor"
 on storage.objects for delete
 using (bucket_id = 'attachments' and public.is_editor_or_above());
@@ -35,6 +39,7 @@ insert into storage.buckets (id, name, public)
 values ('profile-photos', 'profile-photos', true)
 on conflict (id) do nothing;
 
+drop policy if exists "profile_photos_public_read" on storage.objects;
 create policy "profile_photos_public_read"
 on storage.objects for select
 using (bucket_id = 'profile-photos');
@@ -46,6 +51,7 @@ drop policy if exists "profile_photos_delete_editor" on storage.objects;
 
 -- 학생 본인은 자기 user_id 폴더(`{user_id}/파일명`)에만 업로드/수정/삭제 가능,
 -- editor 이상은 구성원 카드용 사진 등 폴더 제한 없이 관리 가능.
+drop policy if exists "profile_photos_insert_self_or_editor" on storage.objects;
 create policy "profile_photos_insert_self_or_editor"
 on storage.objects for insert
 with check (
@@ -53,6 +59,7 @@ with check (
   and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
 );
 
+drop policy if exists "profile_photos_update_self_or_editor" on storage.objects;
 create policy "profile_photos_update_self_or_editor"
 on storage.objects for update
 using (
@@ -60,6 +67,7 @@ using (
   and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
 );
 
+drop policy if exists "profile_photos_delete_self_or_editor" on storage.objects;
 create policy "profile_photos_delete_self_or_editor"
 on storage.objects for delete
 using (
