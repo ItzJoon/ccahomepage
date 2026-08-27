@@ -117,10 +117,23 @@ create table if not exists rules (
   updated_at timestamptz not null default now()
 );
 
-alter table attachments
-  add constraint attachments_rule_fk foreign key (rule_id) references rules(id) on delete cascade;
-alter table attachments
-  add constraint attachments_event_fk foreign key (event_id) references events(id) on delete cascade;
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'attachments_rule_fk'
+  ) then
+    alter table attachments
+      add constraint attachments_rule_fk foreign key (rule_id) references rules(id) on delete cascade;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'attachments_event_fk'
+  ) then
+    alter table attachments
+      add constraint attachments_event_fk foreign key (event_id) references events(id) on delete cascade;
+  end if;
+end $$;
 
 -- ------------------------------------------------------------
 -- 6. Q&A
