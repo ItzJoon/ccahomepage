@@ -275,58 +275,87 @@ returns boolean as $$
 $$ language sql stable security definer;
 
 -- profiles: 본인 열람/수정, 관리자는 전체 열람, superadmin만 role 변경(앱 로직에서 별도 제한 권장)
+drop policy if exists "profiles_select_self_or_admin" on profiles;
 create policy "profiles_select_self_or_admin" on profiles for select
   using (auth.uid() = id or is_admin());
+drop policy if exists "profiles_update_self" on profiles;
 create policy "profiles_update_self" on profiles for update
   using (auth.uid() = id);
 -- admin/superadmin은 다른 사용자의 role을 변경할 수 있음 (회원·권한 관리 화면에서 사용)
+drop policy if exists "profiles_update_admin" on profiles;
 create policy "profiles_update_admin" on profiles for update
   using (is_admin());
 
 -- 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물): 누구나 열람, 관리자만 쓰기
+drop policy if exists "organizations_read_all" on organizations;
 create policy "organizations_read_all" on organizations for select using (true);
+drop policy if exists "organizations_write_admin" on organizations;
 create policy "organizations_write_admin" on organizations for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "members_read_all" on members;
 create policy "members_read_all" on members for select using (true);
+drop policy if exists "members_write_admin" on members;
 create policy "members_write_admin" on members for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "posts_read_published" on posts;
 create policy "posts_read_published" on posts for select
   using (status = 'published' or is_editor_or_above());
+drop policy if exists "posts_write_admin" on posts;
 create policy "posts_write_admin" on posts for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "attachments_read_all" on attachments;
 create policy "attachments_read_all" on attachments for select using (true);
+drop policy if exists "attachments_write_admin" on attachments;
 create policy "attachments_write_admin" on attachments for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "events_read_all" on events;
 create policy "events_read_all" on events for select using (true);
+drop policy if exists "events_write_admin" on events;
 create policy "events_write_admin" on events for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "rules_read_all" on rules;
 create policy "rules_read_all" on rules for select using (true);
+drop policy if exists "rules_write_admin" on rules;
 create policy "rules_write_admin" on rules for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "pages_read_published" on pages;
 create policy "pages_read_published" on pages for select using (is_published or is_editor_or_above());
+drop policy if exists "pages_write_admin" on pages;
 create policy "pages_write_admin" on pages for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "menus_read_all" on menus;
 create policy "menus_read_all" on menus for select using (true);
+drop policy if exists "menus_write_admin" on menus;
 create policy "menus_write_admin" on menus for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "blocks_read_all" on blocks;
 create policy "blocks_read_all" on blocks for select using (true);
+drop policy if exists "blocks_write_admin" on blocks;
 create policy "blocks_write_admin" on blocks for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "main_blocks_read_all" on main_blocks;
 create policy "main_blocks_read_all" on main_blocks for select using (true);
+drop policy if exists "main_blocks_write_admin" on main_blocks;
 create policy "main_blocks_write_admin" on main_blocks for all using (is_editor_or_above()) with check (is_editor_or_above());
 
 -- 알림: 누구나 열람, 관리자만 발송
+drop policy if exists "notifications_read_all" on notifications;
 create policy "notifications_read_all" on notifications for select using (true);
+drop policy if exists "notifications_write_admin" on notifications;
 create policy "notifications_write_admin" on notifications for insert with check (is_editor_or_above());
 
 -- Q&A: 공개 질문은 누구나, 비공개 질문은 작성자 본인 + 관리자만. 로그인 사용자는 질문 작성 가능
+drop policy if exists "questions_read" on questions;
 create policy "questions_read" on questions for select
   using (is_private = false or auth.uid() = user_id or is_admin());
+drop policy if exists "questions_insert_own" on questions;
 create policy "questions_insert_own" on questions for insert
   with check (auth.uid() = user_id);
+drop policy if exists "questions_update_admin" on questions;
 create policy "questions_update_admin" on questions for update
   using (is_admin());
 
+drop policy if exists "answers_read" on answers;
 create policy "answers_read" on answers for select
   using (
     exists (
@@ -335,35 +364,45 @@ create policy "answers_read" on answers for select
       and (q.is_private = false or q.user_id = auth.uid() or is_admin())
     )
   );
+drop policy if exists "answers_write_admin" on answers;
 create policy "answers_write_admin" on answers for insert with check (is_admin());
 
 -- 접속 기록: 본인 것만 읽기/쓰기, 관리자는 전체 열람(집계용)
+drop policy if exists "attendance_select_self_or_admin" on user_attendance;
 create policy "attendance_select_self_or_admin" on user_attendance for select
   using (auth.uid() = user_id or is_admin());
+drop policy if exists "attendance_upsert_self" on user_attendance;
 create policy "attendance_upsert_self" on user_attendance for insert
   with check (auth.uid() = user_id);
+drop policy if exists "attendance_update_self" on user_attendance;
 create policy "attendance_update_self" on user_attendance for update
   using (auth.uid() = user_id);
 
 -- 감사 로그: 관리자만 열람, 시스템(서버)에서 기록
+drop policy if exists "audit_logs_admin_read" on audit_logs;
 create policy "audit_logs_admin_read" on audit_logs for select using (is_admin());
+drop policy if exists "audit_logs_insert_admin" on audit_logs;
 create policy "audit_logs_insert_admin" on audit_logs for insert with check (is_editor_or_above());
 
 -- ============================================================
 -- Realtime 발행 (관리자 변경 → 학생 화면 즉시 반영에 사용)
 -- ============================================================
-alter publication supabase_realtime add table posts;
-alter publication supabase_realtime add table events;
-alter publication supabase_realtime add table notifications;
-alter publication supabase_realtime add table questions;
-alter publication supabase_realtime add table answers;
-alter publication supabase_realtime add table organizations;
-alter publication supabase_realtime add table members;
-alter publication supabase_realtime add table rules;
-alter publication supabase_realtime add table pages;
-alter publication supabase_realtime add table main_blocks;
-alter publication supabase_realtime add table attachments;
-alter publication supabase_realtime add table profiles;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'posts','events','notifications','questions','answers','organizations',
+    'members','rules','pages','main_blocks','attachments','profiles'
+  ] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
 
 -- ============================================================
 -- 기능 추가분 (기존 DB에 반영하려면 이 블록만 실행해도 됩니다. 전체 재실행도 안전합니다)
@@ -433,14 +472,30 @@ create table if not exists user_badges (
 alter table badges enable row level security;
 alter table user_badges enable row level security;
 
+drop policy if exists "badges_read_all" on badges;
 create policy "badges_read_all" on badges for select using (true);
+drop policy if exists "badges_write_admin" on badges;
 create policy "badges_write_admin" on badges for all using (is_editor_or_above()) with check (is_editor_or_above());
 
+drop policy if exists "user_badges_select_self_or_admin" on user_badges;
 create policy "user_badges_select_self_or_admin" on user_badges for select
   using (auth.uid() = user_id or is_admin());
+drop policy if exists "user_badges_insert_self" on user_badges;
 create policy "user_badges_insert_self" on user_badges for insert
   with check (auth.uid() = user_id);
+drop policy if exists "user_badges_delete_admin" on user_badges;
 create policy "user_badges_delete_admin" on user_badges for delete using (is_admin());
 
-alter publication supabase_realtime add table badges;
-alter publication supabase_realtime add table user_badges;
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['badges','user_badges'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;
