@@ -3,27 +3,40 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import type { Member, Organization } from "@/lib/types";
+import type { Member, Organization, Profile } from "@/lib/types";
 
-const empty = { org_id: "", name: "", position: "", bio: "", order_index: 1 };
+type MemberRow = Member & { profile: { profile_image: string | null } | null };
+
+const empty = { org_id: "", user_id: "", name: "", position: "", bio: "", order_index: 1 };
 
 export default function AdminMembersPage() {
   const supabase = createClient();
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
-  const { rows: members, reload } = useRealtimeList<Member>("members", { orderBy: { column: "order_index" } });
+  const { rows: members, reload } = useRealtimeList<MemberRow>("members", {
+    select: "*, profile:profiles(profile_image)",
+    orderBy: { column: "order_index" },
+  });
+  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [accountQuery, setAccountQuery] = useState("");
 
-  const startNew = () => { setForm({ ...empty, org_id: orgs[0]?.id || "" }); setEditing("new"); };
-  const startEdit = (m: Member) => {
-    setForm({ org_id: m.org_id, name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index });
+  const startNew = () => {
+    setForm({ ...empty, org_id: orgs[0]?.id || "" });
+    setAccountQuery("");
+    setEditing("new");
+  };
+  const startEdit = (m: MemberRow) => {
+    setForm({ org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index });
+    setAccountQuery("");
     setEditing(m.id);
   };
 
   const save = async () => {
     if (!form.name.trim() || !form.org_id) return;
-    if (editing === "new") await supabase.from("members").insert(form);
-    else if (editing) await supabase.from("members").update(form).eq("id", editing);
+    const payload = { ...form, user_id: form.user_id || null };
+    if (editing === "new") await supabase.from("members").insert(payload);
+    else if (editing) await supabase.from("members").update(payload).eq("id", editing);
     setEditing(null);
     reload();
   };
@@ -35,6 +48,25 @@ export default function AdminMembersPage() {
   };
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
+  const displayName = (p: Profile) => p.nickname || p.name || p.email;
+
+  const linkAccount = (p: Profile) => {
+    setForm((f) => ({ ...f, user_id: p.id, name: displayName(p) }));
+    setAccountQuery("");
+  };
+  const unlinkAccount = () => setForm((f) => ({ ...f, user_id: "" }));
+
+  const linkedProfile = profiles.find((p) => p.id === form.user_id) || null;
+  const filteredProfiles = accountQuery.trim()
+    ? profiles
+        .filter(
+          (p) =>
+            (p.nickname || "").includes(accountQuery) ||
+            (p.name || "").includes(accountQuery) ||
+            p.email.includes(accountQuery)
+        )
+        .slice(0, 8)
+    : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
@@ -46,6 +78,7 @@ export default function AdminMembersPage() {
         <table className="w-full border-collapse bg-white">
           <thead>
             <tr>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-14">사진</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">직책</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">소속</th>
@@ -53,17 +86,29 @@ export default function AdminMembersPage() {
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => (
-              <tr key={m.id} onClick={() => startEdit(m)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === m.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">{m.name}</td>
-                <td className="p-2.5 border-b border-border text-sm">{m.position}</td>
-                <td className="p-2.5 border-b border-border text-sm">{orgName(m.org_id)}</td>
-                <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(m.id); }}>삭제</button>
-                </td>
-              </tr>
-            ))}
-            {members.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">구성원이 없습니다.</td></tr>}
+            {members.map((m) => {
+              const photo = m.photo_url || m.profile?.profile_image;
+              return (
+                <tr key={m.id} onClick={() => startEdit(m)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === m.id ? "bg-[#EAF0FB]" : ""}`}>
+                  <td className="p-2.5 border-b border-border">
+                    {photo ? (
+                      <img src={photo} alt={m.name} className="w-8 h-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-xs font-bold">
+                        {m.name[0]}
+                      </div>
+                    )}
+                  </td>
+                  <td className="p-2.5 border-b border-border text-sm">{m.name}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{m.position}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{orgName(m.org_id)}</td>
+                  <td className="p-2.5 border-b border-border">
+                    <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(m.id); }}>삭제</button>
+                  </td>
+                </tr>
+              );
+            })}
+            {members.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">구성원이 없습니다.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -74,6 +119,52 @@ export default function AdminMembersPage() {
           <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
+
+          <label className="text-xs font-bold text-muted mt-2">계정 연결 (선택 — 마이페이지 프로필 사진·이름 연동)</label>
+          {linkedProfile ? (
+            <div className="flex items-center gap-2 border border-border rounded-lg px-2.5 py-2">
+              {linkedProfile.profile_image ? (
+                <img src={linkedProfile.profile_image} alt="" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-xs font-bold shrink-0">
+                  {displayName(linkedProfile)[0]}
+                </div>
+              )}
+              <div className="flex-1 min-w-0 text-sm truncate">{displayName(linkedProfile)}</div>
+              <button type="button" onClick={unlinkAccount} className="text-red text-xs font-bold shrink-0">연결 해제</button>
+            </div>
+          ) : (
+            <div className="relative">
+              <input
+                className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
+                placeholder="이름 또는 이메일로 검색"
+                value={accountQuery}
+                onChange={(e) => setAccountQuery(e.target.value)}
+              />
+              {filteredProfiles.length > 0 && (
+                <div className="absolute left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
+                  {filteredProfiles.map((p) => (
+                    <button
+                      type="button"
+                      key={p.id}
+                      onClick={() => linkAccount(p)}
+                      className="flex items-center gap-2 w-full text-left px-2.5 py-2 text-sm hover:bg-[#F2F4F8]"
+                    >
+                      {p.profile_image ? (
+                        <img src={p.profile_image} alt="" className="w-6 h-6 rounded-full object-cover" />
+                      ) : (
+                        <div className="w-6 h-6 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                          {displayName(p)[0]}
+                        </div>
+                      )}
+                      <span className="truncate">{displayName(p)}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           <label className="text-xs font-bold text-muted mt-2">이름</label>
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">직책</label>

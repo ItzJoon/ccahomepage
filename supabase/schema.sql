@@ -499,3 +499,14 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ------------------------------------------------------------
+-- 기능: 구성원 관리에서 로그인 계정 선택(연동)
+-- ------------------------------------------------------------
+-- 구성원 관리(/admin/members)에서 조직 구성원을 실제 로그인 계정과 연결할 때
+-- 계정 목록(이름/이메일)을 검색할 수 있어야 하는데, 기존 profiles select 정책은
+-- 본인 또는 admin/superadmin만 전체 열람이 가능해 editor는 자기 자신만 보였다.
+-- editor 이상도 계정을 검색/연동할 수 있도록 select 정책을 하나 추가한다.
+drop policy if exists "profiles_select_editor_or_above" on profiles;
+create policy "profiles_select_editor_or_above" on profiles for select
+  using (is_editor_or_above());
