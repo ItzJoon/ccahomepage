@@ -1,0 +1,47 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700;900&family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+:root {
+  --navy: #16233f;
+  --blue: #2c4a7c;
+  --red: #c1272d;
+  --gold: #b8790f;
+  --teal: #1e8f6f;
+}
+
+body {
+  font-family: "Noto Sans KR", -apple-system, sans-serif;
+  color: var(--navy);
+  background: #f7f8fb;
+}
+
+h1, h2, h3 {
+  font-family: "Noto Serif KR", serif;
+}
+
+/* 조직/카테고리 배지 - 리본형 시그니처 요소 */
+.badge {
+  display: inline-block;
+  padding: 3px 10px 3px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 8px 100%, 0 60%);
+}
+.badge-navy { background: var(--navy); }
+.badge-teal { background: var(--teal); }
+.badge-red { background: var(--red); }
+.badge-gold { background: var(--gold); }
+
+.pin {
+  display: inline-block;
+  background: var(--red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
