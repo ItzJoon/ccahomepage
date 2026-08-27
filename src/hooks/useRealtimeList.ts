@@ -1,23 +1,28 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /**
  * 특정 테이블을 초기 로드 + Realtime 구독으로 항상 최신 상태로 유지하는 훅.
- * 관리자 사이트에서 INSERT/UPDATE/DELETE 하면 이 훅을 쓰는 모든 학생 화면에 즉시 반영됩니다.
+ * 같은 테이블을 화면 안에서 여러 번 구독해도(예: 홈에서 posts를 공지용/뉴스용으로 2번)
+ * 채널 이름이 서로 겹치지 않도록 훅 인스턴스마다 고유한 채널 이름을 사용합니다.
  */
 export function useRealtimeList<T extends { id: string }>(
   table: string,
   options?: {
     select?: string;
     orderBy?: { column: string; ascending?: boolean };
-    filter?: (query: any) => any; // supabase query builder에 .eq() 등을 체이닝
+    filter?: (query: any) => any;
   }
 ) {
   const [rows, setRows] = useState<T[]>([]);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
+
+  const channelNameRef = useRef(
+    `${table}-${Math.random().toString(36).slice(2)}-${Date.now()}`
+  );
 
   const load = useCallback(async () => {
     let query = supabase.from(table).select(options?.select ?? "*");
@@ -33,15 +38,18 @@ export function useRealtimeList<T extends { id: string }>(
   }, [table]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    let active = true;
     load();
+
     const channel = supabase
-      .channel(`realtime:${table}`)
+      .channel(channelNameRef.current)
       .on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        // 변경이 생기면 간단히 다시 불러옵니다 (목록 규모가 작은 학생회 사이트에 적합한 전략)
-        load();
+        if (active) load();
       })
       .subscribe();
+
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
   }, [load, table]); // eslint-disable-line react-hooks/exhaustive-deps
