@@ -351,3 +351,32 @@ alter publication supabase_realtime add table pages;
 alter publication supabase_realtime add table main_blocks;
 alter publication supabase_realtime add table attachments;
 alter publication supabase_realtime add table profiles;
+
+-- ============================================================
+-- 기능 추가분 (기존 DB에 반영하려면 이 블록만 실행해도 됩니다. 전체 재실행도 안전합니다)
+-- ============================================================
+
+-- ------------------------------------------------------------
+-- 기능 2. 마이페이지 프로필 설정
+-- ------------------------------------------------------------
+alter table profiles add column if not exists nickname text;
+alter table profiles add column if not exists bio text;
+
+-- 학생이 본인 profiles row를 수정할 때 email/role은 절대 바뀌지 않도록 트리거로 강제.
+-- (RLS의 USING 절만으로는 UPDATE 시 "새 값"을 막지 못하므로 이중 방어 차원의 트리거)
+create or replace function protect_profile_fields()
+returns trigger as $$
+begin
+  if not is_admin() then
+    new.email := old.email;
+    new.role := old.role;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists before_profile_update on profiles;
+create trigger before_profile_update
+  before update on profiles
+  for each row execute procedure protect_profile_fields();
+

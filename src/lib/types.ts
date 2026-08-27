@@ -4,6 +4,8 @@ export interface Profile {
   id: string;
   email: string;
   name: string | null;
+  nickname: string | null;
+  bio: string | null;
   role: Role;
   profile_image: string | null;
   created_at: string;

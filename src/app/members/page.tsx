@@ -17,7 +17,8 @@ export default function MembersPage() {
   const { rows: orgs } = useRealtimeList<Organization>("organizations", {
     orderBy: { column: "order_index" },
   });
-  const { rows: members } = useRealtimeList<Member>("members", {
+  const { rows: members } = useRealtimeList<Member & { profile: { profile_image: string | null } | null }>("members", {
+    select: "*, profile:profiles(profile_image)",
     orderBy: { column: "order_index" },
   });
   const [filter, setFilter] = useState("전체");
@@ -43,14 +44,24 @@ export default function MembersPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
         {list.map((m) => {
           const org = orgById[m.org_id];
+          const photo = m.photo_url || m.profile?.profile_image;
           return (
             <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
-              <div
-                className="rounded-full text-white flex items-center justify-center font-bold mx-auto mb-2.5"
-                style={{ background: COLOR_VAR[org?.color] || COLOR_VAR.navy, width: 52, height: 52 }}
-              >
-                {m.name[0]}
-              </div>
+              {photo ? (
+                <img
+                  src={photo}
+                  alt={m.name}
+                  className="rounded-full object-cover mx-auto mb-2.5"
+                  style={{ width: 52, height: 52 }}
+                />
+              ) : (
+                <div
+                  className="rounded-full text-white flex items-center justify-center font-bold mx-auto mb-2.5"
+                  style={{ background: COLOR_VAR[org?.color] || COLOR_VAR.navy, width: 52, height: 52 }}
+                >
+                  {m.name[0]}
+                </div>
+              )}
               <div className="font-bold">{m.name}</div>
               <div className="text-blue text-sm mb-1">{m.position}</div>
               {org && <Badge color={org.color}>{org.name}</Badge>}

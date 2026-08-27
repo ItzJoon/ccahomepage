@@ -21,7 +21,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   학생자치회 관리자
 </Link>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-[#C9D2E3]">{profile.name || profile.email} · {profile.role}</span>
+            <span className="text-xs text-[#C9D2E3]">{profile.nickname || profile.name || profile.email} · {profile.role}</span>
             <Link href="/" className="text-sm px-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10">
               학생 화면 미리보기
             </Link>

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAttendance } from "@/hooks/useAttendance";
 import SectionTitle from "@/components/SectionTitle";
+import type { Profile } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -14,12 +15,63 @@ function fmt(d: string) {
 export default function MyPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [nickname, setNickname] = useState("");
+  const [bio, setBio] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedMsg, setSavedMsg] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [photoError, setPhotoError] = useState<string | null>(null);
+
+  const { streak, history, checkedToday, checkIn, loading } = useAttendance(userId ?? null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, [supabase]);
 
-  const { streak, history, checkedToday, checkIn, loading } = useAttendance(userId ?? null);
+  const loadProfile = useCallback(async () => {
+    if (!userId) return;
+    const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (data) {
+      setProfile(data as Profile);
+      setNickname(data.nickname ?? "");
+      setBio(data.bio ?? "");
+    }
+  }, [userId, supabase]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  const saveProfile = async () => {
+    if (!userId) return;
+    setSaving(true);
+    await supabase
+      .from("profiles")
+      .update({ nickname: nickname.trim() || null, bio: bio.trim() || null })
+      .eq("id", userId);
+    setSaving(false);
+    setSavedMsg(true);
+    setTimeout(() => setSavedMsg(false), 2000);
+    loadProfile();
+  };
+
+  const uploadPhoto = async (file: File) => {
+    if (!userId) return;
+    setUploading(true);
+    setPhotoError(null);
+    const path = `${userId}/${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("profile-photos").upload(path, file);
+    if (uploadError) {
+      setPhotoError(uploadError.message);
+      setUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("profile-photos").getPublicUrl(path);
+    await supabase.from("profiles").update({ profile_image: pub.publicUrl }).eq("id", userId);
+    await loadProfile();
+    setUploading(false);
+  };
 
   if (userId === undefined) return null;
   if (userId === null) {
@@ -36,7 +88,8 @@ export default function MyPage() {
   return (
     <div>
       <SectionTitle eyebrow="MY PAGE" title="마이페이지" />
-      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4">
+
+      <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 mb-4">
         <div className="bg-white border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
           <div className="text-muted text-sm">연속 접속일수</div>
@@ -58,6 +111,61 @@ export default function MyPage() {
             ))}
             {history.length === 0 && <div className="text-muted text-center py-6 text-sm">방문 기록이 없습니다.</div>}
           </ul>
+        </div>
+      </div>
+
+      <div className="bg-white border border-border rounded-2xl p-5">
+        <div className="text-xs font-bold tracking-widest text-blue uppercase mb-1">PROFILE</div>
+        <h3 className="mb-3">프로필 설정</h3>
+        <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-4 items-start">
+          <div className="flex flex-col items-center gap-2">
+            {profile?.profile_image ? (
+              <img src={profile.profile_image} alt="프로필 사진" className="w-24 h-24 rounded-full object-cover border border-border" />
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-navy text-white flex items-center justify-center font-bold text-2xl">
+                {(profile?.nickname || profile?.name || profile?.email || "?")[0]}
+              </div>
+            )}
+            <label className="text-xs font-bold border border-border rounded-lg px-3 py-1.5 cursor-pointer bg-white text-center">
+              {uploading ? "업로드 중…" : "사진 변경"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) uploadPhoto(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {photoError && <span className="text-red text-xs text-center">{photoError}</span>}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-muted">표시 이름 (닉네임)</label>
+            <input
+              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              value={nickname}
+              maxLength={20}
+              placeholder={profile?.name || "닉네임을 입력하세요"}
+              onChange={(e) => setNickname(e.target.value)}
+            />
+            <label className="text-xs font-bold text-muted mt-2">자기소개 한 줄</label>
+            <input
+              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              value={bio}
+              maxLength={60}
+              placeholder="한 줄 소개를 입력하세요"
+              onChange={(e) => setBio(e.target.value)}
+            />
+            <div className="flex items-center gap-2 mt-3">
+              <button onClick={saveProfile} disabled={saving} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2">
+                {saving ? "저장 중…" : "저장"}
+              </button>
+              {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}
+            </div>
+          </div>
         </div>
       </div>
     </div>

@@ -79,6 +79,8 @@ council-site/
 | `main_blocks` | 홈 화면 블록(공지/일정/뉴스/빠른메뉴) 노출 여부·순서 |
 | `audit_logs` | 관리자 작업 감사 로그 |
 
+`profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼이 추가되었습니다.
+
 전체 컬럼 정의와 관계는 `supabase/schema.sql`을 참고하세요.
 
 ### 권한 체계 (RLS)
@@ -170,7 +172,18 @@ npm run dev
   `npm audit`로 최신 상태를 확인하고, 필요하면 Next 15(App Router 비동기 API 변경 등 마이그레이션
   필요)로 업그레이드를 검토하세요.
 
-## 7. 향후 확장
+## 7. 마이페이지 프로필 설정
+
+- `/mypage`에서 학생이 직접 표시 이름(닉네임), 자기소개 한 줄, 프로필 사진을 수정할 수 있습니다.
+- 프로필 사진은 `profile-photos` Storage 버킷의 `{내 user_id}/파일명` 경로에 업로드되고,
+  `profiles.profile_image`에 공개 URL이 저장됩니다. 구성원 소개(`/members`)에서 학생회 구성원으로
+  등록된 계정은 이 사진이 자동으로 카드에 표시됩니다(별도로 등록한 `members.photo_url`이 있으면 그게 우선).
+- `email`, `role`은 이 화면에서 수정할 수 없고, DB 트리거(`protect_profile_fields`)로 학생이 직접
+  API를 호출해도 절대 바뀌지 않도록 서버 단에서 막아둡니다. 관리자는 기존처럼 `/admin/users`에서 role을 변경합니다.
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능 2. 마이페이지 프로필 설정" 블록과
+  `supabase/storage.sql`의 `profile-photos` 정책 부분을 다시 실행하세요.
+
+## 8. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이
