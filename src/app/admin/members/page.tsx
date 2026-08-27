@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import AccountPicker, { accountDisplayName } from "@/components/admin/AccountPicker";
 import type { Member, Organization, Profile } from "@/lib/types";
 
 type MemberRow = Member & { profile: { profile_image: string | null } | null };
@@ -19,16 +20,13 @@ export default function AdminMembersPage() {
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
-  const [accountQuery, setAccountQuery] = useState("");
 
   const startNew = () => {
     setForm({ ...empty, org_id: orgs[0]?.id || "" });
-    setAccountQuery("");
     setEditing("new");
   };
   const startEdit = (m: MemberRow) => {
     setForm({ org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index });
-    setAccountQuery("");
     setEditing(m.id);
   };
 
@@ -48,25 +46,10 @@ export default function AdminMembersPage() {
   };
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
-  const displayName = (p: Profile) => p.nickname || p.name || p.email;
 
-  const linkAccount = (p: Profile) => {
-    setForm((f) => ({ ...f, user_id: p.id, name: displayName(p) }));
-    setAccountQuery("");
-  };
+  const linkAccount = (p: Profile) => setForm((f) => ({ ...f, user_id: p.id, name: accountDisplayName(p) }));
   const unlinkAccount = () => setForm((f) => ({ ...f, user_id: "" }));
-
   const linkedProfile = profiles.find((p) => p.id === form.user_id) || null;
-  const filteredProfiles = accountQuery.trim()
-    ? profiles
-        .filter(
-          (p) =>
-            (p.nickname || "").includes(accountQuery) ||
-            (p.name || "").includes(accountQuery) ||
-            p.email.includes(accountQuery)
-        )
-        .slice(0, 8)
-    : [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
@@ -121,49 +104,7 @@ export default function AdminMembersPage() {
           </select>
 
           <label className="text-xs font-bold text-muted mt-2">계정 연결 (선택 — 마이페이지 프로필 사진·이름 연동)</label>
-          {linkedProfile ? (
-            <div className="flex items-center gap-2 border border-border rounded-lg px-2.5 py-2">
-              {linkedProfile.profile_image ? (
-                <img src={linkedProfile.profile_image} alt="" className="w-8 h-8 rounded-full object-cover" />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-navy text-white flex items-center justify-center text-xs font-bold shrink-0">
-                  {displayName(linkedProfile)[0]}
-                </div>
-              )}
-              <div className="flex-1 min-w-0 text-sm truncate">{displayName(linkedProfile)}</div>
-              <button type="button" onClick={unlinkAccount} className="text-red text-xs font-bold shrink-0">연결 해제</button>
-            </div>
-          ) : (
-            <div className="relative">
-              <input
-                className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
-                placeholder="이름 또는 이메일로 검색"
-                value={accountQuery}
-                onChange={(e) => setAccountQuery(e.target.value)}
-              />
-              {filteredProfiles.length > 0 && (
-                <div className="absolute left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
-                  {filteredProfiles.map((p) => (
-                    <button
-                      type="button"
-                      key={p.id}
-                      onClick={() => linkAccount(p)}
-                      className="flex items-center gap-2 w-full text-left px-2.5 py-2 text-sm hover:bg-[#F2F4F8]"
-                    >
-                      {p.profile_image ? (
-                        <img src={p.profile_image} alt="" className="w-6 h-6 rounded-full object-cover" />
-                      ) : (
-                        <div className="w-6 h-6 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                          {displayName(p)[0]}
-                        </div>
-                      )}
-                      <span className="truncate">{displayName(p)}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          <AccountPicker profiles={profiles} linkedProfile={linkedProfile} onLink={linkAccount} onUnlink={unlinkAccount} />
 
           <label className="text-xs font-bold text-muted mt-2">이름</label>
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
