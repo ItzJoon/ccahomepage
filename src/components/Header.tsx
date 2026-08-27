@@ -37,12 +37,10 @@ export default function Header({
   return (
     <header className="sticky top-0 z-20 bg-navy text-white">
       <div className="max-w-[1180px] mx-auto flex items-center gap-6 px-5 py-3 flex-wrap">
-        <Link href="/" className="font-serif font-bold text-lg flex items-center gap-2 shrink-0">
-          <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-gold text-navy font-black">
-            學
-          </span>
-          학생자치회
-        </Link>
+        <Link href="/" className="font-bold text-lg flex items-center gap-2 shrink-0">
+  <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white" />
+  학생자치회
+</Link>
         <nav className="flex gap-1 flex-wrap flex-1">
           {NAV.map((n) => (
             <Link
