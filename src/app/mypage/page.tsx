@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAttendance } from "@/hooks/useAttendance";
+import { useBadges } from "@/hooks/useBadges";
 import SectionTitle from "@/components/SectionTitle";
-import type { Profile } from "@/lib/types";
+import BadgeCelebration from "@/components/BadgeCelebration";
+import type { Profile, BadgeDef } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -22,8 +24,10 @@ export default function MyPage() {
   const [savedMsg, setSavedMsg] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
 
-  const { streak, history, checkedToday, checkIn, loading } = useAttendance(userId ?? null);
+  const { streak, history, checkedToday, checkIn, freezeCredits, loading } = useAttendance(userId ?? null);
+  const { badges, earnedIds, checkMilestones } = useBadges(userId ?? null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -73,6 +77,14 @@ export default function MyPage() {
     setUploading(false);
   };
 
+  const handleCheckIn = async () => {
+    const nextStreak = await checkIn();
+    if (nextStreak) {
+      const newly = await checkMilestones(nextStreak);
+      if (newly.length > 0) setCelebrate(newly[newly.length - 1]);
+    }
+  };
+
   if (userId === undefined) return null;
   if (userId === null) {
     return (
@@ -93,8 +105,11 @@ export default function MyPage() {
         <div className="bg-white border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
           <div className="text-muted text-sm">연속 접속일수</div>
+          {freezeCredits > 0 && (
+            <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
+          )}
           {!loading && !checkedToday && (
-            <button onClick={checkIn} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-1.5 mt-1">
+            <button onClick={handleCheckIn} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-1.5 mt-1">
               오늘 접속 체크
             </button>
           )}
@@ -111,6 +126,27 @@ export default function MyPage() {
             ))}
             {history.length === 0 && <div className="text-muted text-center py-6 text-sm">방문 기록이 없습니다.</div>}
           </ul>
+        </div>
+      </div>
+
+      <div className="bg-white border border-border rounded-2xl p-5 mb-4">
+        <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
+        <h3 className="mb-3">획득한 뱃지</h3>
+        <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
+          {badges.map((b) => {
+            const earned = earnedIds.has(b.id);
+            return (
+              <div
+                key={b.id}
+                title={`${b.label} · ${b.description ?? ""}${earned ? "" : ` (연속 ${b.streak_threshold}일 필요)`}`}
+                className={`flex flex-col items-center gap-1 text-center ${earned ? "" : "opacity-30 grayscale"}`}
+              >
+                <div className="text-3xl">{b.icon}</div>
+                <div className="text-[11px] text-muted leading-tight">{b.label}</div>
+              </div>
+            );
+          })}
+          {badges.length === 0 && <div className="text-muted text-sm col-span-full text-center py-4">등록된 뱃지가 없습니다.</div>}
         </div>
       </div>
 
@@ -168,6 +204,8 @@ export default function MyPage() {
           </div>
         </div>
       </div>
+
+      {celebrate && <BadgeCelebration badge={celebrate} onClose={() => setCelebrate(null)} />}
     </div>
   );
 }

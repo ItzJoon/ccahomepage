@@ -380,3 +380,54 @@ create trigger before_profile_update
   before update on profiles
   for each row execute procedure protect_profile_fields();
 
+-- ------------------------------------------------------------
+-- 기능 4. 연속 접속일수 보상(뱃지) 시스템
+-- ------------------------------------------------------------
+-- 스트릭 프리즈: 하루 결석해도 1회는 연속 기록을 지켜주는 지급 개수
+alter table profiles add column if not exists freeze_credits int not null default 1;
+-- 스트릭 프리즈 사용으로 채워진 날짜인지 표시 (연속 접속 유지용, 실제 방문은 아님)
+alter table user_attendance add column if not exists is_freeze boolean not null default false;
+
+-- 뱃지 정의: 관리자가 나중에 추가/수정할 수 있도록 데이터로 관리
+create table if not exists badges (
+  id uuid primary key default uuid_generate_v4(),
+  code text unique not null,
+  label text not null,
+  description text,
+  icon text not null default '🏅',
+  streak_threshold int not null,
+  order_index int not null default 0,
+  is_active boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+insert into badges (code, label, description, icon, streak_threshold, order_index) values
+  ('streak_3', '첫 발걸음', '3일 연속 접속 달성', '🔥', 3, 1),
+  ('streak_7', '일주일 개근', '7일 연속 접속 달성', '⭐', 7, 2),
+  ('streak_30', '한 달의 약속', '30일 연속 접속 달성', '🏆', 30, 3),
+  ('streak_100', '백일의 기적', '100일 연속 접속 달성', '👑', 100, 4)
+on conflict (code) do nothing;
+
+-- 사용자별 뱃지 획득 기록
+create table if not exists user_badges (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references profiles(id) on delete cascade,
+  badge_id uuid references badges(id) on delete cascade,
+  earned_at timestamptz not null default now(),
+  unique (user_id, badge_id)
+);
+
+alter table badges enable row level security;
+alter table user_badges enable row level security;
+
+create policy "badges_read_all" on badges for select using (true);
+create policy "badges_write_admin" on badges for all using (is_editor_or_above()) with check (is_editor_or_above());
+
+create policy "user_badges_select_self_or_admin" on user_badges for select
+  using (auth.uid() = user_id or is_admin());
+create policy "user_badges_insert_self" on user_badges for insert
+  with check (auth.uid() = user_id);
+create policy "user_badges_delete_admin" on user_badges for delete using (is_admin());
+
+alter publication supabase_realtime add table badges;
+alter publication supabase_realtime add table user_badges;

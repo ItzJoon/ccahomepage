@@ -46,14 +46,16 @@ council-site/
     │       ├─ qna/                  # Q&A 답변 작성
     │       ├─ notify/               # 실시간 알림 발송
     │       ├─ main-editor/          # 홈 화면 블록 노출/순서 편집
+    │       ├─ badges/               # 연속 접속 뱃지 관리 (추가/수정/비활성화)
     │       ├─ pages/                # 페이지·메뉴 빌더 (신규 메뉴 추가)
     │       ├─ users/                # 회원 권한(role) 관리
     │       └─ stats/                # 접속 통계
-    ├─ components/                 # Header, Badge, NotificationBanner, StreakBar 등
+    ├─ components/                 # Header, Badge, NotificationBanner, StreakBar, BadgeCelebration 등
     │   └─ admin/                  # FileUpload, AdminNav, PostManager
     ├─ hooks/
     │   ├─ useRealtimeList.ts      # 테이블 실시간 구독 공용 훅
-    │   └─ useAttendance.ts        # 연속 접속 체크 훅
+    │   ├─ useAttendance.ts        # 연속 접속 체크 훅 (스트릭 프리즈 포함)
+    │   └─ useBadges.ts            # 뱃지 정의/획득 조회 + 마일스톤 자동 지급 훅
     └─ lib/
         ├─ types.ts                 # 공용 타입
         └─ supabase/                # client.ts / server.ts / middleware.ts
@@ -78,8 +80,11 @@ council-site/
 | `pages` / `menus` / `blocks` | 관리자가 코딩 없이 추가하는 커스텀 페이지/메뉴 (확장용) |
 | `main_blocks` | 홈 화면 블록(공지/일정/뉴스/빠른메뉴) 노출 여부·순서 |
 | `audit_logs` | 관리자 작업 감사 로그 |
+| `badges` | 연속 접속 뱃지 정의 (코드/조건일수/아이콘, 관리자가 추가) |
+| `user_badges` | 사용자별 뱃지 획득 기록 |
 
-`profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼이 추가되었습니다.
+`profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼과 스트릭 프리즈 개수 `freeze_credits` 컬럼이 추가되었고,
+`user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼이 추가되었습니다.
 
 전체 컬럼 정의와 관계는 `supabase/schema.sql`을 참고하세요.
 
@@ -183,7 +188,20 @@ npm run dev
 - 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능 2. 마이페이지 프로필 설정" 블록과
   `supabase/storage.sql`의 `profile-photos` 정책 부분을 다시 실행하세요.
 
-## 8. 향후 확장
+## 8. 연속 접속일수 보상(뱃지) 시스템
+
+- 마이페이지와 홈 화면 스트릭 배너에서 "오늘 접속 체크"를 누르면, 연속 접속일수가 뱃지 조건(기본 3/7/30/100일)에
+  도달하는 순간 자동으로 뱃지가 지급되고 축하 모달이 뜹니다.
+- 획득한 뱃지는 마이페이지 "획득한 뱃지" 영역에서 항상 확인할 수 있고(아직 못 받은 뱃지는 흐리게 표시),
+  Supabase Realtime으로 관리자가 뱃지를 추가/수정하면 화면에 바로 반영됩니다.
+- 관리자는 `/admin/badges`에서 뱃지를 자유롭게 추가/수정/비활성화/삭제할 수 있습니다. 코드값(`code`)은
+  고유해야 하고, 비활성화하면 신규 지급만 멈추고 이미 받은 학생의 뱃지는 그대로 유지됩니다.
+- **스트릭 프리즈**: 각 학생에게 기본 1개(`profiles.freeze_credits`)가 주어지며, 하루를 건너뛰어도
+  프리즈가 남아있으면 그 하루를 자동으로 채워 연속 기록이 끊기지 않습니다(1회 소모). 추가 지급은 아직
+  전용 관리 화면이 없어 필요 시 SQL로 `update profiles set freeze_credits = n where id = '...'` 형태로 조정하세요.
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능 4. 연속 접속일수 보상(뱃지) 시스템" 블록을 실행하세요.
+
+## 9. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이

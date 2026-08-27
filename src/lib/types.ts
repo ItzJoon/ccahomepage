@@ -8,6 +8,7 @@ export interface Profile {
   bio: string | null;
   role: Role;
   profile_image: string | null;
+  freeze_credits: number;
   created_at: string;
 }
 
@@ -94,6 +95,24 @@ export interface MainBlock {
   label: string;
   is_visible: boolean;
   order_index: number;
+}
+
+export interface BadgeDef {
+  id: string;
+  code: string;
+  label: string;
+  description: string | null;
+  icon: string;
+  streak_threshold: number;
+  order_index: number;
+  is_active: boolean;
+}
+
+export interface UserBadge {
+  id: string;
+  user_id: string;
+  badge_id: string;
+  earned_at: string;
 }
 
 export interface PageDoc {

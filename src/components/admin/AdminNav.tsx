@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/qna", label: "Q&A 관리" },
   { href: "/admin/notify", label: "알림 발송" },
   { href: "/admin/main-editor", label: "메인화면 편집" },
+  { href: "/admin/badges", label: "뱃지 관리" },
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
   { href: "/admin/users", label: "회원·권한 관리" },
   { href: "/admin/stats", label: "접속 통계" },
