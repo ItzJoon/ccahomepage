@@ -20,20 +20,38 @@ const NAV = [
   { href: "/admin/stats", label: "접속 통계" },
 ];
 
+// 기존 메뉴들과 섞이지 않도록 구분선 아래에 별도 그룹으로 묶어서 보여준다.
+const ORG_ACTIVITIES_NAV = [
+  { href: "/admin/org-activities/proposals", label: "안건함" },
+  { href: "/admin/org-activities/events", label: "조직 일정" },
+  { href: "/admin/org-activities/records", label: "활동기록" },
+];
+
+function NavLink({ href, label, active }: { href: string; label: string; active: boolean }) {
+  return (
+    <Link
+      href={href}
+      className={`text-left px-3 py-2.5 rounded-lg text-sm ${
+        active ? "bg-navy text-white font-bold" : "text-navy hover:bg-[#F2F4F8]"
+      }`}
+    >
+      {label}
+    </Link>
+  );
+}
+
 export default function AdminNav() {
   const pathname = usePathname();
   return (
     <aside className="w-[190px] bg-white border-r border-border p-2.5 flex flex-col gap-0.5 shrink-0">
       {NAV.map((n) => (
-        <Link
-          key={n.href}
-          href={n.href}
-          className={`text-left px-3 py-2.5 rounded-lg text-sm ${
-            pathname === n.href ? "bg-navy text-white font-bold" : "text-navy hover:bg-[#F2F4F8]"
-          }`}
-        >
-          {n.label}
-        </Link>
+        <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} />
+      ))}
+
+      <div className="border-t border-border my-2" />
+      <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">조직 활동 관리</div>
+      {ORG_ACTIVITIES_NAV.map((n) => (
+        <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} />
       ))}
     </aside>
   );
