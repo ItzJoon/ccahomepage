@@ -597,10 +597,10 @@ alter table badges add column if not exists is_secret boolean not null default f
 -- ------------------------------------------------------------
 -- 지금은 student와 권한이 완전히 동일하다(is_admin/is_editor_or_above 둘 다
 -- teacher를 포함하지 않음). 나중에 선생님 전용 기능을 추가할 때 구분하기 위한
--- 역할이다. 기존 DB는 role 컬럼에 이미 CHECK 제약이 걸려 있으므로 다시 만든다.
-alter table profiles drop constraint if exists profiles_role_check;
-alter table profiles add constraint profiles_role_check
-  check (role in ('student','teacher','editor','admin','superadmin'));
+-- 역할이다. role 컬럼의 CHECK 제약에 'teacher'를 추가하는 부분은 바로 아래
+-- "기능: sub_editor 역할 추가" 블록에서 한 번에 처리한다(둘을 따로 나누면, 전체
+-- 파일을 처음부터 재실행할 때 이미 sub_editor role을 가진 행이 있는 상태에서
+-- 'teacher'만 포함하고 'sub_editor'는 빠진 제약이 일시적으로 걸려 실패한다).
 
 -- ------------------------------------------------------------
 -- 기능 5. 공지사항 노출 방식 선택 (배너 / 팝업)
