@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import SectionTitle from "@/components/SectionTitle";
 import BadgeCelebration from "@/components/BadgeCelebration";
+import CheckInToast from "@/components/CheckInToast";
 import type { Profile } from "@/lib/types";
 
 function fmt(d: string) {
@@ -196,12 +197,7 @@ export default function MyPage() {
         </div>
       </div>
 
-      {toast !== null && (
-        <div className="fixed bottom-5 right-5 z-40 bg-navy text-white rounded-xl px-4 py-3 shadow-lg text-sm flex items-center gap-2">
-          <span className="text-lg">🔥</span>
-          <span>오늘 접속 체크 완료! 연속 {toast}일째</span>
-        </div>
-      )}
+      {toast !== null && <CheckInToast streak={toast} />}
       {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
     </div>
   );
