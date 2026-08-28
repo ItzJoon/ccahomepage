@@ -29,6 +29,11 @@ export async function updateSession(request: NextRequest) {
           response.cookies.set({ name, value: "", ...options });
         },
       },
+      // Next.js가 fetch를 기본으로 캐싱해서, site_settings.maintenance_mode 같은 값이
+      // 바뀌어도 미들웨어가 예전 응답을 계속 재사용할 수 있다. 매 요청마다 실제 값을 보도록 강제한다.
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, cache: "no-store" }),
+      },
     }
   );
 

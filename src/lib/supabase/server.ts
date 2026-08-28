@@ -25,6 +25,11 @@ export function createClient() {
           } catch {}
         },
       },
+      // Next.js가 서버 쪽 fetch를 기본으로 캐싱하는 걸 막는다. 이게 없으면 사이트 잠금
+      // 같은 서버 사이드 값이 실제로 바뀌어도 예전 응답이 계속 재사용될 수 있다.
+      global: {
+        fetch: (input: RequestInfo | URL, init?: RequestInit) => fetch(input, { ...init, cache: "no-store" }),
+      },
     }
   );
 }
