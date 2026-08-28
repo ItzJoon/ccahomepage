@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import AccountPicker, { accountDisplayName } from "@/components/admin/AccountPicker";
@@ -27,8 +27,24 @@ export default function AdminBadgesPage() {
   const [form, setForm] = useState({ ...empty });
 
   const [grantUser, setGrantUser] = useState<Profile | null>(null);
+  const [grantUserEarnedIds, setGrantUserEarnedIds] = useState<Set<string>>(new Set());
   const [grantBadgeId, setGrantBadgeId] = useState("");
   const [grantMsg, setGrantMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    setGrantBadgeId("");
+    if (!grantUser) {
+      setGrantUserEarnedIds(new Set());
+      return;
+    }
+    supabase
+      .from("user_badges")
+      .select("badge_id")
+      .eq("user_id", grantUser.id)
+      .then(({ data }) => setGrantUserEarnedIds(new Set((data ?? []).map((d) => d.badge_id))));
+  }, [grantUser, supabase]);
+
+  const grantableBadges = [...rows].sort((a, b) => sortKey(a) - sortKey(b)).filter((b) => !grantUserEarnedIds.has(b.id));
 
   const startNew = () => {
     setForm({ ...empty, order_index: rows.length + 1 });
@@ -158,12 +174,20 @@ export default function AdminBadgesPage() {
                 className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
                 value={grantBadgeId}
                 onChange={(e) => setGrantBadgeId(e.target.value)}
+                disabled={!grantUser || grantableBadges.length === 0}
               >
-                <option value="">뱃지를 선택하세요</option>
-                {[...rows].sort((a, b) => sortKey(a) - sortKey(b)).map((b) => (
+                <option value="">
+                  {!grantUser ? "학생을 먼저 선택하세요" : grantableBadges.length === 0 ? "모든 뱃지를 이미 획득했습니다" : "뱃지를 선택하세요"}
+                </option>
+                {grantableBadges.map((b) => (
                   <option key={b.id} value={b.id}>{b.icon} {b.label}</option>
                 ))}
               </select>
+              {grantUser && (
+                <p className="text-muted text-[11px] mt-1">
+                  {grantUser.nickname || grantUser.name || grantUser.email}님이 아직 못 받은 뱃지만 표시됩니다.
+                </p>
+              )}
             </div>
             <button
               onClick={grantBadge}
