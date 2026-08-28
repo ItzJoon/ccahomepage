@@ -686,3 +686,13 @@ create policy "answers_update_editor" on answers for update using (is_editor_or_
 
 drop policy if exists "questions_update_admin" on questions;
 create policy "questions_update_admin" on questions for update using (is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 기능: Q&A 질문 삭제 (작성자 본인 + admin 이상)
+-- ------------------------------------------------------------
+-- 지금까지 questions에 delete 정책이 아예 없어서 아무도 질문을 지울 수 없었다.
+-- 답변(answers)은 question_id에 on delete cascade가 걸려 있어 질문 삭제 시 같이 지워진다.
+drop policy if exists "questions_delete_own" on questions;
+create policy "questions_delete_own" on questions for delete using (auth.uid() = user_id);
+drop policy if exists "questions_delete_admin" on questions;
+create policy "questions_delete_admin" on questions for delete using (is_admin());

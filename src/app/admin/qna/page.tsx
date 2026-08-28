@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
@@ -25,10 +25,26 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
+  const [iAmAdmin, setIAmAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+    });
+  }, [supabase]);
 
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
     setAnswerText(q.answers?.[0]?.content || "");
+  };
+
+  const removeQuestion = async (id: string) => {
+    if (!confirm("이 질문을 삭제하시겠습니까? 등록된 답변도 함께 삭제됩니다.")) return;
+    await supabase.from("questions").delete().eq("id", id);
+    setOpenId(null);
+    reload();
   };
 
   const submitAnswer = async (q: QuestionWithAnswer) => {
@@ -59,6 +75,7 @@ export default function AdminQnaPage() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">질문자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">공개</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
             </tr>
           </thead>
           <tbody>
@@ -74,9 +91,24 @@ export default function AdminQnaPage() {
                     {q.status === "answered" ? "답변완료" : "대기"}
                   </span>
                 </td>
+                <td className="p-2.5 border-b border-border">
+                  {iAmAdmin ? (
+                    <button
+                      className="text-red text-xs font-bold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeQuestion(q.id);
+                      }}
+                    >
+                      삭제
+                    </button>
+                  ) : (
+                    <span className="text-muted text-xs" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
+                  )}
+                </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
           </tbody>
         </table>
       </div>
@@ -94,6 +126,9 @@ export default function AdminQnaPage() {
           <div className="flex gap-2 mt-3.5">
             <button onClick={() => submitAnswer(current)} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">답변 등록</button>
             <button onClick={() => setOpenId(null)} className="border border-border text-sm rounded-lg px-4 py-2">닫기</button>
+            {iAmAdmin && (
+              <button onClick={() => removeQuestion(current.id)} className="text-red text-sm font-bold ml-auto">질문 삭제</button>
+            )}
           </div>
         </div>
       )}

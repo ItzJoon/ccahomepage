@@ -71,6 +71,12 @@ export default function QnaPage() {
     reload();
   };
 
+  const remove = async (id: string) => {
+    if (!confirm("이 질문을 삭제하시겠습니까? 등록된 답변도 함께 삭제됩니다.")) return;
+    await supabase.from("questions").delete().eq("id", id);
+    reload();
+  };
+
   return (
     <div>
       <SectionTitle
@@ -165,6 +171,17 @@ export default function QnaPage() {
                     </div>
                   ) : (
                     <p className="text-muted">아직 답변이 등록되지 않았습니다.</p>
+                  )}
+                  {userId && q.user_id === userId && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(q.id);
+                      }}
+                      className="text-red text-xs font-bold mt-2"
+                    >
+                      내 질문 삭제
+                    </button>
                   )}
                 </div>
               )}
