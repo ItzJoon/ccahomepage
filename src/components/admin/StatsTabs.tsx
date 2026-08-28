@@ -18,7 +18,7 @@ export default function StatsTabs({
   studentCount,
   teacherCount,
   staffCount,
-  recentVisitCount,
+  todayVisitCount,
   topStreaks,
   attendanceLog,
 }: {
@@ -26,23 +26,15 @@ export default function StatsTabs({
   studentCount: number;
   teacherCount: number;
   staffCount: number;
-  recentVisitCount: number;
+  todayVisitCount: number;
   topStreaks: TopStreak[];
   attendanceLog: AttendanceRow[];
 }) {
-  const [tab, setTab] = useState<"summary" | "log">("summary");
+  const [tab, setTab] = useState<"log" | "summary">("log");
 
   return (
     <div>
       <div className="flex gap-1.5 mb-5 border-b border-border">
-        <button
-          onClick={() => setTab("summary")}
-          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px ${
-            tab === "summary" ? "border-navy text-navy" : "border-transparent text-muted"
-          }`}
-        >
-          요약
-        </button>
         <button
           onClick={() => setTab("log")}
           className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px ${
@@ -51,59 +43,41 @@ export default function StatsTabs({
         >
           전체 접속 기록
         </button>
+        <button
+          onClick={() => setTab("summary")}
+          className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px ${
+            tab === "summary" ? "border-navy text-navy" : "border-transparent text-muted"
+          }`}
+        >
+          요약
+        </button>
       </div>
 
-      {tab === "summary" && (
+      {tab === "log" && (
         <div>
           <div className="flex gap-3 flex-wrap mb-6">
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
-              <div className="font-serif font-black text-2xl">{totalUsers}</div>
-              <div className="text-sm text-muted">전체 가입자 수</div>
+              <div className="font-serif font-black text-2xl">{todayVisitCount}</div>
+              <div className="text-sm text-muted">하루 방문 횟수</div>
             </div>
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
-              <div className="font-serif font-black text-2xl">{studentCount}</div>
-              <div className="text-sm text-muted">일반 학생 수</div>
+              <div className="font-serif font-black text-2xl">{totalUsers}</div>
+              <div className="text-sm text-muted">전체 가입자 수</div>
             </div>
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
               <div className="font-serif font-black text-2xl">{teacherCount}</div>
               <div className="text-sm text-muted">선생님 수</div>
             </div>
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+              <div className="font-serif font-black text-2xl">{studentCount}</div>
+              <div className="text-sm text-muted">전체 학생 수</div>
+            </div>
+            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
               <div className="font-serif font-black text-2xl">{staffCount}</div>
               <div className="text-sm text-muted">관리 권한 계정 수</div>
             </div>
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
-              <div className="font-serif font-black text-2xl">{recentVisitCount}</div>
-              <div className="text-sm text-muted">최근 30일 총 방문 횟수</div>
-            </div>
           </div>
-          <h3 className="mb-2">연속 접속일수 상위 학생</h3>
-          <table className="w-full border-collapse bg-white">
-            <thead>
-              <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">연속 접속일</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topStreaks.map((row, i) => (
-                <tr key={i}>
-                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.name || "-"}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.email}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
-                </tr>
-              ))}
-              {topStreaks.length === 0 && (
-                <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-      )}
 
-      {tab === "log" && (
-        <div>
           <h3 className="mb-2">전체 접속 기록 (최근 200건)</h3>
           <table className="w-full border-collapse bg-white">
             <thead>
@@ -127,6 +101,33 @@ export default function StatsTabs({
               ))}
               {attendanceLog.length === 0 && (
                 <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {tab === "summary" && (
+        <div>
+          <h3 className="mb-2">연속 접속일수 상위 학생</h3>
+          <table className="w-full border-collapse bg-white">
+            <thead>
+              <tr>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">연속 접속일</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topStreaks.map((row, i) => (
+                <tr key={i}>
+                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.name || "-"}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.email}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
+                </tr>
+              ))}
+              {topStreaks.length === 0 && (
+                <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
               )}
             </tbody>
           </table>

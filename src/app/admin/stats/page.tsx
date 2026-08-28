@@ -3,26 +3,27 @@ import StatsTabs from "@/components/admin/StatsTabs";
 
 export default async function AdminStatsPage() {
   const supabase = createClient();
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const today = new Date().toISOString().slice(0, 10);
 
   const [
     { count: totalUsers },
     { count: studentCount },
     { count: teacherCount },
     { count: staffCount },
-    { data: recentAttendance },
+    { data: todayAttendance },
     { data: topStreaks },
     { data: attendanceLog },
   ] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }),
-    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+    // "전체 학생 수": role=student이거나, suwoncca.org 학교 도메인 계정이면 role이 teacher가 아닌 한
+    // (editor/admin으로 승격된 학생회 임원 계정도) 전부 학생으로 집계한다.
+    supabase
+      .from("profiles")
+      .select("*", { count: "exact", head: true })
+      .or("role.eq.student,and(email.ilike.*@suwoncca.org,role.neq.teacher)"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).in("role", ["editor", "admin", "superadmin"]),
-    supabase
-      .from("user_attendance")
-      .select("visit_date")
-      .gte("visit_date", thirtyDaysAgo.toISOString().slice(0, 10)),
+    supabase.from("user_attendance").select("visit_date").eq("visit_date", today),
     supabase
       .from("user_attendance")
       .select("user_id, streak_count, profiles(name, email)")
@@ -43,7 +44,7 @@ export default async function AdminStatsPage() {
         studentCount={studentCount ?? 0}
         teacherCount={teacherCount ?? 0}
         staffCount={staffCount ?? 0}
-        recentVisitCount={recentAttendance?.length ?? 0}
+        todayVisitCount={todayAttendance?.length ?? 0}
         topStreaks={(topStreaks as any) ?? []}
         attendanceLog={(attendanceLog as any) ?? []}
       />
