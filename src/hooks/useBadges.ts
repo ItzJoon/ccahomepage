@@ -33,13 +33,28 @@ export function useBadges(userId: string | null) {
     load();
   }, [load]);
 
-  /** 새로 달성한 스트릭 값을 기준으로, 아직 못 받은 자동 지급 뱃지가 있으면 지급하고 반환합니다. */
+  /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일)을 만족하는지 확인합니다. */
+  const matchesDateCondition = (b: BadgeDef, today: string) => {
+    if (!b.date_condition || !b.date_condition_value) return false;
+    if (b.date_condition === "before") return today < b.date_condition_value;
+    if (b.date_condition === "after") return today > b.date_condition_value;
+    return today === b.date_condition_value;
+  };
+
+  /**
+   * 새로 달성한 스트릭 값 + 오늘 날짜를 기준으로, 아직 못 받은 자동 지급 뱃지(연속 접속/날짜 조건)가
+   * 있으면 지급하고 반환합니다.
+   */
   const checkMilestones = useCallback(
     async (streak: number) => {
       if (!userId) return [];
-      const newlyEarned = badges.filter(
-        (b) => b.award_type === "auto" && b.streak_threshold !== null && b.streak_threshold <= streak && !earnedIds.has(b.id)
-      );
+      const today = new Date().toISOString().slice(0, 10);
+      const newlyEarned = badges.filter((b) => {
+        if (earnedIds.has(b.id)) return false;
+        if (b.award_type === "auto") return b.streak_threshold !== null && b.streak_threshold <= streak;
+        if (b.award_type === "date") return matchesDateCondition(b, today);
+        return false;
+      });
       if (newlyEarned.length === 0) return [];
       const { error } = await supabase
         .from("user_badges")

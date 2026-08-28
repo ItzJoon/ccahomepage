@@ -835,3 +835,15 @@ begin
     alter publication supabase_realtime add table public.site_settings;
   end if;
 end $$;
+
+-- ------------------------------------------------------------
+-- 21. 뱃지 날짜 조건 (특정 날짜 이전/이후/당일 로그인)
+-- ------------------------------------------------------------
+-- 기존에는 뱃지 지급 방식이 '자동(연속 접속일수)'과 '수동' 두 가지였다. 여기에 '날짜 조건'을
+-- 추가해서, 특정 날짜를 기준으로 그 이전/이후/당일에 로그인(체크인)하면 자동 지급되는 뱃지를
+-- 만들 수 있게 한다. date_condition/date_condition_value는 award_type='date'일 때만 쓰인다.
+alter table badges add column if not exists date_condition text check (date_condition in ('before','after','on'));
+alter table badges add column if not exists date_condition_value date;
+
+alter table badges drop constraint if exists badges_award_type_check;
+alter table badges add constraint badges_award_type_check check (award_type in ('auto','manual','date'));

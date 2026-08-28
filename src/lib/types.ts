@@ -109,8 +109,10 @@ export interface BadgeDef {
   label: string;
   description: string | null;
   icon: string;
-  award_type: "auto" | "manual";
+  award_type: "auto" | "manual" | "date";
   streak_threshold: number | null;
+  date_condition: "before" | "after" | "on" | null;
+  date_condition_value: string | null;
   order_index: number;
   is_active: boolean;
   is_secret: boolean;

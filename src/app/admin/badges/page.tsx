@@ -11,11 +11,19 @@ const empty = {
   label: "",
   description: "",
   icon: "🏅",
-  award_type: "auto" as "auto" | "manual",
+  award_type: "auto" as "auto" | "manual" | "date",
   streak_threshold: 3,
+  date_condition: "before" as "before" | "after" | "on",
+  date_condition_value: "",
   order_index: 0,
   is_active: true,
   is_secret: false,
+};
+
+const dateConditionLabel: Record<"before" | "after" | "on", string> = {
+  before: "이전에 로그인",
+  after: "이후에 로그인",
+  on: "당일에 로그인",
 };
 
 const sortKey = (b: BadgeDef) => b.streak_threshold ?? Infinity;
@@ -59,6 +67,8 @@ export default function AdminBadgesPage() {
       icon: b.icon,
       award_type: b.award_type,
       streak_threshold: b.streak_threshold ?? 3,
+      date_condition: b.date_condition ?? "before",
+      date_condition_value: b.date_condition_value ?? "",
       order_index: b.order_index,
       is_active: b.is_active,
       is_secret: b.is_secret,
@@ -69,6 +79,7 @@ export default function AdminBadgesPage() {
   const save = async () => {
     if (!form.code.trim() || !form.label.trim()) return;
     if (form.award_type === "auto" && form.streak_threshold <= 0) return;
+    if (form.award_type === "date" && !form.date_condition_value) return;
     const payload = {
       code: form.code,
       label: form.label,
@@ -76,6 +87,8 @@ export default function AdminBadgesPage() {
       icon: form.icon,
       award_type: form.award_type,
       streak_threshold: form.award_type === "auto" ? form.streak_threshold : null,
+      date_condition: form.award_type === "date" ? form.date_condition : null,
+      date_condition_value: form.award_type === "date" ? form.date_condition_value : null,
       order_index: form.order_index,
       is_active: form.is_active,
       is_secret: form.is_secret,
@@ -118,6 +131,7 @@ export default function AdminBadgesPage() {
         </div>
         <p className="text-muted mb-4 text-sm">
           지급 방식이 "자동"이면 연속 접속일수가 조건에 도달하는 즉시 학생에게 자동 지급됩니다.
+          "날짜 조건"이면 특정 날짜 이전/이후/당일에 로그인(체크인)하는 순간 자동 지급됩니다.
           "수동"은 자동으로 지급되지 않고, 아래 "뱃지 직접 부여"에서 관리자가 달성을 확인한 뒤 원하는 학생에게 지급합니다.
           비활성화하면 학생 화면 노출과 자동 지급만 멈추고, "뱃지 직접 부여"로는 계속 줄 수 있습니다
           (이미 받은 학생의 뱃지는 항상 유지됩니다). "시크릿"으로 설정하면 획득하기 전까지 학생 목록에
@@ -145,7 +159,11 @@ export default function AdminBadgesPage() {
                   <div className="text-muted text-xs">{b.description}</div>
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">
-                  {b.award_type === "auto" ? `연속 ${b.streak_threshold}일` : "수동 부여"}
+                  {b.award_type === "auto"
+                    ? `연속 ${b.streak_threshold}일`
+                    : b.award_type === "date"
+                    ? `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+                    : "수동 부여"}
                 </td>
                 <td className="p-2.5 border-b border-border">
                   <button
@@ -223,9 +241,10 @@ export default function AdminBadgesPage() {
           <select
             className="border border-border rounded-lg px-2.5 py-2 text-sm"
             value={form.award_type}
-            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" })}
+            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" })}
           >
             <option value="auto">자동 (연속 접속일수 조건 도달 시)</option>
+            <option value="date">날짜 조건 (특정 날짜 이전/이후/당일 로그인)</option>
             <option value="manual">수동 (자유 조건, 관리자가 확인 후 직접 부여)</option>
           </select>
 
@@ -250,6 +269,29 @@ export default function AdminBadgesPage() {
                 value={form.streak_threshold}
                 onChange={(e) => setForm({ ...form, streak_threshold: Number(e.target.value) })}
               />
+            </>
+          )}
+          {form.award_type === "date" && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">달성 조건 (날짜)</label>
+              <div className="flex gap-2">
+                <select
+                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                  value={form.date_condition}
+                  onChange={(e) => setForm({ ...form, date_condition: e.target.value as "before" | "after" | "on" })}
+                >
+                  <option value="before">특정 날짜 이전에 로그인</option>
+                  <option value="after">특정 날짜 이후에 로그인</option>
+                  <option value="on">특정 날짜에 로그인</option>
+                </select>
+                <input
+                  type="date"
+                  className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                  value={form.date_condition_value}
+                  onChange={(e) => setForm({ ...form, date_condition_value: e.target.value })}
+                />
+              </div>
+              <p className="text-muted text-xs">체크인(접속) 시점에 조건을 만족하면 그 즉시 자동 지급됩니다.</p>
             </>
           )}
           {form.award_type === "manual" && (
