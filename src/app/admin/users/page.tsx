@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { Profile } from "@/lib/types";
 
-const ROLES = ["student", "teacher", "editor", "admin", "superadmin"];
+const ROLES = ["student", "teacher", "sub_editor", "editor", "admin", "superadmin"];
 
 export default function AdminUsersPage() {
   const supabase = createClient();
@@ -19,6 +19,7 @@ export default function AdminUsersPage() {
 
   const me = rows.find((p) => p.id === myId);
   const iAmSuperadmin = me?.role === "superadmin";
+  const iAmAdmin = iAmSuperadmin || me?.role === "admin";
   const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin");
 
   const changeRole = async (id: string, role: string) => {
@@ -33,7 +34,8 @@ export default function AdminUsersPage() {
       <h2 className="text-[22px] mb-2">회원 · 권한 관리</h2>
       <p className="text-muted mb-4">
         신규 가입자는 기본적으로 <code>student</code> 권한으로 생성됩니다. 관리 권한이 필요한 인원만 아래에서 역할을 변경하세요.
-        {!iAmSuperadmin && " admin 등급은 다른 사용자를 admin/superadmin으로 올릴 수 없고, 이미 admin/superadmin인 계정은 superadmin만 변경할 수 있습니다."}
+        {!iAmAdmin && " editor 등급은 권한을 열람만 할 수 있고, 변경은 admin 이상만 가능합니다."}
+        {iAmAdmin && !iAmSuperadmin && " admin 등급은 다른 사용자를 admin/superadmin으로 올릴 수 없고, 이미 admin/superadmin인 계정은 superadmin만 변경할 수 있습니다."}
       </p>
       <input
         className="border border-border rounded-lg px-3 py-2 text-sm mb-3.5 w-full max-w-sm"
@@ -52,7 +54,10 @@ export default function AdminUsersPage() {
         <tbody>
           {list.map((p) => {
             const targetIsPrivileged = p.role === "admin" || p.role === "superadmin";
-            const canEdit = iAmSuperadmin || !targetIsPrivileged;
+            const canEdit = iAmAdmin && (iAmSuperadmin || !targetIsPrivileged);
+            const lockReason = !iAmAdmin
+              ? "editor는 권한 열람만 가능합니다. 변경은 admin 이상만 할 수 있습니다."
+              : "superadmin만 admin/superadmin 계정의 권한을 변경할 수 있습니다";
             return (
               <tr key={p.id}>
                 <td className="p-2.5 border-b border-border text-sm">{p.name || "-"}</td>
@@ -67,7 +72,7 @@ export default function AdminUsersPage() {
                       {selectableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
                   ) : (
-                    <span className="text-sm text-muted" title="superadmin만 admin/superadmin 계정의 권한을 변경할 수 있습니다">
+                    <span className="text-sm text-muted" title={lockReason}>
                       {p.role} 🔒
                     </span>
                   )}

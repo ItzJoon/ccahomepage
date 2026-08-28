@@ -12,7 +12,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique not null,
   name text,
-  role text not null default 'student' check (role in ('student','teacher','editor','admin','superadmin')),
+  role text not null default 'student' check (role in ('student','teacher','sub_editor','editor','admin','superadmin')),
   profile_image text,
   created_at timestamptz not null default now()
 );
@@ -628,3 +628,13 @@ drop policy if exists "posts_update_editor" on posts;
 create policy "posts_update_editor" on posts for update using (is_editor_or_above()) with check (is_editor_or_above());
 drop policy if exists "posts_delete_admin" on posts;
 create policy "posts_delete_admin" on posts for delete using (is_admin());
+
+-- ------------------------------------------------------------
+-- 기능: sub_editor 역할 추가
+-- ------------------------------------------------------------
+-- editor는 부장(동아리/학생회 부서장)용, sub_editor는 부원 전용 역할로 구분해서 만든다.
+-- 지금은 is_admin()/is_editor_or_above() 둘 다 sub_editor를 포함하지 않아 student/teacher와
+-- 권한이 동일하다(즉 /admin 접근 불가). 어떤 권한을 줄지는 나중에 정해서 반영한다.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('student','teacher','sub_editor','editor','admin','superadmin'));

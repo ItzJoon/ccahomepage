@@ -68,7 +68,7 @@ council-site/
 
 | 테이블 | 설명 |
 |---|---|
-| `profiles` | `auth.users` 확장. `role`(student/teacher/editor/admin/superadmin) 보유. 가입 시 트리거로 자동 생성(기본 student) |
+| `profiles` | `auth.users` 확장. `role`(student/teacher/sub_editor/editor/admin/superadmin) 보유. 가입 시 트리거로 자동 생성(기본 student) |
 | `organizations` | 학생자치회 조직 (임원회/대의원회/사법위원회/총회 등, 관리자가 자유 추가) |
 | `members` | 조직별 구성원 프로필 |
 | `posts` | 공지(`type=notice`)·뉴스(`type=news`) 공용. 고정/예약발행/상태 포함 |
@@ -94,6 +94,8 @@ council-site/
 - **읽기**: 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물)는 로그인 여부와 무관하게 누구나 열람.
   Q&A 비공개 질문은 작성자 본인과 `admin` 이상만 조회 가능(행 단위로 DB가 강제).
 - **쓰기**: `editor` 이상만 콘텐츠 생성/수정, `admin` 이상만 회원 role 변경.
+- **Q&A 답변은 `admin` 이상만** 작성할 수 있습니다(`editor`는 불가). `/admin/qna`에서 `editor`로
+  보면 답변 작성란 대신 기존 답변(읽기 전용)과 안내 문구가 표시됩니다.
 - **삭제 권한 강화**: 공지/뉴스(`posts`)와 알림 발송 기록(`notifications`)을 실제로 지우는 건
   `admin` 이상만 가능합니다. `editor`는 계속 작성/수정할 수 있고, "사라지게" 하는 것도 가능합니다
   (공지/뉴스는 발행 상태를 "임시저장"으로 바꾸면 공개 화면에서 숨겨지고, 알림 팝업은 "팝업 중지"로
@@ -104,6 +106,10 @@ council-site/
 - **`teacher` 역할**: 현재는 권한이 `student`와 완전히 동일합니다(`is_admin()`/`is_editor_or_above()`
   둘 다 `teacher`를 포함하지 않음). 나중에 선생님 전용 기능을 추가할 때 구분하려고 미리 만들어둔
   역할이며, `/admin/users`에서 학생 계정을 `teacher`로 바꿔줄 수 있습니다.
+- **`editor` / `sub_editor` 역할**: `editor`는 부장(부서장)용, `sub_editor`는 부원 전용으로 구분해서
+  만든 역할입니다. `sub_editor`는 아직 `is_admin()`/`is_editor_or_above()` 어디에도 포함되지 않아
+  `student`/`teacher`와 권한이 동일합니다(`/admin` 접근 불가). 부원에게 어떤 권한까지 줄지는
+  나중에 `is_editor_or_above()` 등에 `sub_editor`를 포함시키는 식으로 정할 수 있습니다.
 - **role 승격 제한**: `admin`은 다른 사용자를 `editor`/`student`로 조정할 수 있지만, 자기 자신을 포함해
   누구도 `admin`/`superadmin`으로 승격시킬 수 없고, 이미 `admin`/`superadmin`인 계정은 아예 수정할 수
   없습니다(`superadmin`만 가능). `profiles_update_self` 정책만으로는 본인 row의 role 변경을 막을 수
