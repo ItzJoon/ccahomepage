@@ -696,3 +696,108 @@ drop policy if exists "questions_delete_own" on questions;
 create policy "questions_delete_own" on questions for delete using (auth.uid() = user_id);
 drop policy if exists "questions_delete_admin" on questions;
 create policy "questions_delete_admin" on questions for delete using (is_admin());
+
+-- ------------------------------------------------------------
+-- 기능: 조직 활동 (안건함 / 조직별 일정 / 조직별 활동기록)
+-- ------------------------------------------------------------
+-- reference-source/(Netlify+Drizzle 학생회 툴)의 기능만 참고해서 이 프로젝트 컨벤션대로
+-- 새로 설계했다. departmentId 대신 기존 organizations.id를 그대로 쓴다.
+
+-- 안건함: 학생 누구나 제안, 로그인한 학생 누구나 찬반 투표(중복 불가), 상태는 editor 이상이 변경.
+create table if not exists proposals (
+  id uuid primary key default uuid_generate_v4(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  title text not null,
+  summary text not null,
+  author_id uuid references profiles(id) on delete set null,
+  status text not null default 'review' check (status in ('review','approved','rejected','completed')),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- 찬반 투표 기록: user_id + proposal_id 유니크로 중복 투표를 DB 단에서 막는다.
+-- 찬성/반대 집계는 별도 카운터 컬럼 없이 이 테이블을 그때그때 집계해서 보여준다.
+create table if not exists proposal_votes (
+  id uuid primary key default uuid_generate_v4(),
+  proposal_id uuid not null references proposals(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  vote text not null check (vote in ('yes','no')),
+  created_at timestamptz not null default now(),
+  unique (proposal_id, user_id)
+);
+
+-- 조직별 일정: 기존 학사일정(events)과는 별개로 부서 내부 회의/행사용.
+create table if not exists org_events (
+  id uuid primary key default uuid_generate_v4(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  title text not null,
+  description text,
+  location text,
+  category text not null default 'meeting' check (category in ('meeting','event','deadline','general')),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+-- 조직별 활동기록: 기존 posts(공지/뉴스)와는 별개로 조직 단위 공지/활동/회의록 기록용.
+create table if not exists org_records (
+  id uuid primary key default uuid_generate_v4(),
+  org_id uuid not null references organizations(id) on delete cascade,
+  category text not null check (category in ('notice','activity','minutes')),
+  title text not null,
+  content text not null,
+  author_id uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+alter table proposals enable row level security;
+alter table proposal_votes enable row level security;
+alter table org_events enable row level security;
+alter table org_records enable row level security;
+
+-- 안건함: 전체 공개 열람(사이트 전반의 공개 콘텐츠 톤과 통일), 로그인 학생 누구나 제안 가능,
+-- 상태 변경은 editor 이상, 삭제는 admin 이상(다른 콘텐츠 삭제 권한 강화 정책과 통일).
+drop policy if exists "proposals_read_all" on proposals;
+create policy "proposals_read_all" on proposals for select using (true);
+drop policy if exists "proposals_insert_own" on proposals;
+create policy "proposals_insert_own" on proposals for insert with check (auth.uid() = author_id);
+drop policy if exists "proposals_update_editor" on proposals;
+create policy "proposals_update_editor" on proposals for update using (is_editor_or_above());
+drop policy if exists "proposals_delete_admin" on proposals;
+create policy "proposals_delete_admin" on proposals for delete using (is_admin());
+
+-- 투표: 집계를 위해 전체 공개 열람, 투표/취소/변경은 본인 것만.
+drop policy if exists "proposal_votes_read_all" on proposal_votes;
+create policy "proposal_votes_read_all" on proposal_votes for select using (true);
+drop policy if exists "proposal_votes_insert_own" on proposal_votes;
+create policy "proposal_votes_insert_own" on proposal_votes for insert with check (auth.uid() = user_id);
+drop policy if exists "proposal_votes_update_own" on proposal_votes;
+create policy "proposal_votes_update_own" on proposal_votes for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "proposal_votes_delete_own" on proposal_votes;
+create policy "proposal_votes_delete_own" on proposal_votes for delete using (auth.uid() = user_id);
+
+-- 조직별 일정/활동기록: 전체 공개 열람(다른 콘텐츠와 동일), 작성/수정/삭제는 editor 이상.
+drop policy if exists "org_events_read_all" on org_events;
+create policy "org_events_read_all" on org_events for select using (true);
+drop policy if exists "org_events_write_editor" on org_events;
+create policy "org_events_write_editor" on org_events for all using (is_editor_or_above()) with check (is_editor_or_above());
+
+drop policy if exists "org_records_read_all" on org_records;
+create policy "org_records_read_all" on org_records for select using (true);
+drop policy if exists "org_records_write_editor" on org_records;
+create policy "org_records_write_editor" on org_records for all using (is_editor_or_above()) with check (is_editor_or_above());
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['proposals','proposal_votes','org_events','org_records'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

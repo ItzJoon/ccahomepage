@@ -132,3 +132,45 @@ export interface PageDoc {
   menu_visible: boolean;
   order_index: number;
 }
+
+export interface Proposal {
+  id: string;
+  org_id: string;
+  title: string;
+  summary: string;
+  author_id: string | null;
+  status: "review" | "approved" | "rejected" | "completed";
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ProposalVote {
+  id: string;
+  proposal_id: string;
+  user_id: string;
+  vote: "yes" | "no";
+  created_at: string;
+}
+
+export interface OrgEvent {
+  id: string;
+  org_id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  category: "meeting" | "event" | "deadline" | "general";
+  start_at: string;
+  end_at: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface OrgRecord {
+  id: string;
+  org_id: string;
+  category: "notice" | "activity" | "minutes";
+  title: string;
+  content: string;
+  author_id: string | null;
+  created_at: string;
+}
