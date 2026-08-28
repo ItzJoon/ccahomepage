@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
+import CheckInToast from "@/components/CheckInToast";
+import BadgeCelebration from "@/components/BadgeCelebration";
 import type { PageDoc, Profile } from "@/lib/types";
 
 const NAV = [
@@ -26,6 +29,7 @@ export default function Header({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null);
 
   const isAdmin = profile && ["editor", "admin", "superadmin"].includes(profile.role);
 
@@ -35,6 +39,7 @@ export default function Header({
   };
 
   return (
+    <>
     <header className="sticky top-0 z-20 bg-navy text-white">
       <div className="max-w-[1180px] mx-auto flex items-center gap-6 px-5 py-3 flex-wrap">
         <Link href="/" className="font-bold text-lg flex items-center gap-2 shrink-0">
@@ -88,5 +93,8 @@ export default function Header({
         </div>
       </div>
     </header>
+    {toast !== null && <CheckInToast streak={toast} />}
+    {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
+    </>
   );
 }

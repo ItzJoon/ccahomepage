@@ -3,10 +3,9 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
+import { useAttendance } from "@/hooks/useAttendance";
+import { useBadges } from "@/hooks/useBadges";
 import SectionTitle from "@/components/SectionTitle";
-import BadgeCelebration from "@/components/BadgeCelebration";
-import CheckInToast from "@/components/CheckInToast";
 import type { Profile } from "@/lib/types";
 
 function fmt(d: string) {
@@ -25,8 +24,8 @@ export default function MyPage() {
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
 
-  const { streak, history, checkedToday, freezeCredits, loading, badges, earnedIds, toast, celebrate, dismissCelebrate } =
-    useAutoCheckIn(userId ?? null);
+  const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
+  const { badges, earnedIds } = useBadges(userId ?? null);
   const visibleBadges = badges.filter((b) => !b.is_secret || earnedIds.has(b.id));
 
   useEffect(() => {
@@ -198,8 +197,6 @@ export default function MyPage() {
         </div>
       </div>
 
-      {toast !== null && <CheckInToast streak={toast} />}
-      {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
     </div>
   );
 }
