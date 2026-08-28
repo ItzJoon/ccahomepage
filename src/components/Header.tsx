@@ -31,10 +31,12 @@ export default function Header({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null);
-  const [mobileOpen, setMobileOpen] = useState(false);
-
   const isAdmin = profile && ["editor", "admin", "superadmin"].includes(profile.role);
+  // 사이트 잠금 모드는 admin/superadmin만 우회하므로(editor는 예외 아님), 연속 접속 체크인도
+  // 같은 기준으로 잠금 중 보류 여부를 판단한다.
+  const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
+  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const signOut = async () => {
     await supabase.auth.signOut();

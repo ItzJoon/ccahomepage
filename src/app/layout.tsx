@@ -16,40 +16,48 @@ export const dynamic = "force-dynamic";
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
 
-  // 프로필/커스텀 페이지/배너/팝업 조회는 서로 의존관계가 없는데, 하나씩 순서대로 기다리면
-  // 매 페이지 로드마다 Supabase 왕복이 그만큼 누적된다. 동시에 요청해서 가장 느린 것 하나만큼만 기다린다.
-  const [profile, { data: customPages }, { data: latestBanner }, { data: latestPopup }] = await Promise.all([
-    getCurrentProfile(),
-    supabase
-      .from("pages")
-      .select("id, slug, title, content, is_published, menu_visible, order_index")
-      .eq("is_published", true)
-      .eq("menu_visible", true)
-      .order("order_index"),
-    supabase
-      .from("notifications")
-      .select("*")
-      .eq("display_type", "banner")
-      .order("sent_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from("notifications")
-      .select("*")
-      .eq("display_type", "popup")
-      .eq("popup_active", true)
-      .order("sent_at", { ascending: false })
-      .limit(1)
-      .maybeSingle(),
-  ]);
+  // 프로필/커스텀 페이지/배너/팝업/잠금 여부 조회는 서로 의존관계가 없는데, 하나씩 순서대로
+  // 기다리면 매 페이지 로드마다 Supabase 왕복이 그만큼 누적된다. 동시에 요청해서 가장 느린 것
+  // 하나만큼만 기다린다.
+  const [profile, { data: customPages }, { data: latestBanner }, { data: latestPopup }, { data: settings }] =
+    await Promise.all([
+      getCurrentProfile(),
+      supabase
+        .from("pages")
+        .select("id, slug, title, content, is_published, menu_visible, order_index")
+        .eq("is_published", true)
+        .eq("menu_visible", true)
+        .order("order_index"),
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("display_type", "banner")
+        .order("sent_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase
+        .from("notifications")
+        .select("*")
+        .eq("display_type", "popup")
+        .eq("popup_active", true)
+        .order("sent_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+      supabase.from("site_settings").select("maintenance_mode").eq("id", "default").maybeSingle(),
+    ]);
+
+  // 사이트 잠금 모드 중에는 admin/superadmin만 우회하므로(middleware.ts와 동일 기준), 그 외
+  // 사용자에게는 아직 정식 운영 전이라 배너/팝업 알림 같은 상호작용도 함께 보류한다.
+  const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
+  const showNotifications = !settings?.maintenance_mode || isLockdownExempt;
 
   return (
     <html lang="ko">
       <body>
         <div className="min-h-screen flex flex-col">
           <Header profile={profile as any} customPages={customPages ?? []} />
-          <NotificationBanner initial={latestBanner as any} />
-          <NotificationPopup initial={latestPopup as any} />
+          {showNotifications && <NotificationBanner initial={latestBanner as any} />}
+          {showNotifications && <NotificationPopup initial={latestPopup as any} />}
           <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
           <Footer />
         </div>
