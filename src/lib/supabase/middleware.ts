@@ -44,6 +44,8 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const isMaintenanceExempt =
     pathname === "/login" || pathname === "/maintenance" || pathname.startsWith("/auth/callback");
+  const isAccessCheckExempt =
+    pathname === "/login" || pathname === "/access-restricted" || pathname.startsWith("/auth/callback");
 
   // /admin 체크와 중복 조회하지 않도록 role은 한 번만 가져와서 재사용한다.
   let roleFetched = false;
@@ -56,6 +58,31 @@ export async function updateSession(request: NextRequest) {
     role = profile?.role ?? null;
     return role;
   };
+
+  // 학교 구성원 명단(directory_members)에 없는 이메일은 로그인은 되어도 사이트를 이용할 수
+  // 없게 막는다. admin/superadmin은 명단과 무관하게 항상 통과시켜야 관리자가 실수로 스스로를
+  // 잠그는 사고를 막을 수 있다(사이트 잠금 모드와 동일한 안전장치).
+  if (user && !isAccessCheckExempt) {
+    const r = await getRole();
+    const isPrivileged = !!r && ["admin", "superadmin"].includes(r);
+    if (!isPrivileged) {
+      let allowed = false;
+      if (user.email) {
+        const { data: dm } = await supabase
+          .from("directory_members")
+          .select("is_allowed")
+          .eq("email", user.email)
+          .maybeSingle();
+        allowed = !!dm?.is_allowed;
+      }
+      if (!allowed) {
+        await supabase.rpc("record_login_access_attempt");
+        const url = request.nextUrl.clone();
+        url.pathname = "/access-restricted";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
 
   if (!isMaintenanceExempt) {
     const { data: settings } = await supabase
