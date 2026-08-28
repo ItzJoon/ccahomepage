@@ -11,6 +11,7 @@ type AttendanceRow = {
   visit_date: string;
   streak_count: number;
   is_freeze: boolean;
+  created_at: string;
 };
 
 export default function StatsTabs({
@@ -78,11 +79,11 @@ export default function StatsTabs({
             </div>
           </div>
 
-          <h3 className="mb-2">전체 접속 기록 (최근 200건)</h3>
+          <h3 className="mb-2">전체 접속 기록 (최신순, 최근 200건)</h3>
           <table className="w-full border-collapse bg-white">
             <thead>
               <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">체크인 시각</th>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">연속일수</th>
@@ -92,7 +93,7 @@ export default function StatsTabs({
             <tbody>
               {attendanceLog.map((row) => (
                 <tr key={row.id}>
-                  <td className="p-2.5 border-b border-border text-sm">{row.visit_date}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{new Date(row.created_at).toLocaleString("ko-KR")}</td>
                   <td className="p-2.5 border-b border-border text-sm">{row.nickname || row.name || "-"}</td>
                   <td className="p-2.5 border-b border-border text-sm">{row.email}</td>
                   <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>

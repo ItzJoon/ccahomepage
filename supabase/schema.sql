@@ -563,6 +563,12 @@ create policy "notifications_delete_admin" on notifications for delete using (is
 -- 알 수 없다. profiles와 조인한 뷰를 만들어 이름/이메일이 함께 보이게 한다.
 -- security_invoker = true로 만들어서, 뷰를 조회하는 사람의 RLS가 그대로 적용된다
 -- (학생 본인은 자기 기록만, admin/superadmin은 전체가 보임 — 원본 테이블의 RLS와 동일).
+--
+-- visit_date는 날짜만 저장해서(시간 없음) 같은 날 여러 명이 체크인하면 정렬 순서가
+-- 보장되지 않는다. 실제 체크인 시각(created_at)을 남겨서 최신순 정렬에 쓴다.
+-- (기존 행은 이 컬럼을 추가하는 시점의 now()로 채워져 정확한 과거 시각은 아니다)
+alter table user_attendance add column if not exists created_at timestamptz not null default now();
+
 create or replace view user_attendance_with_name
 with (security_invoker = true) as
 select
@@ -573,10 +579,11 @@ select
   p.email,
   ua.visit_date,
   ua.streak_count,
-  ua.is_freeze
+  ua.is_freeze,
+  ua.created_at
 from user_attendance ua
 join profiles p on p.id = ua.user_id
-order by ua.visit_date desc;
+order by ua.created_at desc;
 
 -- ------------------------------------------------------------
 -- 기능: 시크릿 뱃지

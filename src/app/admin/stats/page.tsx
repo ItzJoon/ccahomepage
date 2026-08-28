@@ -31,8 +31,8 @@ export default async function AdminStatsPage() {
       .limit(10),
     supabase
       .from("user_attendance_with_name")
-      .select("id, name, nickname, email, visit_date, streak_count, is_freeze")
-      .order("visit_date", { ascending: false })
+      .select("id, name, nickname, email, visit_date, streak_count, is_freeze, created_at")
+      .order("created_at", { ascending: false })
       .limit(200),
   ]);
 

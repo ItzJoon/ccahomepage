@@ -85,7 +85,11 @@ council-site/
 | `user_badges` | 사용자별 뱃지 획득 기록 |
 
 `profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼과 스트릭 프리즈 개수 `freeze_credits` 컬럼이 추가되었고,
-`user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼이 추가되었습니다.
+`user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼과 실제 체크인 시각 `created_at`
+컬럼이 추가되었습니다(`visit_date`는 날짜만 저장해서 같은 날 여러 명이 체크인하면 순서를 알 수 없어,
+`/admin/stats`의 "전체 접속 기록"은 `created_at` 기준 최신순으로 정렬됩니다). `user_attendance_with_name`
+뷰는 `user_attendance`에 `profiles`를 조인해 이름/이메일이 함께 보이도록 만든 것으로, Supabase
+테이블 편집기나 SQL Editor에서 직접 조회할 때도 유용합니다.
 
 전체 컬럼 정의와 관계는 `supabase/schema.sql`을 참고하세요.
 
