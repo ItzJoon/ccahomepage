@@ -45,31 +45,46 @@ export function useBadges(userId: string | null) {
     return today === b.date_condition_value;
   };
 
-  /**
-   * 새로 달성한 스트릭 값 + 오늘 날짜를 기준으로, 아직 못 받은 자동 지급 뱃지(연속 접속/날짜 조건)가
-   * 있으면 지급하고 반환합니다.
-   */
+  /** 아직 못 받은 뱃지 중 조건을 만족하는 것들을 실제로 지급합니다(공용 로직). */
+  const grant = useCallback(
+    async (toGrant: BadgeDef[]) => {
+      if (!userId || toGrant.length === 0) return [];
+      const { error } = await supabase
+        .from("user_badges")
+        .insert(toGrant.map((b) => ({ user_id: userId, badge_id: b.id })));
+      if (!error) {
+        setEarnedIds((prev) => new Set([...prev, ...toGrant.map((b) => b.id)]));
+      }
+      return toGrant;
+    },
+    [userId, supabase]
+  );
+
+  /** 새로 달성한 스트릭 값을 기준으로, 아직 못 받은 연속 접속 뱃지가 있으면 지급하고 반환합니다. */
   const checkMilestones = useCallback(
     async (streak: number) => {
       if (!userId) return [];
-      const today = new Date().toISOString().slice(0, 10);
-      const newlyEarned = badges.filter((b) => {
-        if (earnedIds.has(b.id)) return false;
-        if (b.award_type === "auto") return b.streak_threshold !== null && b.streak_threshold <= streak;
-        if (b.award_type === "date") return matchesDateCondition(b, today);
-        return false;
-      });
-      if (newlyEarned.length === 0) return [];
-      const { error } = await supabase
-        .from("user_badges")
-        .insert(newlyEarned.map((b) => ({ user_id: userId, badge_id: b.id })));
-      if (!error) {
-        setEarnedIds((prev) => new Set([...prev, ...newlyEarned.map((b) => b.id)]));
-      }
-      return newlyEarned;
+      const newlyEarned = badges.filter(
+        (b) => b.award_type === "auto" && !earnedIds.has(b.id) && b.streak_threshold !== null && b.streak_threshold <= streak
+      );
+      return grant(newlyEarned);
     },
-    [userId, badges, earnedIds, supabase]
+    [userId, badges, earnedIds, grant]
   );
 
-  return { badges, earnedIds, loading, checkMilestones, reload: load };
+  /**
+   * 오늘 날짜를 기준으로 날짜 조건 뱃지를 확인해 지급합니다. 연속 접속과 달리 "새 체크인" 이벤트에
+   * 묶여있지 않고 로그인해서 사이트에 들어오기만 하면 되는 조건이라, 이미 오늘 체크인을 마친
+   * 사용자(예: 뱃지가 생기기 전에 먼저 접속했던 사용자)도 다시 접속할 때마다 평가되어야 한다.
+   */
+  const checkDateBadges = useCallback(async () => {
+    if (!userId) return [];
+    const today = new Date().toISOString().slice(0, 10);
+    const newlyEarned = badges.filter(
+      (b) => b.award_type === "date" && !earnedIds.has(b.id) && matchesDateCondition(b, today)
+    );
+    return grant(newlyEarned);
+  }, [userId, badges, earnedIds, grant]);
+
+  return { badges, earnedIds, loading, checkMilestones, checkDateBadges, reload: load };
 }

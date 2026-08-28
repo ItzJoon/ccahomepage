@@ -12,10 +12,11 @@ import type { BadgeDef } from "@/lib/types";
  */
 export function useAutoCheckIn(userId: string | null) {
   const attendance = useAttendance(userId);
-  const { badges, earnedIds, checkMilestones } = useBadges(userId);
+  const { badges, earnedIds, loading: badgesLoading, checkMilestones, checkDateBadges } = useBadges(userId);
   const [toast, setToast] = useState<number | null>(null);
   const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
   const firedRef = useRef(false);
+  const dateCheckedRef = useRef(false);
 
   useEffect(() => {
     if (!userId || attendance.loading || attendance.checkedToday || firedRef.current) return;
@@ -30,6 +31,18 @@ export function useAutoCheckIn(userId: string | null) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, attendance.loading, attendance.checkedToday]);
+
+  // 날짜 조건 뱃지는 "새 체크인" 이벤트가 아니라 "오늘 로그인해서 사이트에 들어왔는지"만 보므로,
+  // 이미 오늘 체크인을 마친 사용자(뱃지가 생기기 전에 먼저 접속했던 사용자 포함)도 접속할 때마다
+  // 별도로 평가한다.
+  useEffect(() => {
+    if (!userId || badgesLoading || dateCheckedRef.current) return;
+    dateCheckedRef.current = true;
+    (async () => {
+      const newly = await checkDateBadges();
+      if (newly.length > 0) setCelebrate(newly[newly.length - 1]);
+    })();
+  }, [userId, badgesLoading, checkDateBadges]);
 
   useEffect(() => {
     if (toast === null) return;
