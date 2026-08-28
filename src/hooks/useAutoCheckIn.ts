@@ -18,7 +18,15 @@ import type { BadgeDef } from "@/lib/types";
 export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean = false) {
   const supabase = createClient();
   const attendance = useAttendance(userId);
-  const { badges, earnedIds, loading: badgesLoading, checkMilestones, checkDateBadges } = useBadges(userId);
+  const {
+    badges,
+    earnedIds,
+    loading: badgesLoading,
+    checkMilestones,
+    checkDateBadges,
+    externalGrant,
+    clearExternalGrant,
+  } = useBadges(userId);
   const [toast, setToast] = useState<number | null>(null);
   const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
   const [maintenanceMode, setMaintenanceMode] = useState<boolean | null>(null);
@@ -71,6 +79,14 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     const timer = setTimeout(() => setToast(null), 4000);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  // 관리자가 "뱃지 직접 부여"로 지급한 뱃지는 관리자 화면이 아니라 학생 본인 화면에서
+  // 축하 팝업이 떠야 하므로, useBadges의 실시간 구독이 감지한 지급을 그대로 celebrate로 넘긴다.
+  useEffect(() => {
+    if (!externalGrant) return;
+    setCelebrate(externalGrant);
+    clearExternalGrant();
+  }, [externalGrant, clearExternalGrant]);
 
   return {
     streak: attendance.streak,

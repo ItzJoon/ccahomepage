@@ -857,3 +857,11 @@ alter table badges add column if not exists date_condition_value_end date;
 
 alter table badges drop constraint if exists badges_date_condition_check;
 alter table badges add constraint badges_date_condition_check check (date_condition in ('before','after','on','between'));
+
+-- ------------------------------------------------------------
+-- 23. 뱃지 회수 실시간 반영을 위한 replica identity 설정
+-- ------------------------------------------------------------
+-- 기본 설정(replica identity default)에서는 realtime DELETE 이벤트의 old 레코드에
+-- 기본키(id)만 담겨서 user_id/badge_id로 필터링하거나 어떤 뱃지가 회수됐는지 알 수 없다.
+-- full로 바꿔서 삭제된 행 전체가 old 레코드에 담기게 한다.
+alter table user_badges replica identity full;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { BadgeDef } from "@/lib/types";
 
@@ -13,6 +13,12 @@ export function useBadges(userId: string | null) {
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
+  const [externalGrant, setExternalGrant] = useState<BadgeDef | null>(null);
+  const earnedIdsRef = useRef(earnedIds);
+
+  useEffect(() => {
+    earnedIdsRef.current = earnedIds;
+  }, [earnedIds]);
 
   const load = useCallback(async () => {
     const { data: badgeRows } = await supabase
@@ -32,6 +38,48 @@ export function useBadges(userId: string | null) {
   useEffect(() => {
     load();
   }, [load]);
+
+  /**
+   * 관리자가 "뱃지 직접 부여"로 다른 화면에서 뱃지를 줬을 때 학생 화면에도 실시간으로 반영되도록
+   * user_badges의 insert/delete를 구독한다. 내가 스스로 지급받은 경우(자동/날짜 조건)는 그 즉시
+   * 로컬 상태에 이미 반영돼 있어서, 여기서는 "아직 모르는" 지급만 골라내 externalGrant로 알린다.
+   */
+  useEffect(() => {
+    if (!userId) return;
+    const channel = supabase
+      .channel(`user_badges_watch_${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "user_badges", filter: `user_id=eq.${userId}` },
+        async (payload) => {
+          const badgeId = (payload.new as { badge_id: string }).badge_id;
+          if (earnedIdsRef.current.has(badgeId)) return;
+          const { data: badge } = await supabase.from("badges").select("*").eq("id", badgeId).single();
+          if (!badge) return;
+          setEarnedIds((prev) => new Set([...prev, badgeId]));
+          setExternalGrant(badge as BadgeDef);
+        }
+      )
+      .on(
+        "postgres_changes",
+        { event: "DELETE", schema: "public", table: "user_badges", filter: `user_id=eq.${userId}` },
+        (payload) => {
+          const badgeId = (payload.old as { badge_id: string }).badge_id;
+          setEarnedIds((prev) => {
+            if (!prev.has(badgeId)) return prev;
+            const next = new Set(prev);
+            next.delete(badgeId);
+            return next;
+          });
+        }
+      )
+      .subscribe();
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId, supabase]);
+
+  const clearExternalGrant = useCallback(() => setExternalGrant(null), []);
 
   /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일/기간)을 만족하는지 확인합니다. */
   const matchesDateCondition = (b: BadgeDef, today: string) => {
@@ -86,5 +134,5 @@ export function useBadges(userId: string | null) {
     return grant(newlyEarned);
   }, [userId, badges, earnedIds, grant]);
 
-  return { badges, earnedIds, loading, checkMilestones, checkDateBadges, reload: load };
+  return { badges, earnedIds, loading, checkMilestones, checkDateBadges, externalGrant, clearExternalGrant, reload: load };
 }

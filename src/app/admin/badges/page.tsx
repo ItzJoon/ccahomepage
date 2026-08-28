@@ -127,6 +127,25 @@ export default function AdminBadgesPage() {
     setTimeout(() => setGrantMsg(null), 3000);
   };
 
+  const revokeBadge = async (badgeId: string) => {
+    if (!grantUser) return;
+    if (!confirm("이 학생에게서 이 뱃지를 회수할까요?")) return;
+    const { error } = await supabase.from("user_badges").delete().eq("user_id", grantUser.id).eq("badge_id", badgeId);
+    if (!error) {
+      setGrantUserEarnedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(badgeId);
+        return next;
+      });
+      setGrantMsg("뱃지를 회수했습니다.");
+      setTimeout(() => setGrantMsg(null), 3000);
+    }
+  };
+
+  const grantUserEarnedBadges = [...rows]
+    .sort((a, b) => sortKey(a) - sortKey(b))
+    .filter((b) => grantUserEarnedIds.has(b.id));
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
       <div className="min-w-0">
@@ -232,6 +251,29 @@ export default function AdminBadgesPage() {
             </button>
           </div>
           {grantMsg && <p className="text-sm mt-2 font-bold text-teal">{grantMsg}</p>}
+
+          {grantUser && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="text-sm font-bold mb-2">
+                {grantUser.nickname || grantUser.name || grantUser.email}님이 보유한 뱃지
+              </h4>
+              {grantUserEarnedBadges.length === 0 ? (
+                <p className="text-muted text-xs">아직 획득한 뱃지가 없습니다.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {grantUserEarnedBadges.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] rounded-lg px-3 py-2">
+                      <span className="text-sm flex items-center gap-1.5">
+                        <span className="text-lg">{b.icon}</span>
+                        {b.label}
+                      </span>
+                      <button onClick={() => revokeBadge(b.id)} className="text-red text-xs font-bold shrink-0">회수</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
       {editing && (
