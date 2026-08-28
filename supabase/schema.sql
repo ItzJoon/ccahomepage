@@ -12,7 +12,7 @@ create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   email text unique not null,
   name text,
-  role text not null default 'student' check (role in ('student','editor','admin','superadmin')),
+  role text not null default 'student' check (role in ('student','teacher','editor','admin','superadmin')),
   profile_image text,
   created_at timestamptz not null default now()
 );
@@ -584,3 +584,13 @@ order by ua.visit_date desc;
 -- is_active(지급 가능 여부)와는 별개로, is_secret은 "학생이 획득하기 전까지
 -- 뱃지 목록에 아예 안 보이는지"만 제어한다. 획득하는 순간 정상적으로 드러난다.
 alter table badges add column if not exists is_secret boolean not null default false;
+
+-- ------------------------------------------------------------
+-- 기능: teacher 역할 추가
+-- ------------------------------------------------------------
+-- 지금은 student와 권한이 완전히 동일하다(is_admin/is_editor_or_above 둘 다
+-- teacher를 포함하지 않음). 나중에 선생님 전용 기능을 추가할 때 구분하기 위한
+-- 역할이다. 기존 DB는 role 컬럼에 이미 CHECK 제약이 걸려 있으므로 다시 만든다.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('student','teacher','editor','admin','superadmin'));

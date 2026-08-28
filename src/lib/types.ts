@@ -1,4 +1,4 @@
-export type Role = "student" | "editor" | "admin" | "superadmin";
+export type Role = "student" | "teacher" | "editor" | "admin" | "superadmin";
 
 export interface Profile {
   id: string;

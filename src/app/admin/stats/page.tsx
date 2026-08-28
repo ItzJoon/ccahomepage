@@ -6,8 +6,19 @@ export default async function AdminStatsPage() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [{ count: totalStudents }, { data: recentAttendance }, { data: topStreaks }, { data: attendanceLog }] = await Promise.all([
+  const [
+    { count: totalUsers },
+    { count: studentCount },
+    { count: teacherCount },
+    { count: staffCount },
+    { data: recentAttendance },
+    { data: topStreaks },
+    { data: attendanceLog },
+  ] = await Promise.all([
+    supabase.from("profiles").select("*", { count: "exact", head: true }),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
+    supabase.from("profiles").select("*", { count: "exact", head: true }).in("role", ["editor", "admin", "superadmin"]),
     supabase
       .from("user_attendance")
       .select("visit_date")
@@ -28,7 +39,10 @@ export default async function AdminStatsPage() {
     <div>
       <h2 className="text-[22px] mb-4">접속 통계</h2>
       <StatsTabs
-        totalStudents={totalStudents ?? 0}
+        totalUsers={totalUsers ?? 0}
+        studentCount={studentCount ?? 0}
+        teacherCount={teacherCount ?? 0}
+        staffCount={staffCount ?? 0}
         recentVisitCount={recentAttendance?.length ?? 0}
         topStreaks={(topStreaks as any) ?? []}
         attendanceLog={(attendanceLog as any) ?? []}

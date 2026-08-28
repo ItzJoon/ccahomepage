@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { Profile } from "@/lib/types";
 
-const ROLES = ["student", "editor", "admin", "superadmin"];
+const ROLES = ["student", "teacher", "editor", "admin", "superadmin"];
 
 export default function AdminUsersPage() {
   const supabase = createClient();

@@ -68,7 +68,7 @@ council-site/
 
 | 테이블 | 설명 |
 |---|---|
-| `profiles` | `auth.users` 확장. `role`(student/editor/admin/superadmin) 보유. 가입 시 트리거로 자동 생성(기본 student) |
+| `profiles` | `auth.users` 확장. `role`(student/teacher/editor/admin/superadmin) 보유. 가입 시 트리거로 자동 생성(기본 student) |
 | `organizations` | 학생자치회 조직 (임원회/대의원회/사법위원회/총회 등, 관리자가 자유 추가) |
 | `members` | 조직별 구성원 프로필 |
 | `posts` | 공지(`type=notice`)·뉴스(`type=news`) 공용. 고정/예약발행/상태 포함 |
@@ -94,6 +94,9 @@ council-site/
 - **읽기**: 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물)는 로그인 여부와 무관하게 누구나 열람.
   Q&A 비공개 질문은 작성자 본인과 `admin` 이상만 조회 가능(행 단위로 DB가 강제).
 - **쓰기**: `editor` 이상만 콘텐츠 생성/수정/삭제, `admin` 이상만 회원 role 변경.
+- **`teacher` 역할**: 현재는 권한이 `student`와 완전히 동일합니다(`is_admin()`/`is_editor_or_above()`
+  둘 다 `teacher`를 포함하지 않음). 나중에 선생님 전용 기능을 추가할 때 구분하려고 미리 만들어둔
+  역할이며, `/admin/users`에서 학생 계정을 `teacher`로 바꿔줄 수 있습니다.
 - **role 승격 제한**: `admin`은 다른 사용자를 `editor`/`student`로 조정할 수 있지만, 자기 자신을 포함해
   누구도 `admin`/`superadmin`으로 승격시킬 수 없고, 이미 `admin`/`superadmin`인 계정은 아예 수정할 수
   없습니다(`superadmin`만 가능). `profiles_update_self` 정책만으로는 본인 row의 role 변경을 막을 수

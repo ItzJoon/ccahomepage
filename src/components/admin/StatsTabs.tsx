@@ -14,12 +14,18 @@ type AttendanceRow = {
 };
 
 export default function StatsTabs({
-  totalStudents,
+  totalUsers,
+  studentCount,
+  teacherCount,
+  staffCount,
   recentVisitCount,
   topStreaks,
   attendanceLog,
 }: {
-  totalStudents: number;
+  totalUsers: number;
+  studentCount: number;
+  teacherCount: number;
+  staffCount: number;
   recentVisitCount: number;
   topStreaks: TopStreak[];
   attendanceLog: AttendanceRow[];
@@ -51,8 +57,20 @@ export default function StatsTabs({
         <div>
           <div className="flex gap-3 flex-wrap mb-6">
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
-              <div className="font-serif font-black text-2xl">{totalStudents}</div>
-              <div className="text-sm text-muted">가입 학생 수</div>
+              <div className="font-serif font-black text-2xl">{totalUsers}</div>
+              <div className="text-sm text-muted">전체 가입자 수</div>
+            </div>
+            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+              <div className="font-serif font-black text-2xl">{studentCount}</div>
+              <div className="text-sm text-muted">일반 학생 수</div>
+            </div>
+            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+              <div className="font-serif font-black text-2xl">{teacherCount}</div>
+              <div className="text-sm text-muted">선생님 수</div>
+            </div>
+            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+              <div className="font-serif font-black text-2xl">{staffCount}</div>
+              <div className="text-sm text-muted">관리 권한 계정 수</div>
             </div>
             <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
               <div className="font-serif font-black text-2xl">{recentVisitCount}</div>
