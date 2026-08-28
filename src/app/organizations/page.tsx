@@ -31,7 +31,7 @@ export default function OrganizationsPage() {
             className="bg-white border border-border rounded-xl p-5 block hover:shadow-md"
             style={{ borderTop: `5px solid ${COLOR_VAR[o.color] || COLOR_VAR.navy}` }}
           >
-            <div className="font-serif font-bold text-lg mb-2">{o.name}</div>
+            <div className="font-bold text-lg mb-2">{o.name}</div>
             <p className="text-muted text-sm">{o.description}</p>
             <span className="text-blue font-bold text-sm">자세히 보기 →</span>
           </Link>
