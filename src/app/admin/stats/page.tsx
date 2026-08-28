@@ -5,7 +5,7 @@ export default async function AdminStatsPage() {
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-  const [{ count: totalStudents }, { data: recentAttendance }, { data: topStreaks }] = await Promise.all([
+  const [{ count: totalStudents }, { data: recentAttendance }, { data: topStreaks }, { data: attendanceLog }] = await Promise.all([
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "student"),
     supabase
       .from("user_attendance")
@@ -16,6 +16,11 @@ export default async function AdminStatsPage() {
       .select("user_id, streak_count, profiles(name, email)")
       .order("streak_count", { ascending: false })
       .limit(10),
+    supabase
+      .from("user_attendance_with_name")
+      .select("id, name, nickname, email, visit_date, streak_count, is_freeze")
+      .order("visit_date", { ascending: false })
+      .limit(200),
   ]);
 
   return (
@@ -50,6 +55,33 @@ export default async function AdminStatsPage() {
           ))}
           {(!topStreaks || topStreaks.length === 0) && (
             <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
+          )}
+        </tbody>
+      </table>
+
+      <h3 className="mt-8 mb-2">전체 접속 기록 (최근 200건)</h3>
+      <table className="w-full border-collapse bg-white">
+        <thead>
+          <tr>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">연속일수</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">프리즈</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(attendanceLog ?? []).map((row: any) => (
+            <tr key={row.id}>
+              <td className="p-2.5 border-b border-border text-sm">{row.visit_date}</td>
+              <td className="p-2.5 border-b border-border text-sm">{row.nickname || row.name || "-"}</td>
+              <td className="p-2.5 border-b border-border text-sm">{row.email}</td>
+              <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
+              <td className="p-2.5 border-b border-border text-sm">{row.is_freeze ? "❄️" : ""}</td>
+            </tr>
+          ))}
+          {(!attendanceLog || attendanceLog.length === 0) && (
+            <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
           )}
         </tbody>
       </table>
