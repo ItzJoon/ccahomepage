@@ -75,7 +75,7 @@ council-site/
 | `attachments` | 공지·뉴스·일정·규정 공용 첨부파일 (post_id / event_id / rule_id 중 하나 연결) |
 | `events` | 학사일정·학생자치회 일정 |
 | `rules` | 학생생활규정 문서 |
-| `questions` / `answers` | Q&A. `is_private`로 비공개 질문 구분 |
+| `questions` / `answers` | Q&A. `is_private`로 비공개 질문 구분. `author_display_name`으로 학생 목록에 작성자 이름 공개 여부 결정 |
 | `notifications` | 실시간 알림 발송 이력 |
 | `user_attendance` | 사용자별 일일 접속 기록 + 연속 접속일수 |
 | `pages` / `menus` / `blocks` | 관리자가 코딩 없이 추가하는 커스텀 페이지/메뉴 (확장용) |
@@ -93,6 +93,12 @@ council-site/
 
 - **읽기**: 공개 콘텐츠(조직/구성원/일정/규정/발행된 게시물)는 로그인 여부와 무관하게 누구나 열람.
   Q&A 비공개 질문은 작성자 본인과 `admin` 이상만 조회 가능(행 단위로 DB가 강제).
+- **Q&A 작성자 공개 범위**: `/qna`에서 질문을 등록할 때 "질문 목록에 제 이름 공개하기"를 선택할 수
+  있습니다. 선택하면 등록 시점의 표시 이름이 `author_display_name`에 저장되어 학생 목록에도 그대로
+  보이고, 선택하지 않으면 학생 목록에는 "익명"으로 표시됩니다(작성자 자신도 목록에서는 익명으로 보임).
+  관리자(`admin`/`editor`, `/admin/qna`)는 이 설정과 무관하게 `profiles`를 조인해 실제 작성자를
+  항상 볼 수 있습니다. 비공개 질문은 이 선택과 상관없이 트리거가 `author_display_name`을 강제로
+  비워서, 무조건 관리자에게만 작성자가 공개됩니다.
 - **쓰기**: `editor` 이상만 콘텐츠 생성/수정, `admin` 이상만 회원 role 변경.
 - **Q&A 답변은 `admin` 이상만** 작성할 수 있습니다(`editor`는 불가). `/admin/qna`에서 `editor`로
   보면 답변 작성란 대신 기존 답변(읽기 전용)과 안내 문구가 표시됩니다.

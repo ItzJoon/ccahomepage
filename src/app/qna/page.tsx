@@ -13,6 +13,7 @@ interface QuestionWithAnswer {
   title: string;
   content: string;
   is_private: boolean;
+  author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
   answers: { id: string; content: string; created_at: string }[];
@@ -28,7 +29,7 @@ export default function QnaPage() {
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [tab, setTab] = useState<"list" | "write">("list");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", content: "", isPrivate: false });
+  const [form, setForm] = useState({ title: "", content: "", isPrivate: false, revealAuthor: false });
   const [error, setError] = useState<string | null>(null);
 
   const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
@@ -47,17 +48,25 @@ export default function QnaPage() {
       return;
     }
     if (!form.title.trim() || !form.content.trim()) return;
+
+    let authorDisplayName: string | null = null;
+    if (form.revealAuthor && !form.isPrivate) {
+      const { data: profile } = await supabase.from("profiles").select("nickname, name").eq("id", userId).single();
+      authorDisplayName = profile?.nickname || profile?.name || null;
+    }
+
     const { error } = await supabase.from("questions").insert({
       user_id: userId,
       title: form.title,
       content: form.content,
       is_private: form.isPrivate,
+      author_display_name: authorDisplayName,
     });
     if (error) {
       setError(error.message);
       return;
     }
-    setForm({ title: "", content: "", isPrivate: false });
+    setForm({ title: "", content: "", isPrivate: false, revealAuthor: false });
     setTab("list");
     reload();
   };
@@ -112,6 +121,18 @@ export default function QnaPage() {
             />
             비공개 질문으로 등록 (작성자와 관리자만 열람 가능)
           </label>
+          <label className={`flex items-center gap-2 text-sm mt-1 ${form.isPrivate ? "opacity-40" : ""}`}>
+            <input
+              type="checkbox"
+              disabled={form.isPrivate}
+              checked={form.revealAuthor && !form.isPrivate}
+              onChange={(e) => setForm({ ...form, revealAuthor: e.target.checked })}
+            />
+            질문 목록에 제 이름 공개하기 (선택하지 않으면 관리자에게만 보입니다)
+          </label>
+          {form.isPrivate && (
+            <p className="text-muted text-xs">비공개 질문은 작성자 이름이 항상 관리자에게만 공개됩니다.</p>
+          )}
           {error && <div className="text-red text-xs">{error}</div>}
           <button onClick={submit} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3 self-start">
             질문 등록
@@ -124,6 +145,7 @@ export default function QnaPage() {
               <div className="flex items-center gap-2">
                 {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
                 <span className="flex-1 text-sm">{q.title}</span>
+                <span className="text-xs text-muted">{q.author_display_name || "익명"}</span>
                 <span
                   className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#EEF1F6] text-muted"

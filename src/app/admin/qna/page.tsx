@@ -10,15 +10,17 @@ interface QuestionWithAnswer {
   title: string;
   content: string;
   is_private: boolean;
+  author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
   answers: { id: string; content: string }[];
+  asker: { name: string | null; nickname: string | null; email: string } | null;
 }
 
 export default function AdminQnaPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
-    select: "*, answers(*)",
+    select: "*, answers(*), asker:profiles(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });
   const [openId, setOpenId] = useState<string | null>(null);
@@ -63,6 +65,7 @@ export default function AdminQnaPage() {
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">질문자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">공개</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
             </tr>
@@ -71,6 +74,9 @@ export default function AdminQnaPage() {
             {rows.map((q) => (
               <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer hover:bg-[#F2F4F8] ${openId === q.id ? "bg-[#EAF0FB]" : ""}`}>
                 <td className="p-2.5 border-b border-border text-sm">{q.title}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  {q.asker?.nickname || q.asker?.name || q.asker?.email || "-"}
+                </td>
                 <td className="p-2.5 border-b border-border">{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
                 <td className="p-2.5 border-b border-border">
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
@@ -79,13 +85,18 @@ export default function AdminQnaPage() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
           </tbody>
         </table>
       </div>
       {current && (
         <div className="bg-white border border-border rounded-xl p-[18px] sticky top-20">
           <h3>{current.title}</h3>
+          <p className="text-xs text-muted mb-1">
+            질문자: {current.asker?.nickname || current.asker?.name || current.asker?.email || "알 수 없음"}
+            {" · "}
+            {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
+          </p>
           <p className="text-sm">{current.content}</p>
           {iAmAdmin ? (
             <>

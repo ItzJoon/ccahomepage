@@ -72,6 +72,7 @@ export interface Question {
   title: string;
   content: string;
   is_private: boolean;
+  author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
 }

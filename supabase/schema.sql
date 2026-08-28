@@ -638,3 +638,28 @@ create policy "posts_delete_admin" on posts for delete using (is_admin());
 alter table profiles drop constraint if exists profiles_role_check;
 alter table profiles add constraint profiles_role_check
   check (role in ('student','teacher','sub_editor','editor','admin','superadmin'));
+
+-- ------------------------------------------------------------
+-- 기능: Q&A 작성자 공개 범위 선택
+-- ------------------------------------------------------------
+-- 질문 등록 시 작성자가 "모두에게 공개"를 선택하면 그 시점의 표시 이름을
+-- author_display_name에 저장해서 공개 목록에 그대로 보여준다(null이면 "익명").
+-- 관리자(admin 이상)는 이 값과 무관하게 profiles를 조인해 실제 작성자를 항상 볼 수 있다.
+alter table questions add column if not exists author_display_name text;
+
+-- 비공개 질문은 무조건 작성자 이름이 공개되지 않도록(=admin만 열람) DB 단에서 강제한다.
+-- (클라이언트가 실수로/의도적으로 author_display_name을 채워 보내도 무시됨)
+create or replace function enforce_qna_author_visibility()
+returns trigger as $$
+begin
+  if new.is_private then
+    new.author_display_name := null;
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists before_question_write on questions;
+create trigger before_question_write
+  before insert or update on questions
+  for each row execute procedure enforce_qna_author_visibility();
