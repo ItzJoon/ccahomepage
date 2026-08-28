@@ -26,12 +26,21 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     checkDateBadges,
     externalGrant,
     clearExternalGrant,
+    pendingCelebrations,
+    clearPendingCelebrations,
   } = useBadges(userId);
   const [toast, setToast] = useState<number | null>(null);
-  const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
+  // 축하할 뱃지가 여러 개 겹칠 수 있어(연속 접속 여러 단계 동시 달성, 접속 안 한 사이 관리자가
+  // 여러 개 부여 등) 큐로 관리하고 하나씩 순서대로 보여준다.
+  const [celebrateQueue, setCelebrateQueue] = useState<BadgeDef[]>([]);
   const [maintenanceMode, setMaintenanceMode] = useState<boolean | null>(null);
   const firedRef = useRef(false);
   const dateCheckedRef = useRef(false);
+
+  const pushCelebrations = (list: BadgeDef[]) => {
+    if (list.length === 0) return;
+    setCelebrateQueue((q) => [...q, ...list]);
+  };
 
   useEffect(() => {
     if (isLockdownExempt) {
@@ -56,7 +65,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
       if (nextStreak) {
         setToast(nextStreak);
         const newly = await checkMilestones(nextStreak);
-        if (newly.length > 0) setCelebrate(newly[newly.length - 1]);
+        pushCelebrations(newly);
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -70,7 +79,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     dateCheckedRef.current = true;
     (async () => {
       const newly = await checkDateBadges();
-      if (newly.length > 0 && !maintenanceMode) setCelebrate(newly[newly.length - 1]);
+      if (!maintenanceMode) pushCelebrations(newly);
     })();
   }, [userId, badgesLoading, checkDateBadges, maintenanceMode]);
 
@@ -81,12 +90,21 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   }, [toast]);
 
   // 관리자가 "뱃지 직접 부여"로 지급한 뱃지는 관리자 화면이 아니라 학생 본인 화면에서
-  // 축하 팝업이 떠야 하므로, useBadges의 실시간 구독이 감지한 지급을 그대로 celebrate로 넘긴다.
+  // 축하 팝업이 떠야 하므로, useBadges의 실시간 구독이 감지한 지급을 그대로 큐에 넣는다.
   useEffect(() => {
     if (!externalGrant) return;
-    setCelebrate(externalGrant);
+    pushCelebrations([externalGrant]);
     clearExternalGrant();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [externalGrant, clearExternalGrant]);
+
+  // 접속 중이 아닐 때 관리자가 부여해서 놓쳤던 축하도 접속하는 순간 몰아서 큐에 넣는다.
+  useEffect(() => {
+    if (pendingCelebrations.length === 0) return;
+    pushCelebrations(pendingCelebrations);
+    clearPendingCelebrations();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingCelebrations, clearPendingCelebrations]);
 
   return {
     streak: attendance.streak,
@@ -97,7 +115,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     badges,
     earnedIds,
     toast,
-    celebrate,
-    dismissCelebrate: () => setCelebrate(null),
+    celebrate: celebrateQueue[0] ?? null,
+    dismissCelebrate: () => setCelebrateQueue((q) => q.slice(1)),
   };
 }

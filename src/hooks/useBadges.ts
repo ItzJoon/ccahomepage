@@ -14,7 +14,9 @@ export function useBadges(userId: string | null) {
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [externalGrant, setExternalGrant] = useState<BadgeDef | null>(null);
+  const [pendingCelebrations, setPendingCelebrations] = useState<BadgeDef[]>([]);
   const earnedIdsRef = useRef(earnedIds);
+  const pendingCheckedRef = useRef(false);
 
   useEffect(() => {
     earnedIdsRef.current = earnedIds;
@@ -43,6 +45,7 @@ export function useBadges(userId: string | null) {
    * 관리자가 "뱃지 직접 부여"로 다른 화면에서 뱃지를 줬을 때 학생 화면에도 실시간으로 반영되도록
    * user_badges의 insert/delete를 구독한다. 내가 스스로 지급받은 경우(자동/날짜 조건)는 그 즉시
    * 로컬 상태에 이미 반영돼 있어서, 여기서는 "아직 모르는" 지급만 골라내 externalGrant로 알린다.
+   * 지금 접속 중이라 바로 보여줄 수 있으므로, 이 경로로 받은 지급은 celebrated=true로 표시한다.
    */
   useEffect(() => {
     if (!userId) return;
@@ -52,12 +55,15 @@ export function useBadges(userId: string | null) {
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "user_badges", filter: `user_id=eq.${userId}` },
         async (payload) => {
-          const badgeId = (payload.new as { badge_id: string }).badge_id;
-          if (earnedIdsRef.current.has(badgeId)) return;
-          const { data: badge } = await supabase.from("badges").select("*").eq("id", badgeId).single();
+          const row = payload.new as { badge_id: string; celebrated: boolean };
+          if (earnedIdsRef.current.has(row.badge_id)) return;
+          const { data: badge } = await supabase.from("badges").select("*").eq("id", row.badge_id).single();
           if (!badge) return;
-          setEarnedIds((prev) => new Set([...prev, badgeId]));
+          setEarnedIds((prev) => new Set([...prev, row.badge_id]));
           setExternalGrant(badge as BadgeDef);
+          if (!row.celebrated) {
+            await supabase.from("user_badges").update({ celebrated: true }).eq("user_id", userId).eq("badge_id", row.badge_id);
+          }
         }
       )
       .on(
@@ -79,7 +85,31 @@ export function useBadges(userId: string | null) {
     };
   }, [userId, supabase]);
 
+  /**
+   * 접속 중이 아닐 때 관리자가 부여한 뱃지는 위 실시간 구독으로 못 받으므로, 접속할 때마다
+   * "아직 축하 못 받은(celebrated=false)" 뱃지가 있는지 한 번 확인해서 놓친 축하를 몰아서 띄운다.
+   */
+  useEffect(() => {
+    if (!userId || pendingCheckedRef.current) return;
+    pendingCheckedRef.current = true;
+    (async () => {
+      const { data: rows } = await supabase
+        .from("user_badges")
+        .select("badge_id")
+        .eq("user_id", userId)
+        .eq("celebrated", false);
+      if (!rows || rows.length === 0) return;
+      const badgeIds = rows.map((r) => r.badge_id);
+      const { data: badgeRows } = await supabase.from("badges").select("*").in("id", badgeIds);
+      if (badgeRows && badgeRows.length > 0) {
+        setPendingCelebrations(badgeRows as BadgeDef[]);
+      }
+      await supabase.from("user_badges").update({ celebrated: true }).eq("user_id", userId).in("badge_id", badgeIds);
+    })();
+  }, [userId, supabase]);
+
   const clearExternalGrant = useCallback(() => setExternalGrant(null), []);
+  const clearPendingCelebrations = useCallback(() => setPendingCelebrations([]), []);
 
   /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일/기간)을 만족하는지 확인합니다. */
   const matchesDateCondition = (b: BadgeDef, today: string) => {
@@ -93,13 +123,16 @@ export function useBadges(userId: string | null) {
     return today === b.date_condition_value;
   };
 
-  /** 아직 못 받은 뱃지 중 조건을 만족하는 것들을 실제로 지급합니다(공용 로직). */
+  /**
+   * 아직 못 받은 뱃지 중 조건을 만족하는 것들을 실제로 지급합니다(공용 로직). 지급 즉시 호출한
+   * 쪽에서 축하 팝업을 보여줄 것이므로 celebrated=true로 기록한다.
+   */
   const grant = useCallback(
     async (toGrant: BadgeDef[]) => {
       if (!userId || toGrant.length === 0) return [];
       const { error } = await supabase
         .from("user_badges")
-        .insert(toGrant.map((b) => ({ user_id: userId, badge_id: b.id })));
+        .insert(toGrant.map((b) => ({ user_id: userId, badge_id: b.id, celebrated: true })));
       if (!error) {
         setEarnedIds((prev) => new Set([...prev, ...toGrant.map((b) => b.id)]));
       }
@@ -134,5 +167,16 @@ export function useBadges(userId: string | null) {
     return grant(newlyEarned);
   }, [userId, badges, earnedIds, grant]);
 
-  return { badges, earnedIds, loading, checkMilestones, checkDateBadges, externalGrant, clearExternalGrant, reload: load };
+  return {
+    badges,
+    earnedIds,
+    loading,
+    checkMilestones,
+    checkDateBadges,
+    externalGrant,
+    clearExternalGrant,
+    pendingCelebrations,
+    clearPendingCelebrations,
+    reload: load,
+  };
 }

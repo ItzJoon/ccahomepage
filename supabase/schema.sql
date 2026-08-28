@@ -865,3 +865,22 @@ alter table badges add constraint badges_date_condition_check check (date_condit
 -- 기본키(id)만 담겨서 user_id/badge_id로 필터링하거나 어떤 뱃지가 회수됐는지 알 수 없다.
 -- full로 바꿔서 삭제된 행 전체가 old 레코드에 담기게 한다.
 alter table user_badges replica identity full;
+
+-- ------------------------------------------------------------
+-- 24. 놓친 뱃지 축하 팝업을 다음 접속 때 띄우기 위한 celebrated 플래그
+-- ------------------------------------------------------------
+-- 관리자가 뱃지를 부여한 순간 학생이 접속 중이 아니면 실시간 팝업을 받을 대상이 없어서
+-- 그냥 조용히 지급되고 끝났다. celebrated=false인 뱃지는 다음에 학생이 접속할 때 발견해서
+-- 축하 팝업을 띄우고 true로 바꾼다. 기본값은 false(신규 지급은 축하 대상)로 두되, 이 컬럼을
+-- 처음 추가하는 시점에 이미 있던 행들은 소급 팝업이 뜨지 않도록 한 번만 true로 채운다
+-- (재실행 시에는 컬럼이 이미 있어서 이 백필이 다시 실행되지 않는다).
+do $$
+begin
+  if not exists (
+    select 1 from information_schema.columns
+    where table_name = 'user_badges' and column_name = 'celebrated'
+  ) then
+    alter table user_badges add column celebrated boolean not null default false;
+    update user_badges set celebrated = true;
+  end if;
+end $$;
