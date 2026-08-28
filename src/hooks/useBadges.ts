@@ -17,6 +17,10 @@ export function useBadges(userId: string | null) {
   const [pendingCelebrations, setPendingCelebrations] = useState<BadgeDef[]>([]);
   const earnedIdsRef = useRef(earnedIds);
   const pendingCheckedRef = useRef(false);
+  // Header(useAutoCheckIn)와 마이페이지가 동시에 useBadges를 호출하면 같은 사용자에 대해
+  // 채널이 두 번 생기는데, 이름이 겹치면 realtime 구독끼리 충돌한다(useRealtimeList와 동일 문제).
+  // 인스턴스마다 고유한 채널 이름을 쓰도록 랜덤값을 섞는다.
+  const channelSuffixRef = useRef(Math.random().toString(36).slice(2));
 
   useEffect(() => {
     earnedIdsRef.current = earnedIds;
@@ -53,7 +57,7 @@ export function useBadges(userId: string | null) {
   useEffect(() => {
     if (!userId) return;
     const channel = supabase
-      .channel(`user_badges_watch_${userId}`)
+      .channel(`user_badges_watch_${userId}_${channelSuffixRef.current}`)
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "user_badges" },
