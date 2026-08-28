@@ -555,3 +555,32 @@ alter table notifications add column if not exists duration_minutes int;
 -- 지금까지 notifications는 insert 정책만 있어서 관리자가 발송 이력을 지울 수 없었다.
 drop policy if exists "notifications_delete_admin" on notifications;
 create policy "notifications_delete_admin" on notifications for delete using (is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 기능: 접속 기록에 이름 표시용 뷰
+-- ------------------------------------------------------------
+-- user_attendance에는 user_id(uuid)만 있어서 Supabase 테이블 편집기에서 보면 누구 기록인지
+-- 알 수 없다. profiles와 조인한 뷰를 만들어 이름/이메일이 함께 보이게 한다.
+-- security_invoker = true로 만들어서, 뷰를 조회하는 사람의 RLS가 그대로 적용된다
+-- (학생 본인은 자기 기록만, admin/superadmin은 전체가 보임 — 원본 테이블의 RLS와 동일).
+create or replace view user_attendance_with_name
+with (security_invoker = true) as
+select
+  ua.id,
+  ua.user_id,
+  p.name,
+  p.nickname,
+  p.email,
+  ua.visit_date,
+  ua.streak_count,
+  ua.is_freeze
+from user_attendance ua
+join profiles p on p.id = ua.user_id
+order by ua.visit_date desc;
+
+-- ------------------------------------------------------------
+-- 기능: 시크릿 뱃지
+-- ------------------------------------------------------------
+-- is_active(지급 가능 여부)와는 별개로, is_secret은 "학생이 획득하기 전까지
+-- 뱃지 목록에 아예 안 보이는지"만 제어한다. 획득하는 순간 정상적으로 드러난다.
+alter table badges add column if not exists is_secret boolean not null default false;

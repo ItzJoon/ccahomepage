@@ -108,6 +108,7 @@ export interface BadgeDef {
   streak_threshold: number | null;
   order_index: number;
   is_active: boolean;
+  is_secret: boolean;
 }
 
 export interface UserBadge {

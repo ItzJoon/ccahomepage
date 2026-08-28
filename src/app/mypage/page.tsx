@@ -27,6 +27,7 @@ export default function MyPage() {
 
   const { streak, history, checkedToday, freezeCredits, loading, badges, earnedIds, toast, celebrate, dismissCelebrate } =
     useAutoCheckIn(userId ?? null);
+  const visibleBadges = badges.filter((b) => !b.is_secret || earnedIds.has(b.id));
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -119,7 +120,7 @@ export default function MyPage() {
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
         <h3 className="mb-3">획득한 뱃지</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-          {badges.map((b) => {
+          {visibleBadges.map((b) => {
             const earned = earnedIds.has(b.id);
             return (
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
@@ -138,7 +139,7 @@ export default function MyPage() {
               </div>
             );
           })}
-          {badges.length === 0 && <div className="text-muted text-sm col-span-full text-center py-4">등록된 뱃지가 없습니다.</div>}
+          {visibleBadges.length === 0 && <div className="text-muted text-sm col-span-full text-center py-4">등록된 뱃지가 없습니다.</div>}
         </div>
       </div>
 
