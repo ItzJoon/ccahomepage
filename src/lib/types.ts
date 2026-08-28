@@ -89,6 +89,7 @@ export interface NotificationItem {
   level: "info" | "urgent";
   display_type: "banner" | "popup";
   duration_minutes: number | null;
+  popup_active: boolean;
   sent_at: string;
 }
 

@@ -36,6 +36,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       .from("notifications")
       .select("*")
       .eq("display_type", "popup")
+      .eq("popup_active", true)
       .order("sent_at", { ascending: false })
       .limit(1)
       .maybeSingle(),

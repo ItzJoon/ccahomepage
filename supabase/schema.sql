@@ -603,3 +603,11 @@ alter table profiles add constraint profiles_role_check
 -- 눌러야 사라진다. duration_minutes는 popup에는 적용하지 않는다(관리자 화면에서 숨김).
 alter table notifications add column if not exists display_type text not null default 'banner'
   check (display_type in ('banner','popup'));
+
+-- 팝업 "중지": 발송 기록(감사용)은 남기고 더 이상 뜨지 않게만 막는다.
+-- (기록 자체를 지우고 싶으면 기존 delete 정책으로 행을 삭제하면 된다)
+alter table notifications add column if not exists popup_active boolean not null default true;
+
+-- 지금까지 notifications는 update 정책이 없어서 "팝업 중지"를 저장할 수 없었다.
+drop policy if exists "notifications_update_admin" on notifications;
+create policy "notifications_update_admin" on notifications for update using (is_editor_or_above());

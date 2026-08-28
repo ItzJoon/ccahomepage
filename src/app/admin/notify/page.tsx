@@ -39,8 +39,14 @@ export default function AdminNotifyPage() {
   };
 
   const remove = async (id: string) => {
-    if (!confirm("이 알림을 삭제하시겠습니까?")) return;
+    if (!confirm("이 알림을 삭제하시겠습니까? 지금 떠 있는 팝업도 즉시 닫힙니다.")) return;
     await supabase.from("notifications").delete().eq("id", id);
+    reload();
+  };
+
+  const stopPopup = async (id: string) => {
+    if (!confirm("이 팝업을 중지하시겠습니까? 지금 떠 있는 팝업도 즉시 닫히고, 앞으로 새로 뜨지 않습니다. 발송 기록은 그대로 남습니다.")) return;
+    await supabase.from("notifications").update({ popup_active: false }).eq("id", id);
     reload();
   };
 
@@ -105,6 +111,13 @@ export default function AdminNotifyPage() {
             <span className="text-xs text-muted">{n.display_type === "popup" ? "팝업" : "배너"}</span>
             <span className="text-xs text-muted">{n.display_type === "popup" ? "확인 시 닫힘" : durationLabel(n.duration_minutes)}</span>
             <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
+            {n.display_type === "popup" && (
+              n.popup_active ? (
+                <button onClick={() => stopPopup(n.id)} className="text-blue text-xs font-bold">팝업 중지</button>
+              ) : (
+                <span className="text-muted text-xs">중지됨</span>
+              )
+            )}
             <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
           </li>
         ))}
