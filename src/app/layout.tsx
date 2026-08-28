@@ -14,17 +14,18 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const profile = await getCurrentProfile();
   const supabase = createClient();
 
-  const { data: customPages } = await supabase
-    .from("pages")
-    .select("id, slug, title, content, is_published, menu_visible, order_index")
-    .eq("is_published", true)
-    .eq("menu_visible", true)
-    .order("order_index");
-
-  const [{ data: latestBanner }, { data: latestPopup }] = await Promise.all([
+  // 프로필/커스텀 페이지/배너/팝업 조회는 서로 의존관계가 없는데, 하나씩 순서대로 기다리면
+  // 매 페이지 로드마다 Supabase 왕복이 그만큼 누적된다. 동시에 요청해서 가장 느린 것 하나만큼만 기다린다.
+  const [profile, { data: customPages }, { data: latestBanner }, { data: latestPopup }] = await Promise.all([
+    getCurrentProfile(),
+    supabase
+      .from("pages")
+      .select("id, slug, title, content, is_published, menu_visible, order_index")
+      .eq("is_published", true)
+      .eq("menu_visible", true)
+      .order("order_index"),
     supabase
       .from("notifications")
       .select("*")
