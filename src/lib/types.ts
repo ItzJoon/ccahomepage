@@ -174,3 +174,11 @@ export interface OrgRecord {
   author_id: string | null;
   created_at: string;
 }
+
+export interface SiteSettings {
+  id: string;
+  maintenance_mode: boolean;
+  maintenance_message: string;
+  maintenance_until: string | null;
+  updated_at: string;
+}

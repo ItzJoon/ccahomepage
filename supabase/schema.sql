@@ -801,3 +801,37 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ------------------------------------------------------------
+-- 20. 사이트 잠금(점검) 모드
+-- ------------------------------------------------------------
+-- 켜져 있으면 admin/superadmin을 제외한 모든 사용자(비로그인 포함)가 /maintenance로
+-- 리다이렉트된다. 날짜 하드코딩 대신 admin이 언제든 껐다 켤 수 있는 설정 값으로 만들었다.
+create table if not exists site_settings (
+  id text primary key default 'default',
+  maintenance_mode boolean not null default false,
+  maintenance_message text not null default '현재 사이트를 점검 중입니다. 관리자 계정으로만 이용할 수 있습니다.',
+  maintenance_until date,
+  updated_at timestamptz not null default now()
+);
+
+insert into site_settings (id, maintenance_until) values ('default', '2026-09-01')
+on conflict (id) do nothing;
+
+alter table site_settings enable row level security;
+
+-- 잠금 여부는 미들웨어가 비로그인 사용자로도 확인해야 하므로 전체 공개 열람.
+drop policy if exists "site_settings_read_all" on site_settings;
+create policy "site_settings_read_all" on site_settings for select using (true);
+drop policy if exists "site_settings_update_admin" on site_settings;
+create policy "site_settings_update_admin" on site_settings for update using (is_admin());
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'site_settings'
+  ) then
+    alter publication supabase_realtime add table public.site_settings;
+  end if;
+end $$;
