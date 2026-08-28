@@ -1,76 +1,149 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
-import Badge from "@/components/Badge";
-import type { Member, Organization } from "@/lib/types";
+import type { DirectoryMember } from "@/lib/types";
 
-const COLOR_VAR: Record<string, string> = {
-  navy: "var(--navy)",
-  teal: "var(--teal)",
-  red: "var(--red)",
-  gold: "var(--gold)",
-};
+const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
+const GRADES = ["10", "11", "12"] as const;
 
-export default function MembersPage() {
-  const { rows: orgs } = useRealtimeList<Organization>("organizations", {
-    orderBy: { column: "order_index" },
+export default function DirectoryPage() {
+  const supabase = createClient();
+  const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const { rows } = useRealtimeList<DirectoryMember>("directory_members", {
+    orderBy: { column: "display_name" },
   });
-  const { rows: members } = useRealtimeList<Member & { profile: { profile_image: string | null } | null }>("members", {
-    select: "*, profile:profiles(profile_image)",
-    orderBy: { column: "order_index" },
-  });
-  const [filter, setFilter] = useState("전체");
+  const [tab, setTab] = useState<"student" | "teacher">("student");
+  const [grades, setGrades] = useState<Set<string>>(new Set(GRADES));
+  const [q, setQ] = useState("");
 
-  const orgById = Object.fromEntries(orgs.map((o) => [o.id, o]));
-  const list = members.filter((m) => (filter === "전체" ? true : m.org_id === filter));
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
+  }, [supabase]);
+
+  const toggleGrade = (g: string) => {
+    setGrades((prev) => {
+      const next = new Set(prev);
+      if (next.has(g)) next.delete(g);
+      else next.add(g);
+      return next;
+    });
+  };
+
+  const students = useMemo(() => {
+    return rows
+      .filter((m) => m.member_type === "student")
+      .filter((m) => !m.grade || grades.has(m.grade))
+      .filter((m) => m.display_name.includes(q))
+      .sort((a, b) => {
+        const gradeDiff = (a.grade ?? "").localeCompare(b.grade ?? "");
+        if (gradeDiff !== 0) return gradeDiff;
+        const homeroomDiff = (a.homeroom ?? 0) - (b.homeroom ?? 0);
+        if (homeroomDiff !== 0) return homeroomDiff;
+        return a.display_name.localeCompare(b.display_name, "ko");
+      });
+  }, [rows, grades, q]);
+
+  const teachers = useMemo(() => {
+    return rows
+      .filter((m) => m.member_type === "teacher")
+      .filter((m) => m.display_name.includes(q))
+      .sort((a, b) => a.display_name.localeCompare(b.display_name, "ko"));
+  }, [rows, q]);
+
+  if (signedIn === false) {
+    return (
+      <div>
+        <SectionTitle eyebrow="DIRECTORY" title="구성원 조회" />
+        <div className="bg-white border border-border rounded-xl p-8 text-center text-muted text-sm">
+          로그인한 학교 구성원만 열람할 수 있습니다.{" "}
+          <Link href="/login" className="text-blue font-bold">
+            로그인하기
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
-      <SectionTitle eyebrow="PEOPLE" title="구성원 소개" />
-      <div className="mb-3.5">
-        <select
-          className="border border-border rounded-lg px-3 py-2 text-sm"
-          value={filter}
-          onChange={(e) => setFilter(e.target.value)}
+      <SectionTitle eyebrow="DIRECTORY" title="구성원 조회" />
+      <p className="text-muted mb-4 text-sm">
+        학교 전체 학생·교사 명단입니다. 학생자치회 임원 소개는{" "}
+        <Link href="/organizations" className="text-blue font-bold">
+          학생자치회 소개
+        </Link>{" "}
+        페이지에서 볼 수 있어요.
+      </p>
+
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setTab("student")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-bold ${
+            tab === "student" ? "bg-navy text-white" : "bg-white border border-border text-muted"
+          }`}
         >
-          <option value="전체">전체 조직</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
+          학생
+        </button>
+        <button
+          onClick={() => setTab("teacher")}
+          className={`px-5 py-2.5 rounded-lg text-sm font-bold ${
+            tab === "teacher" ? "bg-navy text-white" : "bg-white border border-border text-muted"
+          }`}
+        >
+          교사
+        </button>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-        {list.map((m) => {
-          const org = orgById[m.org_id];
-          const photo = m.photo_url || m.profile?.profile_image;
-          return (
+
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {tab === "student" && (
+          <div className="flex gap-3">
+            {GRADES.map((g) => (
+              <label key={g} className="flex items-center gap-1.5 text-sm">
+                <input type="checkbox" checked={grades.has(g)} onChange={() => toggleGrade(g)} />
+                {g}학년
+              </label>
+            ))}
+          </div>
+        )}
+        <input
+          className="border border-border rounded-lg px-3 py-2 text-sm ml-auto w-full max-w-[200px]"
+          placeholder="이름으로 검색"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
+
+      {tab === "student" ? (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          {students.map((m) => (
             <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
-              {photo ? (
-                <img
-                  src={photo}
-                  alt={m.name}
-                  className="rounded-full object-cover mx-auto mb-2.5"
-                  style={{ width: 52, height: 52 }}
-                />
-              ) : (
-                <div
-                  className="rounded-full text-white flex items-center justify-center font-bold mx-auto mb-2.5"
-                  style={{ background: COLOR_VAR[org?.color] || COLOR_VAR.navy, width: 52, height: 52 }}
-                >
-                  {m.name[0]}
-                </div>
-              )}
-              <div className="font-bold">{m.name}</div>
-              <div className="text-blue text-sm mb-1">{m.position}</div>
-              {org && <Badge color={org.color}>{org.name}</Badge>}
-              <div className="text-muted text-xs mt-1.5">{m.bio}</div>
+              <div className="font-bold">{m.display_name}</div>
+              <div className="text-blue text-sm mt-1">
+                {m.grade}학년 {m.homeroom ? HOMEROOM_LABEL[m.homeroom] : ""}
+              </div>
             </div>
-          );
-        })}
-        {list.length === 0 && <div className="text-muted text-center py-8 text-sm col-span-4">구성원이 없습니다.</div>}
-      </div>
+          ))}
+          {students.length === 0 && (
+            <div className="text-muted text-center py-8 text-sm col-span-4">일치하는 학생이 없습니다.</div>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
+          {teachers.map((m) => (
+            <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
+              <div className="font-bold">{m.display_name}</div>
+              <div className="text-blue text-sm mt-1">{m.subject || "-"}</div>
+            </div>
+          ))}
+          {teachers.length === 0 && (
+            <div className="text-muted text-center py-8 text-sm col-span-4">일치하는 교사가 없습니다.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
