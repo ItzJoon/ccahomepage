@@ -545,3 +545,13 @@ alter table badges alter column streak_threshold drop not null;
 drop policy if exists "user_badges_insert_staff" on user_badges;
 create policy "user_badges_insert_staff" on user_badges for insert
   with check (is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 기능: 알림 표시 시간 선택 + 발송 이력 삭제
+-- ------------------------------------------------------------
+-- null이면 기존과 동일하게 학생이 직접 닫기 전까지 계속 표시.
+alter table notifications add column if not exists duration_minutes int;
+
+-- 지금까지 notifications는 insert 정책만 있어서 관리자가 발송 이력을 지울 수 없었다.
+drop policy if exists "notifications_delete_admin" on notifications;
+create policy "notifications_delete_admin" on notifications for delete using (is_editor_or_above());

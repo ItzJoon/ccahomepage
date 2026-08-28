@@ -87,6 +87,7 @@ export interface NotificationItem {
   title: string;
   message: string;
   level: "info" | "urgent";
+  duration_minutes: number | null;
   sent_at: string;
 }
 

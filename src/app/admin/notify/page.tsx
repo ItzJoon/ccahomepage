@@ -14,6 +14,7 @@ export default function AdminNotifyPage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [level, setLevel] = useState<"info" | "urgent">("info");
+  const [duration, setDuration] = useState(""); // "" = 계속 표시(직접 닫기 전까지)
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -22,11 +23,31 @@ export default function AdminNotifyPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
-    await supabase.from("notifications").insert({ title, message, level, sent_by: user?.id });
+    await supabase.from("notifications").insert({
+      title,
+      message,
+      level,
+      duration_minutes: duration ? Number(duration) : null,
+      sent_by: user?.id,
+    });
     setTitle("");
     setMessage("");
     setSending(false);
     reload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("이 알림을 삭제하시겠습니까?")) return;
+    await supabase.from("notifications").delete().eq("id", id);
+    reload();
+  };
+
+  const durationLabel = (n: number | null) => {
+    if (!n) return "계속 표시";
+    if (n < 60) return `${n}분간 표시`;
+    if (n % 1440 === 0) return `${n / 1440}일간 표시`;
+    if (n % 60 === 0) return `${n / 60}시간 표시`;
+    return `${n}분간 표시`;
   };
 
   return (
@@ -42,6 +63,15 @@ export default function AdminNotifyPage() {
           <option value="info">일반 안내</option>
           <option value="urgent">긴급</option>
         </select>
+        <label className="text-xs font-bold text-muted mt-2">표시 시간</label>
+        <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={duration} onChange={(e) => setDuration(e.target.value)}>
+          <option value="">계속 표시 (학생이 직접 닫기 전까지)</option>
+          <option value="10">10분</option>
+          <option value="30">30분</option>
+          <option value="60">1시간</option>
+          <option value="180">3시간</option>
+          <option value="1440">24시간</option>
+        </select>
         <button disabled={sending} onClick={send} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3.5 self-start">
           {sending ? "발송 중…" : "학생 화면에 즉시 발송"}
         </button>
@@ -53,7 +83,9 @@ export default function AdminNotifyPage() {
           <li key={n.id} className="border-b border-border py-2.5 flex items-center gap-2">
             {n.level === "urgent" && <Badge color="red">긴급</Badge>}
             <span className="flex-1 text-sm">{n.title}</span>
+            <span className="text-xs text-muted">{durationLabel(n.duration_minutes)}</span>
             <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
+            <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
           </li>
         ))}
         {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">발송한 알림이 없습니다.</div>}

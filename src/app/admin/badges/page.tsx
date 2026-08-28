@@ -185,8 +185,6 @@ export default function AdminBadgesPage() {
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">뱃지 이름</label>
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
-          <label className="text-xs font-bold text-muted mt-2">설명</label>
-          <textarea rows={2} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
 
           <label className="text-xs font-bold text-muted mt-2">지급 방식</label>
           <select
@@ -195,8 +193,19 @@ export default function AdminBadgesPage() {
             onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" })}
           >
             <option value="auto">자동 (연속 접속일수 조건 도달 시)</option>
-            <option value="manual">수동 (관리자가 달성 확인 후 직접 부여)</option>
+            <option value="manual">수동 (자유 조건, 관리자가 확인 후 직접 부여)</option>
           </select>
+
+          <label className="text-xs font-bold text-muted mt-2">
+            {form.award_type === "manual" ? "달성 조건 (자유롭게 작성)" : "설명"}
+          </label>
+          <textarea
+            rows={2}
+            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            placeholder={form.award_type === "manual" ? "예: ○○ 선생님과 진로 상담 완료하기" : undefined}
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
 
           {form.award_type === "auto" && (
             <>
