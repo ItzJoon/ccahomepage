@@ -102,7 +102,8 @@ export default function AdminBadgesPage() {
     const { error } = await supabase.from("user_badges").insert({ user_id: grantUser.id, badge_id: grantBadgeId });
     setGrantMsg(error ? (error.code === "23505" ? "이미 이 학생에게 지급된 뱃지입니다." : "지급에 실패했습니다.") : "뱃지를 지급했습니다.");
     if (!error) {
-      setGrantUser(null);
+      // 학생 선택은 유지해서, 같은 학생에게 다른 뱃지도 이어서 줄 수 있게 한다.
+      setGrantUserEarnedIds((prev) => new Set([...prev, grantBadgeId]));
       setGrantBadgeId("");
     }
     setTimeout(() => setGrantMsg(null), 3000);
