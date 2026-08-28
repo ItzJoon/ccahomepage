@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
+import NotificationPopup from "@/components/NotificationPopup";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 
 export const metadata: Metadata = {
@@ -23,19 +24,30 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     .eq("menu_visible", true)
     .order("order_index");
 
-  const { data: latestNotification } = await supabase
-    .from("notifications")
-    .select("*")
-    .order("sent_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  const [{ data: latestBanner }, { data: latestPopup }] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("display_type", "banner")
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("display_type", "popup")
+      .order("sent_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
 
   return (
     <html lang="ko">
       <body>
         <div className="min-h-screen flex flex-col">
           <Header profile={profile as any} customPages={customPages ?? []} />
-          <NotificationBanner initial={latestNotification as any} />
+          <NotificationBanner initial={latestBanner as any} />
+          <NotificationPopup initial={latestPopup as any} />
           <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
           <Footer />
         </div>

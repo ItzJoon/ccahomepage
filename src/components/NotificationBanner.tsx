@@ -27,7 +27,7 @@ export default function NotificationBanner({ initial }: { initial: NotificationI
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationItem;
-          if (!isExpired(n)) setLatest(n);
+          if (n.display_type === "banner" && !isExpired(n)) setLatest(n);
         }
       )
       .subscribe();

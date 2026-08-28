@@ -14,7 +14,8 @@ export default function AdminNotifyPage() {
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [level, setLevel] = useState<"info" | "urgent">("info");
-  const [duration, setDuration] = useState(""); // "" = 계속 표시(직접 닫기 전까지)
+  const [displayType, setDisplayType] = useState<"banner" | "popup">("banner");
+  const [duration, setDuration] = useState(""); // "" = 계속 표시(직접 닫기 전까지) — 배너에만 적용
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -27,7 +28,8 @@ export default function AdminNotifyPage() {
       title,
       message,
       level,
-      duration_minutes: duration ? Number(duration) : null,
+      display_type: displayType,
+      duration_minutes: displayType === "banner" && duration ? Number(duration) : null,
       sent_by: user?.id,
     });
     setTitle("");
@@ -63,15 +65,32 @@ export default function AdminNotifyPage() {
           <option value="info">일반 안내</option>
           <option value="urgent">긴급</option>
         </select>
-        <label className="text-xs font-bold text-muted mt-2">표시 시간</label>
-        <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={duration} onChange={(e) => setDuration(e.target.value)}>
-          <option value="">계속 표시 (학생이 직접 닫기 전까지)</option>
-          <option value="10">10분</option>
-          <option value="30">30분</option>
-          <option value="60">1시간</option>
-          <option value="180">3시간</option>
-          <option value="1440">24시간</option>
+        <label className="text-xs font-bold text-muted mt-2">노출 방식</label>
+        <select
+          className="border border-border rounded-lg px-2.5 py-2 text-sm"
+          value={displayType}
+          onChange={(e) => setDisplayType(e.target.value as "banner" | "popup")}
+        >
+          <option value="banner">상단 배너 (작게 표시, 학생이 언제든 닫기 가능)</option>
+          <option value="popup">팝업 (모달, 확인/오늘 하루 안 보기를 눌러야 사라짐)</option>
         </select>
+        {displayType === "banner" ? (
+          <>
+            <label className="text-xs font-bold text-muted mt-2">표시 시간</label>
+            <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={duration} onChange={(e) => setDuration(e.target.value)}>
+              <option value="">계속 표시 (학생이 직접 닫기 전까지)</option>
+              <option value="10">10분</option>
+              <option value="30">30분</option>
+              <option value="60">1시간</option>
+              <option value="180">3시간</option>
+              <option value="1440">24시간</option>
+            </select>
+          </>
+        ) : (
+          <p className="text-muted text-xs mt-2">
+            팝업은 학생이 "확인" 또는 "오늘 하루 안 보기"를 누르기 전까지 계속 뜹니다(표시 시간 설정 없음).
+          </p>
+        )}
         <button disabled={sending} onClick={send} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3.5 self-start">
           {sending ? "발송 중…" : "학생 화면에 즉시 발송"}
         </button>
@@ -83,7 +102,8 @@ export default function AdminNotifyPage() {
           <li key={n.id} className="border-b border-border py-2.5 flex items-center gap-2">
             {n.level === "urgent" && <Badge color="red">긴급</Badge>}
             <span className="flex-1 text-sm">{n.title}</span>
-            <span className="text-xs text-muted">{durationLabel(n.duration_minutes)}</span>
+            <span className="text-xs text-muted">{n.display_type === "popup" ? "팝업" : "배너"}</span>
+            <span className="text-xs text-muted">{n.display_type === "popup" ? "확인 시 닫힘" : durationLabel(n.duration_minutes)}</span>
             <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
             <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
           </li>

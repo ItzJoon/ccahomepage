@@ -594,3 +594,12 @@ alter table badges add column if not exists is_secret boolean not null default f
 alter table profiles drop constraint if exists profiles_role_check;
 alter table profiles add constraint profiles_role_check
   check (role in ('student','teacher','editor','admin','superadmin'));
+
+-- ------------------------------------------------------------
+-- 기능 5. 공지사항 노출 방식 선택 (배너 / 팝업)
+-- ------------------------------------------------------------
+-- banner: 기존처럼 상단에 작게 표시(닫기 전까지 유지, duration_minutes로 자동 만료 가능).
+-- popup: 페이지 진입 시 모달로 표시되어 학생이 확인/닫기(또는 "오늘 하루 안 보기")를
+-- 눌러야 사라진다. duration_minutes는 popup에는 적용하지 않는다(관리자 화면에서 숨김).
+alter table notifications add column if not exists display_type text not null default 'banner'
+  check (display_type in ('banner','popup'));
