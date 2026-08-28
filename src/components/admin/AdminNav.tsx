@@ -17,6 +17,7 @@ const NAV = [
   { href: "/admin/badges", label: "뱃지 관리" },
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
   { href: "/admin/users", label: "회원·권한 관리" },
+  { href: "/admin/access-requests", label: "외부 계정 관리" },
   { href: "/admin/stats", label: "접속 통계" },
   { href: "/admin/maintenance", label: "사이트 잠금" },
 ];
