@@ -134,7 +134,9 @@ export default function MyPage() {
                     {b.award_type === "auto"
                       ? `연속 ${b.streak_threshold}일 달성`
                       : b.award_type === "date"
-                      ? `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
+                      ? b.date_condition === "between"
+                        ? `${b.date_condition_value}~${b.date_condition_value_end} 로그인`
+                        : `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
                       : "관리자 확인 후 지급"}
                     {earned ? " ✓" : ""}
                   </div>

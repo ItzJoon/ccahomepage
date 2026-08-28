@@ -847,3 +847,13 @@ alter table badges add column if not exists date_condition_value date;
 
 alter table badges drop constraint if exists badges_award_type_check;
 alter table badges add constraint badges_award_type_check check (award_type in ('auto','manual','date'));
+
+-- ------------------------------------------------------------
+-- 22. 뱃지 날짜 조건 - 기간(between) 추가
+-- ------------------------------------------------------------
+-- '이전/이후/당일'에 더해 '두 날짜 사이(양끝 포함)'에 로그인하면 지급되는 조건을 추가한다.
+-- date_condition_value를 시작일로, date_condition_value_end를 종료일로 사용한다.
+alter table badges add column if not exists date_condition_value_end date;
+
+alter table badges drop constraint if exists badges_date_condition_check;
+alter table badges add constraint badges_date_condition_check check (date_condition in ('before','after','on','between'));

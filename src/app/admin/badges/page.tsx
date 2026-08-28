@@ -13,17 +13,19 @@ const empty = {
   icon: "🏅",
   award_type: "auto" as "auto" | "manual" | "date",
   streak_threshold: 3,
-  date_condition: "before" as "before" | "after" | "on",
+  date_condition: "before" as "before" | "after" | "on" | "between",
   date_condition_value: "",
+  date_condition_value_end: "",
   order_index: 0,
   is_active: true,
   is_secret: false,
 };
 
-const dateConditionLabel: Record<"before" | "after" | "on", string> = {
+const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> = {
   before: "이전에 로그인",
   after: "이후에 로그인",
   on: "당일에 로그인",
+  between: "사이에 로그인",
 };
 
 const sortKey = (b: BadgeDef) => b.streak_threshold ?? Infinity;
@@ -69,6 +71,7 @@ export default function AdminBadgesPage() {
       streak_threshold: b.streak_threshold ?? 3,
       date_condition: b.date_condition ?? "before",
       date_condition_value: b.date_condition_value ?? "",
+      date_condition_value_end: b.date_condition_value_end ?? "",
       order_index: b.order_index,
       is_active: b.is_active,
       is_secret: b.is_secret,
@@ -80,6 +83,7 @@ export default function AdminBadgesPage() {
     if (!form.code.trim() || !form.label.trim()) return;
     if (form.award_type === "auto" && form.streak_threshold <= 0) return;
     if (form.award_type === "date" && !form.date_condition_value) return;
+    if (form.award_type === "date" && form.date_condition === "between" && !form.date_condition_value_end) return;
     const payload = {
       code: form.code,
       label: form.label,
@@ -89,6 +93,7 @@ export default function AdminBadgesPage() {
       streak_threshold: form.award_type === "auto" ? form.streak_threshold : null,
       date_condition: form.award_type === "date" ? form.date_condition : null,
       date_condition_value: form.award_type === "date" ? form.date_condition_value : null,
+      date_condition_value_end: form.award_type === "date" && form.date_condition === "between" ? form.date_condition_value_end : null,
       order_index: form.order_index,
       is_active: form.is_active,
       is_secret: form.is_secret,
@@ -162,7 +167,9 @@ export default function AdminBadgesPage() {
                   {b.award_type === "auto"
                     ? `연속 ${b.streak_threshold}일`
                     : b.award_type === "date"
-                    ? `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+                    ? b.date_condition === "between"
+                      ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
+                      : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
                     : "수동 부여"}
                 </td>
                 <td className="p-2.5 border-b border-border">
@@ -274,24 +281,45 @@ export default function AdminBadgesPage() {
           {form.award_type === "date" && (
             <>
               <label className="text-xs font-bold text-muted mt-2">달성 조건 (날짜)</label>
-              <div className="flex gap-2">
-                <select
-                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
-                  value={form.date_condition}
-                  onChange={(e) => setForm({ ...form, date_condition: e.target.value as "before" | "after" | "on" })}
-                >
-                  <option value="before">특정 날짜 이전에 로그인</option>
-                  <option value="after">특정 날짜 이후에 로그인</option>
-                  <option value="on">특정 날짜에 로그인</option>
-                </select>
+              <select
+                className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                value={form.date_condition}
+                onChange={(e) => setForm({ ...form, date_condition: e.target.value as "before" | "after" | "on" | "between" })}
+              >
+                <option value="before">특정 날짜 이전에 로그인</option>
+                <option value="after">특정 날짜 이후에 로그인</option>
+                <option value="on">특정 날짜에 로그인</option>
+                <option value="between">특정 기간 사이에 로그인</option>
+              </select>
+              {form.date_condition === "between" ? (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                    value={form.date_condition_value}
+                    onChange={(e) => setForm({ ...form, date_condition_value: e.target.value })}
+                  />
+                  <span className="text-muted text-xs">~</span>
+                  <input
+                    type="date"
+                    className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                    value={form.date_condition_value_end}
+                    onChange={(e) => setForm({ ...form, date_condition_value_end: e.target.value })}
+                  />
+                </div>
+              ) : (
                 <input
                   type="date"
-                  className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
                   value={form.date_condition_value}
                   onChange={(e) => setForm({ ...form, date_condition_value: e.target.value })}
                 />
-              </div>
-              <p className="text-muted text-xs">체크인(접속) 시점에 조건을 만족하면 그 즉시 자동 지급됩니다.</p>
+              )}
+              <p className="text-muted text-xs">
+                {form.date_condition === "between"
+                  ? "시작일과 종료일 모두 포함해서, 체크인(접속) 날짜가 그 사이면 자동 지급됩니다."
+                  : "체크인(접속) 시점에 조건을 만족하면 그 즉시 자동 지급됩니다."}
+              </p>
             </>
           )}
           {form.award_type === "manual" && (

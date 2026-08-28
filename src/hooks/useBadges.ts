@@ -33,11 +33,15 @@ export function useBadges(userId: string | null) {
     load();
   }, [load]);
 
-  /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일)을 만족하는지 확인합니다. */
+  /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일/기간)을 만족하는지 확인합니다. */
   const matchesDateCondition = (b: BadgeDef, today: string) => {
     if (!b.date_condition || !b.date_condition_value) return false;
     if (b.date_condition === "before") return today < b.date_condition_value;
     if (b.date_condition === "after") return today > b.date_condition_value;
+    if (b.date_condition === "between") {
+      if (!b.date_condition_value_end) return false;
+      return today >= b.date_condition_value && today <= b.date_condition_value_end;
+    }
     return today === b.date_condition_value;
   };
 

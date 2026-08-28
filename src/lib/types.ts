@@ -111,8 +111,9 @@ export interface BadgeDef {
   icon: string;
   award_type: "auto" | "manual" | "date";
   streak_threshold: number | null;
-  date_condition: "before" | "after" | "on" | null;
+  date_condition: "before" | "after" | "on" | "between" | null;
   date_condition_value: string | null;
+  date_condition_value_end: string | null;
   order_index: number;
   is_active: boolean;
   is_secret: boolean;
