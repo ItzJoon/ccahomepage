@@ -42,10 +42,16 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const pathname = request.nextUrl.pathname;
-  const isMaintenanceExempt =
-    pathname === "/login" || pathname === "/maintenance" || pathname.startsWith("/auth/callback");
-  const isAccessCheckExempt =
-    pathname === "/login" || pathname === "/access-restricted" || pathname.startsWith("/auth/callback");
+  // 두 안내 페이지(/maintenance, /access-restricted)는 서로의 체크에서도 예외여야 한다.
+  // 그렇지 않으면 명단 차단 → /access-restricted → 잠금 모드 체크에 걸려 /maintenance →
+  // 거기서 다시 명단 차단 체크에 걸려 /access-restricted로 돌아가는 리다이렉트 루프가 생긴다.
+  const isSpecialPageExempt =
+    pathname === "/login" ||
+    pathname === "/maintenance" ||
+    pathname === "/access-restricted" ||
+    pathname.startsWith("/auth/callback");
+  const isMaintenanceExempt = isSpecialPageExempt;
+  const isAccessCheckExempt = isSpecialPageExempt;
 
   // /admin 체크와 중복 조회하지 않도록 role은 한 번만 가져와서 재사용한다.
   let roleFetched = false;
