@@ -90,6 +90,9 @@ council-site/
 | `proposal_votes` | 안건 찬반 투표. `(proposal_id, user_id)` 유니크로 중복 투표 방지 |
 | `org_events` | 조직별 내부 일정(회의/행사/마감/일반). 학사일정 `events`와는 별개 |
 | `org_records` | 조직별 활동기록(공지/활동/회의록). 게시물 `posts`와는 별개 |
+| `site_settings` | 사이트 잠금(점검) 모드 on/off, 안내 문구, 예정 종료일 |
+| `directory_members` | 학교 전체 학생/교사 명단(이메일/학년·반/과목 등) + 로그인 허용 여부(`is_allowed`) |
+| `login_access_requests` | 명단에 없는 이메일의 로그인 시도 기록, 관리자 승인/차단 상태 |
 
 `profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼과 스트릭 프리즈 개수 `freeze_credits` 컬럼이 추가되었고,
 `user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼과 실제 체크인 시각 `created_at`
@@ -151,6 +154,9 @@ council-site/
    -- 1) supabase/schema.sql 전체 실행
    -- 2) supabase/storage.sql 전체 실행
    -- 3) (선택) supabase/seed.sql 실행 — 데모 데이터
+   -- 4) supabase/seed_directory.sql 실행 — 실제 학생/교사 명단(directory_members).
+   --    이 파일은 개인정보(이름/이메일)가 담겨 있어 git에 커밋되지 않습니다(.gitignore 처리).
+   --    directory_members 테이블이 스키마에 반영된 뒤에 1회 실행하세요.
    ```
 3. **Authentication > Providers > Google** 활성화 후 Google Cloud Console에서 발급한 Client ID/Secret 입력
    (학교 이메일만 허용하려면 Google Cloud OAuth 동의 화면에서 도메인을 제한하거나,
@@ -227,7 +233,11 @@ npm run dev
 추가로** 할 수 있는 일만 적었습니다(위 단계 권한은 전부 포함).
 
 ### student (기본, 로그인 시)
+- **로그인하려면 학교 명단(`directory_members`)에 `is_allowed=true`로 등록돼 있어야 합니다.**
+  명단에 없는 이메일은 로그인 자체(세션 생성)는 되지만 `/access-restricted` 안내 화면으로
+  막혀 사이트를 이용할 수 없습니다(admin/superadmin만 예외).
 - 공개 콘텐츠 열람: 조직/구성원/일정/규정/발행된 공지·뉴스/커스텀 페이지 (비로그인도 열람 가능)
+- 구성원 조회(`/members`, 로그인 필요): 학교 전체 학생/교사 명단을 학년·반/과목 기준으로 검색·필터
 - 배너·팝업 알림 확인
 - Q&A: 질문 작성, 공개 질문 열람, 본인 비공개 질문 열람, **본인 질문 삭제**
 - 조직 활동: 안건 제안, 안건 찬반 투표(중복 불가, 본인 투표 취소/변경 가능)
@@ -261,6 +271,9 @@ npm run dev
 - 감사 로그 열람, 전체 학생 접속 기록/통계 열람, 비공개 Q&A 질문 전체 열람
 - **사이트 잠금(점검 모드)이 켜져 있으면 `/admin`을 포함해 아무 페이지도 이용할 수 없음**
   (admin/superadmin만 예외)
+- **명단(`directory_members`)에 없어도 항상 로그인/이용 가능** — 관리자가 실수로 스스로를
+  잠그는 사고를 막기 위한 안전장치입니다. "외부 계정 관리"(`/admin/access-requests`)에서
+  명단 밖 이메일의 로그인 시도를 열람하고 허용/차단 처리할 수 있습니다.
 
 ### superadmin
 - **모든 계정의 role을 자유롭게 변경**(admin/superadmin 승격 포함, admin/superadmin 계정도 수정 가능)
@@ -400,7 +413,51 @@ npm run dev
 - 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "사이트 잠금(점검) 모드" 블록을
   실행하세요.
 
-## 13. 향후 확장
+## 13. 학교 구성원 명단 기반 로그인 제한 + 구성원 조회
+
+학교 밖 계정이 함부로 가입해 사이트를 쓰는 것을 막기 위해, 실제 재학생/교사 명단
+(`directory_members`)에 등록된 이메일만 정상적으로 사이트를 이용할 수 있습니다.
+
+- **로그인 제한**: `middleware.ts`가 매 요청마다(로그인한 사용자에 한해) 확인합니다.
+  - `profiles.role`이 `admin`/`superadmin`이면 명단과 무관하게 항상 통과(관리자가 스스로를
+    잠그는 사고 방지).
+  - 그 외 역할은 `directory_members`에 `is_allowed=true`로 등록돼 있어야 통과합니다.
+  - 통과하지 못하면 Supabase Auth 세션 자체는 유지된 채(로그인은 됨) `/access-restricted`
+    안내 화면으로 리다이렉트되고, "외부 계정으로는 이용하실 수 없습니다..." 안내와 로그아웃
+    버튼이 표시됩니다.
+  - 이때 `login_access_requests`에 시도 기록이 남습니다. 같은 이메일이 `pending` 상태에서
+    여러 번 재시도해도 새 행이 쌓이지 않고 `attempted_at`만 갱신되며(`record_login_access_attempt`
+    함수), 이미 `blocked`/`approved`로 결정된 이메일은 재시도해도 상태가 되돌아가지 않습니다.
+- **관리자: 외부 계정 관리(`/admin/access-requests`, `admin` 이상)**: 대기 중인 로그인 시도
+  목록과 처리 이력을 볼 수 있습니다.
+  - **허용**: 해당 이메일을 `directory_members`에 `is_allowed=true`로 추가(이미 있으면
+    갱신)하고 요청을 `approved`로 표시합니다. 명단에 없던 계정은 `member_type='other'`로
+    등록되어(학생/교사 구분이 없는 개별 승인 계정) 구성원 조회 화면(학생/교사 탭)에는
+    나타나지 않습니다.
+  - **차단**: 요청을 `blocked`로 표시합니다. 이후 같은 이메일이 다시 로그인을 시도해도
+    계속 차단 상태가 유지됩니다.
+- **구성원 조회(`/members`, 기존 "구성원" 메뉴를 교체)**: 로그인한 사용자만 열람할 수 있는
+  학교 전체 인물 디렉토리입니다(개인정보 보호를 위해 비로그인 열람 불가). 기존 조직별 임원
+  소개(`organizations`/`members` 테이블, `/organizations/[slug]`)와는 별개의 기능이며,
+  페이지 안내 문구로 혼동되지 않게 구분해뒀습니다.
+  - **학생 탭**: 학년(10/11/12) 체크박스로 동시에 여러 학년 필터링, 이름 검색. 목록은
+    10학년 1반 → 2반 → 3반 → 11학년 1반 → … → 12학년 3반 순서로, 같은 반 안에서는 가나다순
+    정렬됩니다. 반 번호(1/2/3)는 각각 샬롬/헤세드/토브로 표시됩니다.
+  - **교사 탭**: 필터 없이 이름 검색만 가능하고, 가나다순으로 정렬되며 담당 과목이 함께
+    표시됩니다.
+  - `directory_members`를 Realtime으로 구독해 관리자가 명단을 수정하면 화면에 바로 반영됩니다.
+- **회원·권한 관리(`/admin/users`) 연동**: 목록에 각 계정의 이메일을 `directory_members`와
+  매칭해 학생(학년/반)/교사(과목)/외부 승인 계정 여부를 함께 보여주고, 학년으로 필터링해
+  관리 권한을 부여할 대상을 빠르게 찾을 수 있습니다.
+- **명단 시드 데이터**: 실제 학생/교사 명단은 `supabase/seed_directory.sql`에 있으며, 이름·이메일
+  같은 개인정보가 포함돼 있어 `.gitignore`에 등록해 절대 git에 커밋되지 않습니다. 새 환경에
+  반영하려면 `schema.sql` 실행 후(3-1 참고) 이 파일을 SQL Editor에서 직접 실행하세요.
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "26. 학교 구성원 명단(directory_members) +
+  로그인 제한" 블록을 실행하세요(전체 재실행도 안전합니다). **주의**: 이 기능을 켜면 기존에
+  이미 활동 중이던 student/teacher 계정도 명단에 없으면 다음 접속부터 접근이 막히므로,
+  `seed_directory.sql`로 실제 명단을 먼저 채워두고 배포하세요.
+
+## 14. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이
