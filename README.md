@@ -31,6 +31,7 @@ council-site/
     │   ├─ news/                    # 뉴스 목록/상세
     │   ├─ rules/                   # 학생생활규정
     │   ├─ qna/                     # Q&A (질문 등록/열람)
+    │   ├─ org-activities/          # 조직 활동 (안건함/조직 일정/활동기록 탭)
     │   ├─ mypage/                  # 연속 접속·방문 기록
     │   ├─ pages/[slug]/            # 관리자가 추가한 커스텀 페이지
     │   ├─ login/                   # 로그인 (Google / 이메일)
@@ -49,9 +50,11 @@ council-site/
     │       ├─ badges/               # 연속 접속 뱃지 관리 (추가/수정/비활성화)
     │       ├─ pages/                # 페이지·메뉴 빌더 (신규 메뉴 추가)
     │       ├─ users/                # 회원 권한(role) 관리
-    │       └─ stats/                # 접속 통계
+    │       ├─ stats/                # 접속 통계
+    │       └─ org-activities/       # 조직 활동 관리(안건함/조직 일정/활동기록, 독립 섹션)
     ├─ components/                 # Header, Badge, NotificationBanner, StreakBar, BadgeCelebration 등
     │   └─ admin/                  # FileUpload, AdminNav, PostManager
+    │       └─ org-activities/     # ProposalsManager, OrgEventsManager, OrgRecordsManager
     ├─ hooks/
     │   ├─ useRealtimeList.ts      # 테이블 실시간 구독 공용 훅
     │   ├─ useAttendance.ts        # 연속 접속 체크 훅 (스트릭 프리즈 포함)
@@ -83,6 +86,10 @@ council-site/
 | `audit_logs` | 관리자 작업 감사 로그 |
 | `badges` | 연속 접속 뱃지 정의 (코드/조건일수/아이콘, 관리자가 추가) |
 | `user_badges` | 사용자별 뱃지 획득 기록 |
+| `proposals` | 조직 활동 안건함. `organizations.id`로 소속 조직 연결, 상태(검토중/승인/반려/완료) |
+| `proposal_votes` | 안건 찬반 투표. `(proposal_id, user_id)` 유니크로 중복 투표 방지 |
+| `org_events` | 조직별 내부 일정(회의/행사/마감/일반). 학사일정 `events`와는 별개 |
+| `org_records` | 조직별 활동기록(공지/활동/회의록). 게시물 `posts`와는 별개 |
 
 `profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼과 스트릭 프리즈 개수 `freeze_credits` 컬럼이 추가되었고,
 `user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼과 실제 체크인 시각 `created_at`
@@ -223,6 +230,7 @@ npm run dev
 - 공개 콘텐츠 열람: 조직/구성원/일정/규정/발행된 공지·뉴스/커스텀 페이지 (비로그인도 열람 가능)
 - 배너·팝업 알림 확인
 - Q&A: 질문 작성, 공개 질문 열람, 본인 비공개 질문 열람, **본인 질문 삭제**
+- 조직 활동: 안건 제안, 안건 찬반 투표(중복 불가, 본인 투표 취소/변경 가능)
 - 마이페이지: 닉네임·자기소개·프로필 사진 수정 (`email`/`role`은 트리거로 변경 차단)
 - 접속 시 자동 체크인 → 연속 접속일수 적립, 자동/수동/시크릿 뱃지 획득
 - `/admin` 진입 불가 (middleware 차단)
@@ -238,12 +246,15 @@ npm run dev
 - 알림 발송·수정("팝업 중지" 포함)은 가능, **발송 기록 삭제는 불가**
 - 학생 계정을 검색해 구성원에 연결, 학생에게 뱃지 직접 부여
 - **Q&A 답변 작성/수정 가능**(공개 질문만 — 비공개 질문은 애초에 안 보임), **질문 삭제는 불가**
+- 조직 활동: 조직 일정·활동기록 작성/수정/삭제, 안건 상태 변경(검토중/승인/반려/완료).
+  **안건 자체 삭제는 불가**
 - 첨부파일 업로드/삭제
 - 다른 사용자의 role은 열람만 가능, 변경 불가
 
 ### admin
 - 공지·뉴스, 알림 발송 기록 **삭제 가능**
 - Q&A **질문 삭제 가능**
+- 조직 활동 **안건 삭제 가능**
 - 다른 사용자 role 변경 가능 — 단 `student`/`teacher`/`sub_editor`/`editor`로만.
   **`admin`/`superadmin`으로 승격 불가**(자기 자신 포함), 이미 admin/superadmin인 계정은 수정 불가
 - 학생이 획득한 뱃지 삭제(회수) 가능
@@ -319,7 +330,32 @@ npm run dev
   (Supabase Edge Function + Resend/SendGrid 같은 이메일 API, 또는 DB 트리거 + webhook)을 추가로
   구축해야 합니다. 필요하면 별도 기능으로 요청하세요.
 
-## 11. 향후 확장
+## 11. 조직 활동 (안건함 / 조직 일정 / 활동기록)
+
+학생용 `/org-activities`(헤더 메뉴 "조직 활동")에서 기존 `organizations`(임원회/대의원회/
+사법위원회/총회 등)를 그대로 활용해 조직별로 아래 3가지를 제공합니다.
+
+- **안건함**: 로그인한 학생 누구나 조직을 골라 안건을 등록할 수 있고, 역시 로그인한 학생
+  누구나 찬성/반대에 투표할 수 있습니다. `proposal_votes`가 `(proposal_id, user_id)` 유니크
+  제약이라 같은 안건에 중복 투표가 DB 단에서 막힙니다. 이미 투표한 버튼을 다시 누르면 투표
+  취소, 반대쪽 버튼을 누르면 투표가 바뀝니다. 상태(검토중/승인/반려/완료)는 관리자만
+  `/admin/org-activities/proposals`에서 바꿀 수 있고, 안건 삭제는 `admin` 이상만 가능합니다.
+- **조직 일정**: 기존 학사일정(`events`, `/calendar`)과는 별개로, 조직 내부 회의·행사용
+  일정(`org_events`)입니다. 학생 화면에서는 조직을 필터링해 열람만 하고, 작성/수정/삭제는
+  `editor` 이상만 `/admin/org-activities/events`에서 할 수 있습니다.
+- **활동기록**: 기존 공지/뉴스(`posts`)와는 별개로, 조직 단위 기록(`org_records`)을
+  공지/활동/회의록 세 분류로 남깁니다. 마찬가지로 작성/수정/삭제는 `editor` 이상만
+  `/admin/org-activities/records`에서 할 수 있습니다.
+
+관리자 화면은 기존 공지/뉴스/일정 관리 메뉴와 섞이지 않도록 `/admin/org-activities/*`
+독립 경로로 분리했고, `AdminNav`에서도 구분선 아래 "조직 활동 관리" 그룹으로 따로 묶었습니다.
+전용 컴포넌트(`ProposalsManager`/`OrgEventsManager`/`OrgRecordsManager`)를 새로 만들어서
+기존 `PostManager` 등 범용 CRUD 컴포넌트와는 재사용 관계가 없습니다.
+
+기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능: 조직 활동" 블록을 실행하세요
+(전체 재실행도 안전합니다).
+
+## 12. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이
