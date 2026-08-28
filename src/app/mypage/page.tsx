@@ -3,11 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useAttendance } from "@/hooks/useAttendance";
-import { useBadges } from "@/hooks/useBadges";
+import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import SectionTitle from "@/components/SectionTitle";
 import BadgeCelebration from "@/components/BadgeCelebration";
-import type { Profile, BadgeDef } from "@/lib/types";
+import type { Profile } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -24,10 +23,9 @@ export default function MyPage() {
   const [savedMsg, setSavedMsg] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
-  const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
 
-  const { streak, history, checkedToday, checkIn, freezeCredits, loading } = useAttendance(userId ?? null);
-  const { badges, earnedIds, checkMilestones } = useBadges(userId ?? null);
+  const { streak, history, checkedToday, freezeCredits, loading, badges, earnedIds, toast, celebrate, dismissCelebrate } =
+    useAutoCheckIn(userId ?? null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -77,14 +75,6 @@ export default function MyPage() {
     setUploading(false);
   };
 
-  const handleCheckIn = async () => {
-    const nextStreak = await checkIn();
-    if (nextStreak) {
-      const newly = await checkMilestones(nextStreak);
-      if (newly.length > 0) setCelebrate(newly[newly.length - 1]);
-    }
-  };
-
   if (userId === undefined) return null;
   if (userId === null) {
     return (
@@ -107,11 +97,6 @@ export default function MyPage() {
           <div className="text-muted text-sm">연속 접속일수</div>
           {freezeCredits > 0 && (
             <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
-          )}
-          {!loading && !checkedToday && (
-            <button onClick={handleCheckIn} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-1.5 mt-1">
-              오늘 접속 체크
-            </button>
           )}
           {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
         </div>
@@ -211,7 +196,13 @@ export default function MyPage() {
         </div>
       </div>
 
-      {celebrate && <BadgeCelebration badge={celebrate} onClose={() => setCelebrate(null)} />}
+      {toast !== null && (
+        <div className="fixed bottom-5 right-5 z-40 bg-navy text-white rounded-xl px-4 py-3 shadow-lg text-sm flex items-center gap-2">
+          <span className="text-lg">🔥</span>
+          <span>오늘 접속 체크 완료! 연속 {toast}일째</span>
+        </div>
+      )}
+      {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
     </div>
   );
 }

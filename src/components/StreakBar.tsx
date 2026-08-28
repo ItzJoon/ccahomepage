@@ -1,10 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useAttendance } from "@/hooks/useAttendance";
-import { useBadges } from "@/hooks/useBadges";
+import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import BadgeCelebration from "@/components/BadgeCelebration";
-import type { BadgeDef } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -12,17 +9,7 @@ function fmt(d: string) {
 }
 
 export default function StreakBar({ userId }: { userId: string | null }) {
-  const { streak, checkedToday, checkIn, history, loading } = useAttendance(userId);
-  const { checkMilestones } = useBadges(userId);
-  const [celebrate, setCelebrate] = useState<BadgeDef | null>(null);
-
-  const handleCheckIn = async () => {
-    const nextStreak = await checkIn();
-    if (nextStreak) {
-      const newly = await checkMilestones(nextStreak);
-      if (newly.length > 0) setCelebrate(newly[newly.length - 1]);
-    }
-  };
+  const { streak, checkedToday, history, loading, toast, celebrate, dismissCelebrate } = useAutoCheckIn(userId);
 
   if (!userId) {
     return (
@@ -40,19 +27,16 @@ export default function StreakBar({ userId }: { userId: string | null }) {
           <strong>🔥 연속 접속 {streak}일째</strong>
           <span className="text-muted"> · 최근 방문 {history[0] ? fmt(history[0]) : "기록 없음"}</span>
         </div>
-        {checkedToday ? (
-          <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>
-        ) : (
-          <button
-            onClick={handleCheckIn}
-            className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-1.5"
-          >
-            오늘 접속 체크
-          </button>
-        )}
+        {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
       </div>
 
-      {celebrate && <BadgeCelebration badge={celebrate} onClose={() => setCelebrate(null)} />}
+      {toast !== null && (
+        <div className="fixed bottom-5 right-5 z-40 bg-navy text-white rounded-xl px-4 py-3 shadow-lg text-sm flex items-center gap-2">
+          <span className="text-lg">🔥</span>
+          <span>오늘 접속 체크 완료! 연속 {toast}일째</span>
+        </div>
+      )}
+      {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
     </>
   );
 }
