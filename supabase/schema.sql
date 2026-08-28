@@ -901,3 +901,96 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function mark_badges_celebrated(uuid[]) to authenticated;
+
+-- ------------------------------------------------------------
+-- 26. 학교 구성원 명단(directory_members) + 로그인 제한
+-- ------------------------------------------------------------
+-- 실제 재학생/교사 명단을 DB에 두고, 이 명단(+is_allowed)에 없는 이메일은 로그인은 되어도
+-- 사이트를 이용할 수 없게 만든다(미들웨어에서 검사). admin/superadmin은 명단과 무관하게
+-- 항상 접근 가능해야 하므로(관리자가 스스로를 잠그는 걸 방지), 이 테이블만으로는 관리자를
+-- 막을 수 없고 미들웨어 쪽에서 role을 먼저 확인해 우회시킨다.
+-- member_type='other'는 명단에는 없지만 관리자가 "외부 계정 관리"에서 개별 승인한 계정용이다
+-- (학생/교사 탭에는 노출되지 않도록 구성원 조회 페이지에서 student/teacher만 조회한다).
+create table if not exists directory_members (
+  id uuid primary key default uuid_generate_v4(),
+  email text unique not null,
+  member_type text not null check (member_type in ('student','teacher','other')),
+  display_name text not null,
+  grade text check (grade in ('10','11','12')),
+  homeroom int check (homeroom in (1,2,3)),
+  homeroom_label text,
+  subject text,
+  leadership_role text,
+  is_allowed boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+alter table directory_members enable row level security;
+
+-- 구성원 조회 페이지(학생/교사 누구나)에서 쓰므로 로그인한 사용자면 전체 열람 가능.
+drop policy if exists "directory_members_read_authenticated" on directory_members;
+create policy "directory_members_read_authenticated" on directory_members for select
+  using (auth.uid() is not null);
+drop policy if exists "directory_members_write_admin" on directory_members;
+create policy "directory_members_write_admin" on directory_members for all
+  using (is_admin()) with check (is_admin());
+
+-- 명단에 없는 이메일의 로그인 시도 기록. 같은 이메일이 pending 상태에서 여러 번 시도해도
+-- row를 계속 쌓지 않고 attempted_at만 갱신하고, 이미 blocked/approved로 결정된 이메일은
+-- 재시도해도 다시 pending으로 되돌리지 않는다(차단은 계속 차단 유지).
+create table if not exists login_access_requests (
+  id uuid primary key default uuid_generate_v4(),
+  email text not null,
+  attempted_at timestamptz not null default now(),
+  status text not null default 'pending' check (status in ('pending','approved','blocked')),
+  decided_by uuid references profiles(id),
+  decided_at timestamptz,
+  created_at timestamptz not null default now()
+);
+
+alter table login_access_requests enable row level security;
+
+drop policy if exists "login_access_requests_read_admin" on login_access_requests;
+create policy "login_access_requests_read_admin" on login_access_requests for select using (is_admin());
+drop policy if exists "login_access_requests_update_admin" on login_access_requests;
+create policy "login_access_requests_update_admin" on login_access_requests for update using (is_admin());
+
+-- 명단에 없는 사용자가 로그인할 때마다 미들웨어가 이 함수를 호출해 시도를 기록한다.
+-- RLS를 여는 대신 함수 안에서 auth.jwt()의 이메일만 사용해서 본인 이메일 row만 건드리게 한다
+-- (mark_badges_celebrated와 동일한 패턴).
+create or replace function record_login_access_attempt()
+returns void as $$
+declare
+  my_email text := auth.jwt() ->> 'email';
+begin
+  if my_email is null then
+    return;
+  end if;
+  update login_access_requests
+    set attempted_at = now()
+    where email = my_email and status = 'pending';
+  if not found then
+    insert into login_access_requests (email, status)
+    select my_email, 'pending'
+    where not exists (
+      select 1 from login_access_requests where email = my_email and status in ('blocked','approved')
+    );
+  end if;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function record_login_access_attempt() to authenticated;
+
+do $$
+declare
+  t text;
+begin
+  foreach t in array array['directory_members','login_access_requests'] loop
+    if not exists (
+      select 1 from pg_publication_tables
+      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t
+    ) then
+      execute format('alter publication supabase_realtime add table public.%I', t);
+    end if;
+  end loop;
+end $$;

@@ -29,6 +29,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# 실제 학생/교사 개인정보(이름, 이메일)가 담긴 명단 시드 파일 — 절대 커밋하지 않는다
+/supabase/seed_directory.sql
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

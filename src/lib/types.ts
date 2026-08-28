@@ -186,3 +186,31 @@ export interface SiteSettings {
   maintenance_until: string | null;
   updated_at: string;
 }
+
+export type MemberType = "student" | "teacher" | "other";
+
+export interface DirectoryMember {
+  id: string;
+  email: string;
+  member_type: MemberType;
+  display_name: string;
+  grade: "10" | "11" | "12" | null;
+  homeroom: 1 | 2 | 3 | null;
+  homeroom_label: string | null;
+  subject: string | null;
+  leadership_role: string | null;
+  is_allowed: boolean;
+  created_at: string;
+}
+
+export type LoginAccessStatus = "pending" | "approved" | "blocked";
+
+export interface LoginAccessRequest {
+  id: string;
+  email: string;
+  attempted_at: string;
+  status: LoginAccessStatus;
+  decided_by: string | null;
+  decided_at: string | null;
+  created_at: string;
+}
