@@ -663,3 +663,19 @@ drop trigger if exists before_question_write on questions;
 create trigger before_question_write
   before insert or update on questions
   for each row execute procedure enforce_qna_author_visibility();
+
+-- ------------------------------------------------------------
+-- 기능: Q&A 답변을 editor 이상도 가능하게 확대
+-- ------------------------------------------------------------
+-- 원래 답변 작성/질문 상태 변경(답변완료 처리)이 admin 전용이었는데 editor도 가능하게 넓힌다.
+-- (비공개 질문은 questions_read 정책상 editor에게 애초에 안 보이므로, 자연히 공개 질문만 답변 가능)
+drop policy if exists "answers_write_admin" on answers;
+create policy "answers_write_admin" on answers for insert with check (is_editor_or_above());
+
+-- answers는 지금까지 update 정책 자체가 없어서, 이미 등록한 답변을 수정하는 게 admin조차
+-- 불가능했다(신규 insert만 가능). update 정책을 추가해서 답변 수정도 가능하게 한다.
+drop policy if exists "answers_update_editor" on answers;
+create policy "answers_update_editor" on answers for update using (is_editor_or_above()) with check (is_editor_or_above());
+
+drop policy if exists "questions_update_admin" on questions;
+create policy "questions_update_admin" on questions for update using (is_editor_or_above());

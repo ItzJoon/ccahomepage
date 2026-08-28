@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
@@ -25,15 +25,6 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const [iAmAdmin, setIAmAdmin] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
 
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
@@ -98,25 +89,12 @@ export default function AdminQnaPage() {
             {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
           </p>
           <p className="text-sm">{current.content}</p>
-          {iAmAdmin ? (
-            <>
-              <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
-              <textarea rows={5} className="border border-border rounded-lg px-2.5 py-2 text-sm w-full mt-1" value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
-              <div className="flex gap-2 mt-3.5">
-                <button onClick={() => submitAnswer(current)} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">답변 등록</button>
-                <button onClick={() => setOpenId(null)} className="border border-border text-sm rounded-lg px-4 py-2">닫기</button>
-              </div>
-            </>
-          ) : (
-            <>
-              <label className="text-xs font-bold text-muted mt-2 block">답변</label>
-              <p className="text-sm bg-[#F7F8FB] border border-border rounded-lg p-2.5 mt-1">
-                {current.answers?.[0]?.content || "아직 답변이 없습니다."}
-              </p>
-              <p className="text-muted text-xs mt-2">답변 작성/수정은 admin 이상만 가능합니다.</p>
-              <button onClick={() => setOpenId(null)} className="border border-border text-sm rounded-lg px-4 py-2 mt-2">닫기</button>
-            </>
-          )}
+          <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
+          <textarea rows={5} className="border border-border rounded-lg px-2.5 py-2 text-sm w-full mt-1" value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
+          <div className="flex gap-2 mt-3.5">
+            <button onClick={() => submitAnswer(current)} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">답변 등록</button>
+            <button onClick={() => setOpenId(null)} className="border border-border text-sm rounded-lg px-4 py-2">닫기</button>
+          </div>
         </div>
       )}
     </div>
