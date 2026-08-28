@@ -133,6 +133,14 @@ export interface PageDoc {
   order_index: number;
 }
 
+export interface SiteSettings {
+  id: string;
+  maintenance_mode: boolean;
+  maintenance_message: string;
+  maintenance_until: string | null;
+  updated_at: string;
+}
+
 export interface Proposal {
   id: string;
   org_id: string;

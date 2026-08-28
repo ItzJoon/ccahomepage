@@ -250,6 +250,8 @@ npm run dev
   **안건 자체 삭제는 불가**
 - 첨부파일 업로드/삭제
 - 다른 사용자의 role은 열람만 가능, 변경 불가
+- **사이트 잠금(점검 모드)이 켜져 있으면 `/admin`을 포함해 아무 페이지도 이용할 수 없음**
+  (admin/superadmin만 예외)
 
 ### admin
 - 공지·뉴스, 알림 발송 기록 **삭제 가능**
@@ -259,6 +261,8 @@ npm run dev
   **`admin`/`superadmin`으로 승격 불가**(자기 자신 포함), 이미 admin/superadmin인 계정은 수정 불가
 - 학생이 획득한 뱃지 삭제(회수) 가능
 - 감사 로그 열람, 전체 학생 접속 기록/통계 열람, 비공개 Q&A 질문 전체 열람
+- **사이트 잠금(점검 모드) 켜고 끄기** — 켜져 있는 동안에도 admin/superadmin은 사이트를
+  평소처럼 이용 가능(잠금의 영향을 받지 않음)
 
 ### superadmin
 - **모든 계정의 role을 자유롭게 변경**(admin/superadmin 승격 포함, admin/superadmin 계정도 수정 가능)
@@ -355,7 +359,26 @@ npm run dev
 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능: 조직 활동" 블록을 실행하세요
 (전체 재실행도 안전합니다).
 
-## 12. 향후 확장
+## 12. 사이트 잠금(점검) 모드
+
+`/admin/maintenance`에서 admin 이상이 사이트 전체를 잠글 수 있습니다(`site_settings.maintenance_mode`).
+
+- **켜면**: admin/superadmin을 제외한 모든 사용자(비로그인 포함, `editor`도 포함)가 어떤
+  경로로 들어와도(`/admin` 하위 포함) `/maintenance` 안내 화면으로 리다이렉트됩니다.
+  `/login`, `/auth/callback`, `/maintenance` 자체만 예외입니다. `middleware.ts`에서
+  요청마다 `site_settings`를 확인해서 처리하며, 조회 자체가 실패하거나 테이블이 없으면
+  안전하게 잠그지 않는 쪽으로(fail-open) 동작합니다.
+- **안내 화면(`/maintenance`)**: 로그아웃 상태면 가운데 정렬된 "로그인" 버튼을, 이미 로그인한
+  비관리자 상태면 "로그아웃" 버튼을 보여줍니다. `site_settings.maintenance_message`(안내 문구)와
+  `maintenance_until`(예정 종료일, 예: `2026.09.01`)을 그대로 화면에 표시합니다.
+- **날짜를 하드코딩하지 않고 토글로 설계**했습니다 — 특정 날짜가 지나면 코드를 지우는 대신,
+  `/admin/maintenance`에서 언제든 켜고 끌 수 있고 문구·날짜도 그때그때 바꿀 수 있습니다.
+- 잠금 설정 변경은 `admin` 이상만 가능합니다(`editor`가 `/admin/maintenance`에 들어가면
+  읽기 전용으로만 보이고 🔒 안내가 뜹니다).
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "기능: 사이트 잠금(점검) 모드" 블록을
+  실행하세요.
+
+## 13. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이
