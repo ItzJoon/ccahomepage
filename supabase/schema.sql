@@ -611,3 +611,20 @@ alter table notifications add column if not exists popup_active boolean not null
 -- 지금까지 notifications는 update 정책이 없어서 "팝업 중지"를 저장할 수 없었다.
 drop policy if exists "notifications_update_admin" on notifications;
 create policy "notifications_update_admin" on notifications for update using (is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 기능: 알림/공지사항 삭제 권한을 admin 이상으로 강화
+-- ------------------------------------------------------------
+-- 발송 기록(누가 언제 보냈는지) 자체를 지우는 건 감사 목적상 admin 이상만 하도록 한다.
+-- "사라지게" 하는 동작(알림은 팝업 중지, 공지/뉴스는 임시저장으로 전환)은 계속 editor도 가능.
+-- 정책 이름은 그대로 두되(이미 "_admin"이라는 이름이었음) 실제로 is_admin()만 통과하게 좁힌다.
+drop policy if exists "notifications_delete_admin" on notifications;
+create policy "notifications_delete_admin" on notifications for delete using (is_admin());
+
+drop policy if exists "posts_write_admin" on posts;
+drop policy if exists "posts_insert_editor" on posts;
+create policy "posts_insert_editor" on posts for insert with check (is_editor_or_above());
+drop policy if exists "posts_update_editor" on posts;
+create policy "posts_update_editor" on posts for update using (is_editor_or_above()) with check (is_editor_or_above());
+drop policy if exists "posts_delete_admin" on posts;
+create policy "posts_delete_admin" on posts for delete using (is_admin());

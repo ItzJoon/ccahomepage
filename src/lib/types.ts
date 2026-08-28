@@ -43,6 +43,7 @@ export interface Post {
   is_pinned: boolean;
   status: "draft" | "scheduled" | "published";
   publish_at: string;
+  author_id: string | null;
   view_count: number;
   created_at: string;
 }
@@ -90,6 +91,7 @@ export interface NotificationItem {
   display_type: "banner" | "popup";
   duration_minutes: number | null;
   popup_active: boolean;
+  sent_by: string | null;
   sent_at: string;
 }
 

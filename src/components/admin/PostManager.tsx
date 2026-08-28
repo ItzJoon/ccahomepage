@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "./FileUpload";
@@ -8,6 +8,7 @@ import type { Post } from "@/lib/types";
 
 interface PostWithAttachments extends Post {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
+  author: { name: string | null; nickname: string | null; email: string } | null;
 }
 
 const emptyForm = {
@@ -30,7 +31,7 @@ export default function PostManager({
 }) {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<PostWithAttachments>("posts", {
-    select: "*, attachments(*)",
+    select: "*, attachments(*), author:profiles(name, nickname, email)",
     filter: (q) => q.eq("type", type),
     orderBy: { column: "created_at", ascending: false },
   });
@@ -40,6 +41,17 @@ export default function PostManager({
   const [newFiles, setNewFiles] = useState<AttachmentRef[]>([]);
   const [existingFiles, setExistingFiles] = useState<PostWithAttachments["attachments"]>([]);
   const [saving, setSaving] = useState(false);
+  const [myId, setMyId] = useState<string | null>(null);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      setMyId(data.user?.id ?? null);
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+    });
+  }, [supabase]);
 
   const startNew = () => {
     setForm({ ...emptyForm });
@@ -67,7 +79,7 @@ export default function PostManager({
     if (editing === "new") {
       const { data, error } = await supabase
         .from("posts")
-        .insert({ ...form, type })
+        .insert({ ...form, type, author_id: myId })
         .select()
         .single();
       if (!error && data && newFiles.length > 0) {
@@ -113,6 +125,7 @@ export default function PostManager({
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">발행일</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
@@ -127,6 +140,9 @@ export default function PostManager({
               >
                 <td className="p-2.5 border-b border-border text-sm">
                   {n.is_pinned && <span className="pin mr-1">고정</span>} {n.title}
+                </td>
+                <td className="p-2.5 border-b border-border text-sm text-muted">
+                  {n.author?.nickname || n.author?.name || n.author?.email || "-"}
                 </td>
                 <td className="p-2.5 border-b border-border">
                   <span
@@ -143,21 +159,27 @@ export default function PostManager({
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{n.publish_at}</td>
                 <td className="p-2.5 border-b border-border">
-                  <button
-                    className="text-red text-xs font-bold"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      remove(n.id);
-                    }}
-                  >
-                    삭제
-                  </button>
+                  {iAmAdmin ? (
+                    <button
+                      className="text-red text-xs font-bold"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        remove(n.id);
+                      }}
+                    >
+                      삭제
+                    </button>
+                  ) : (
+                    <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다. 임시저장으로 바꾸면 공개 화면에서 숨길 수 있습니다.">
+                      🔒
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={4} className="text-muted text-center py-8 text-sm">
+                <td colSpan={5} className="text-muted text-center py-8 text-sm">
                   등록된 글이 없습니다.
                 </td>
               </tr>

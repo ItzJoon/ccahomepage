@@ -1,22 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
 import type { NotificationItem } from "@/lib/types";
 
+interface NotificationWithSender extends NotificationItem {
+  sender: { name: string | null; nickname: string | null; email: string } | null;
+}
+
 export default function AdminNotifyPage() {
   const supabase = createClient();
-  const { rows, reload } = useRealtimeList<NotificationItem>("notifications", {
+  const { rows, reload } = useRealtimeList<NotificationWithSender>("notifications", {
+    select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
   });
+  const [iAmAdmin, setIAmAdmin] = useState(false);
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [level, setLevel] = useState<"info" | "urgent">("info");
   const [displayType, setDisplayType] = useState<"banner" | "popup">("banner");
   const [duration, setDuration] = useState(""); // "" = 계속 표시(직접 닫기 전까지) — 배너에만 적용
   const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+    });
+  }, [supabase]);
 
   const send = async () => {
     if (!title.trim() || !message.trim()) return;
@@ -105,9 +119,10 @@ export default function AdminNotifyPage() {
       <h3 className="mt-8 mb-2">발송 이력</h3>
       <ul className="list-none m-0 p-0">
         {rows.map((n) => (
-          <li key={n.id} className="border-b border-border py-2.5 flex items-center gap-2">
+          <li key={n.id} className="border-b border-border py-2.5 flex items-center gap-2 flex-wrap">
             {n.level === "urgent" && <Badge color="red">긴급</Badge>}
             <span className="flex-1 text-sm">{n.title}</span>
+            <span className="text-xs text-muted">{n.sender?.nickname || n.sender?.name || n.sender?.email || "-"}</span>
             <span className="text-xs text-muted">{n.display_type === "popup" ? "팝업" : "배너"}</span>
             <span className="text-xs text-muted">{n.display_type === "popup" ? "확인 시 닫힘" : durationLabel(n.duration_minutes)}</span>
             <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
@@ -118,7 +133,11 @@ export default function AdminNotifyPage() {
                 <span className="text-muted text-xs">중지됨</span>
               )
             )}
-            <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
+            {iAmAdmin ? (
+              <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
+            ) : (
+              <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+            )}
           </li>
         ))}
         {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">발송한 알림이 없습니다.</div>}
