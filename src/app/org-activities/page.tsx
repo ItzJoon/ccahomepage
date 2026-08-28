@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
-import type { Organization, OrgEvent, Proposal, ProposalVote } from "@/lib/types";
+import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote } from "@/lib/types";
 
 const STATUS_LABEL: Record<Proposal["status"], string> = {
   review: "검토 중",
@@ -25,6 +25,17 @@ const EVENT_CATEGORY_LABEL: Record<OrgEvent["category"], string> = {
   event: "행사",
   deadline: "마감",
   general: "일반",
+};
+
+const RECORD_CATEGORY_LABEL: Record<OrgRecord["category"], string> = {
+  notice: "공지",
+  activity: "활동",
+  minutes: "회의록",
+};
+const RECORD_CATEGORY_COLOR: Record<OrgRecord["category"], "navy" | "teal" | "gold"> = {
+  notice: "navy",
+  activity: "teal",
+  minutes: "gold",
 };
 
 function fmt(d: string) {
@@ -81,7 +92,7 @@ export default function OrgActivitiesPage() {
 
       {tab === "proposals" && <ProposalsTab orgs={orgs} orgFilter={orgFilter} />}
       {tab === "events" && <EventsTab orgs={orgs} orgFilter={orgFilter} />}
-      {tab === "records" && <div className="text-muted text-center py-14 text-sm">활동기록 탭은 곧 추가됩니다.</div>}
+      {tab === "records" && <RecordsTab orgs={orgs} orgFilter={orgFilter} />}
     </div>
   );
 }
@@ -395,6 +406,122 @@ function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: strin
         ))}
         {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</div>}
       </ul>
+    </div>
+  );
+}
+
+function RecordsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: string }) {
+  const supabase = createClient();
+  const [iAmEditor, setIAmEditor] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [writing, setWriting] = useState(false);
+  const [form, setForm] = useState({ org_id: "", category: "notice" as OrgRecord["category"], title: "", content: "" });
+  const [error, setError] = useState<string | null>(null);
+
+  const { rows: records } = useRealtimeList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUserId(data.user?.id ?? null);
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmEditor(!!me && ["editor", "admin", "superadmin"].includes(me.role));
+    });
+  }, [supabase]);
+
+  const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
+  const list = orgFilter === "all" ? records : records.filter((r) => r.org_id === orgFilter);
+
+  const submit = async () => {
+    setError(null);
+    if (!form.org_id || !form.title.trim() || !form.content.trim()) {
+      setError("소속 조직, 제목, 내용을 모두 입력해 주세요.");
+      return;
+    }
+    const { error } = await supabase.from("org_records").insert({
+      org_id: form.org_id,
+      category: form.category,
+      title: form.title,
+      content: form.content,
+      author_id: userId,
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setForm({ org_id: "", category: "notice", title: "", content: "" });
+    setWriting(false);
+  };
+
+  return (
+    <div>
+      {iAmEditor && (
+        <div className="flex justify-end mb-3">
+          <button
+            onClick={() => setWriting((v) => !v)}
+            className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5"
+          >
+            {writing ? "닫기" : "+ 기록 작성"}
+          </button>
+        </div>
+      )}
+
+      {writing && iAmEditor && (
+        <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
+          <label className="text-sm font-bold">소속 조직</label>
+          <select
+            className="border border-border rounded-lg px-3 py-2 text-sm"
+            value={form.org_id}
+            onChange={(e) => setForm({ ...form, org_id: e.target.value })}
+          >
+            <option value="">조직을 선택하세요</option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+          <label className="text-sm font-bold mt-2">분류</label>
+          <select
+            className="border border-border rounded-lg px-3 py-2 text-sm"
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value as OrgRecord["category"] })}
+          >
+            {Object.entries(RECORD_CATEGORY_LABEL).map(([v, label]) => (
+              <option key={v} value={v}>{label}</option>
+            ))}
+          </select>
+          <label className="text-sm font-bold mt-2">제목</label>
+          <input
+            className="border border-border rounded-lg px-3 py-2 text-sm"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+          />
+          <label className="text-sm font-bold mt-2">내용</label>
+          <textarea
+            rows={5}
+            className="border border-border rounded-lg px-3 py-2 text-sm"
+            value={form.content}
+            onChange={(e) => setForm({ ...form, content: e.target.value })}
+          />
+          {error && <div className="text-red text-xs">{error}</div>}
+          <button onClick={submit} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3 self-start">
+            기록 등록
+          </button>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-3">
+        {list.map((r) => (
+          <div key={r.id} className="bg-white border border-border rounded-xl p-4">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <Badge color={RECORD_CATEGORY_COLOR[r.category]}>{RECORD_CATEGORY_LABEL[r.category]}</Badge>
+              <h3 className="text-base m-0">{r.title}</h3>
+            </div>
+            <div className="text-muted text-xs mb-2">{orgName(r.org_id)} · {fmt(r.created_at)}</div>
+            <p className="text-sm whitespace-pre-wrap">{r.content}</p>
+          </div>
+        ))}
+        {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 기록이 없습니다.</div>}
+      </div>
     </div>
   );
 }
