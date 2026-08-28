@@ -529,3 +529,19 @@ end $$;
 drop policy if exists "profiles_select_editor_or_above" on profiles;
 create policy "profiles_select_editor_or_above" on profiles for select
   using (is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 기능: 뱃지 수동 부여
+-- ------------------------------------------------------------
+-- 지금까지 뱃지는 연속 접속일수(streak_threshold)를 넘기면 자동으로만 지급됐다.
+-- award_type을 추가해 '자동(연속 접속)' 외에 '수동(관리자가 달성을 직접 확인하고 부여)'
+-- 조건도 관리자가 선택할 수 있게 한다. 수동 뱃지는 streak_threshold가 필요 없으므로
+-- not null 제약을 풀어준다.
+alter table badges add column if not exists award_type text not null default 'auto' check (award_type in ('auto','manual'));
+alter table badges alter column streak_threshold drop not null;
+
+-- 관리자가 특정 학생에게 뱃지를 직접 부여할 때 사용 (user_badges_insert_self는
+-- 본인 것만 insert 가능해서, 다른 사람에게 부여하려면 editor 이상 전용 정책이 필요함)
+drop policy if exists "user_badges_insert_staff" on user_badges;
+create policy "user_badges_insert_staff" on user_badges for insert
+  with check (is_editor_or_above());

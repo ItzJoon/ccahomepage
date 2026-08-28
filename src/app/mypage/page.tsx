@@ -145,7 +145,8 @@ export default function MyPage() {
                   <div className="font-bold mb-0.5">{b.label}</div>
                   {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
                   <div className="text-gold mt-1 font-bold">
-                    연속 {b.streak_threshold}일 달성{earned ? " ✓" : ""}
+                    {b.award_type === "auto" ? `연속 ${b.streak_threshold}일 달성` : "관리자 확인 후 지급"}
+                    {earned ? " ✓" : ""}
                   </div>
                 </div>
               </div>

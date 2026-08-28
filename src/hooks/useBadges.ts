@@ -33,11 +33,13 @@ export function useBadges(userId: string | null) {
     load();
   }, [load]);
 
-  /** 새로 달성한 스트릭 값을 기준으로, 아직 못 받은 뱃지가 있으면 지급하고 반환합니다. */
+  /** 새로 달성한 스트릭 값을 기준으로, 아직 못 받은 자동 지급 뱃지가 있으면 지급하고 반환합니다. */
   const checkMilestones = useCallback(
     async (streak: number) => {
       if (!userId) return [];
-      const newlyEarned = badges.filter((b) => b.streak_threshold <= streak && !earnedIds.has(b.id));
+      const newlyEarned = badges.filter(
+        (b) => b.award_type === "auto" && b.streak_threshold !== null && b.streak_threshold <= streak && !earnedIds.has(b.id)
+      );
       if (newlyEarned.length === 0) return [];
       const { error } = await supabase
         .from("user_badges")

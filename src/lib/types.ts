@@ -103,7 +103,8 @@ export interface BadgeDef {
   label: string;
   description: string | null;
   icon: string;
-  streak_threshold: number;
+  award_type: "auto" | "manual";
+  streak_threshold: number | null;
   order_index: number;
   is_active: boolean;
 }
