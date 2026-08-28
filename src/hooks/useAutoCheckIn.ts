@@ -14,8 +14,12 @@ import type { BadgeDef } from "@/lib/types";
  * 사이트 잠금(점검) 모드가 켜져 있는 동안은 아직 정식 운영이 아니므로 연속 접속
  * 체크인/토스트/뱃지 축하 팝업 같은 상호작용을 전부 보류한다(단, 날짜 조건 뱃지는
  * "잠금 중에 로그인하면 지급"이 목적이라 예외 — 지급은 조용히 계속하되 축하 팝업만 숨긴다).
+ *
+ * checkInEligible이 false면(명단 밖에서 "외부 계정 관리"로 개별 승인된 계정 등, 실제
+ * 학교 구성원이 아닌 경우) 연속 접속 체크인 자체를 하지 않는다 — 이 기능은 학생/교사를
+ * 위한 것이라 그 외 계정에게 "접속 1일째" 같은 팝업이 뜨는 게 맞지 않기 때문이다.
  */
-export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean = false) {
+export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean = false, checkInEligible: boolean = true) {
   const supabase = createClient();
   const attendance = useAttendance(userId);
   const {
@@ -59,6 +63,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   useEffect(() => {
     if (!userId || attendance.loading || attendance.checkedToday || firedRef.current) return;
     if (maintenanceMode === null || maintenanceMode) return; // 잠금 중이거나 확인 전이면 보류
+    if (!checkInEligible) return; // 학교 구성원이 아닌 계정(외부 승인 계정)은 체크인하지 않음
     firedRef.current = true;
     (async () => {
       const nextStreak = await attendance.checkIn();
@@ -75,7 +80,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   // 이미 오늘 체크인을 마친 사용자(뱃지가 생기기 전에 먼저 접속했던 사용자 포함)도 접속할 때마다
   // 별도로 평가한다. 잠금 모드 중에도 지급은 계속하되(그게 목적이므로), 축하 팝업만 숨긴다.
   useEffect(() => {
-    if (!userId || badgesLoading || dateCheckedRef.current) return;
+    if (!userId || badgesLoading || dateCheckedRef.current || !checkInEligible) return;
     dateCheckedRef.current = true;
     (async () => {
       const newly = await checkDateBadges();

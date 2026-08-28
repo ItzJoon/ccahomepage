@@ -18,10 +18,26 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   // 프로필/커스텀 페이지/배너/팝업/잠금 여부 조회는 서로 의존관계가 없는데, 하나씩 순서대로
   // 기다리면 매 페이지 로드마다 Supabase 왕복이 그만큼 누적된다. 동시에 요청해서 가장 느린 것
-  // 하나만큼만 기다린다.
-  const [profile, { data: customPages }, { data: latestBanner }, { data: latestPopup }, { data: settings }] =
-    await Promise.all([
-      getCurrentProfile(),
+  // 하나만큼만 기다린다. 명단(directory_members)에서 학생/교사인지(=연속 접속 체크인 대상인지)
+  // 확인하는 조회는 profile.email이 있어야 하므로, profile을 가져오는 브랜치 안에서만
+  // 순차적으로 이어서 하고(다른 브랜치들과는 여전히 병렬), 다른 조회를 막지 않게 한다.
+  const [
+    { profile, memberType },
+    { data: customPages },
+    { data: latestBanner },
+    { data: latestPopup },
+    { data: settings },
+  ] = await Promise.all([
+    (async () => {
+      const profile = await getCurrentProfile();
+      if (!profile) return { profile: null, memberType: null as string | null };
+      const { data: dm } = await supabase
+        .from("directory_members")
+        .select("member_type")
+        .eq("email", profile.email)
+        .maybeSingle();
+      return { profile, memberType: dm?.member_type ?? null };
+    })(),
       supabase
         .from("pages")
         .select("id, slug, title, content, is_published, menu_visible, order_index")
@@ -50,12 +66,16 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // 사용자에게는 아직 정식 운영 전이라 배너/팝업 알림 같은 상호작용도 함께 보류한다.
   const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
   const showNotifications = !settings?.maintenance_mode || isLockdownExempt;
+  // 연속 접속 체크인/뱃지 시스템은 실제 학교 구성원(학생/교사)을 위한 기능이라, "외부 계정
+  // 관리"에서 개별 승인된 계정(member_type='other')에게는 의미가 없다("접속 1일째" 팝업 등이
+  // 계속 뜨는 게 어색함). admin/superadmin은 명단 등록 여부와 무관하게 항상 사용할 수 있게 둔다.
+  const checkInEligible = isLockdownExempt || memberType === "student" || memberType === "teacher";
 
   return (
     <html lang="ko">
       <body>
         <div className="min-h-screen flex flex-col">
-          <Header profile={profile as any} customPages={customPages ?? []} />
+          <Header profile={profile as any} customPages={customPages ?? []} checkInEligible={checkInEligible} />
           {showNotifications && <NotificationBanner initial={latestBanner as any} />}
           {showNotifications && <NotificationPopup initial={latestPopup as any} />}
           <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>

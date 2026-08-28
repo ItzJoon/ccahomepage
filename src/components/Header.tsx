@@ -24,9 +24,11 @@ const NAV = [
 export default function Header({
   profile,
   customPages,
+  checkInEligible = true,
 }: {
   profile: Profile | null;
   customPages: PageDoc[];
+  checkInEligible?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,7 +37,7 @@ export default function Header({
   // 사이트 잠금 모드는 admin/superadmin만 우회하므로(editor는 예외 아님), 연속 접속 체크인도
   // 같은 기준으로 잠금 중 보류 여부를 판단한다.
   const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
-  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt);
+  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt, checkInEligible);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const signOut = async () => {
