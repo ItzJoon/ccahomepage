@@ -884,3 +884,20 @@ begin
     update user_badges set celebrated = true;
   end if;
 end $$;
+
+-- ------------------------------------------------------------
+-- 25. 학생 스스로 뱃지 축하 확인 처리(celebrated) 가능하게
+-- ------------------------------------------------------------
+-- user_badges에는 update 정책이 전혀 없어서, 학생이 축하 팝업을 확인해도 celebrated를
+-- true로 바꾸는 요청이 RLS에 조용히 막혀 새로고침할 때마다 팝업이 계속 다시 떴다.
+-- update 정책을 여는 대신, 본인 행의 celebrated만 true로 바꿀 수 있는 함수를 만들어
+-- badge_id/earned_at 등 다른 값은 절대 못 바꾸게 한다.
+create or replace function mark_badges_celebrated(target_badge_ids uuid[])
+returns void as $$
+begin
+  update user_badges set celebrated = true
+  where user_id = auth.uid() and badge_id = any(target_badge_ids);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function mark_badges_celebrated(uuid[]) to authenticated;

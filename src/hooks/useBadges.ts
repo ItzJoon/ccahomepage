@@ -43,9 +43,12 @@ export function useBadges(userId: string | null) {
 
   /**
    * 관리자가 "뱃지 직접 부여"로 다른 화면에서 뱃지를 줬을 때 학생 화면에도 실시간으로 반영되도록
-   * user_badges의 insert/delete를 구독한다. 내가 스스로 지급받은 경우(자동/날짜 조건)는 그 즉시
-   * 로컬 상태에 이미 반영돼 있어서, 여기서는 "아직 모르는" 지급만 골라내 externalGrant로 알린다.
-   * 지금 접속 중이라 바로 보여줄 수 있으므로, 이 경로로 받은 지급은 celebrated=true로 표시한다.
+   * user_badges의 insert/delete를 구독한다. postgres_changes의 서버 필터(filter: user_id=eq...)
+   * 대신, 이 프로젝트의 다른 realtime 구독(useRealtimeList)과 동일하게 필터 없이 전체를 구독한
+   * 뒤 콜백 안에서 내 user_id인지 직접 확인한다(검증된 패턴을 그대로 따름).
+   * 내가 스스로 지급받은 경우(자동/날짜 조건)는 그 즉시 로컬 상태에 이미 반영돼 있어서,
+   * 여기서는 "아직 모르는" 지급만 골라내 externalGrant로 알린다. 지금 접속 중이라 바로
+   * 보여줄 수 있으므로, 이 경로로 받은 지급은 mark_badges_celebrated로 확인 처리한다.
    */
   useEffect(() => {
     if (!userId) return;
@@ -53,24 +56,26 @@ export function useBadges(userId: string | null) {
       .channel(`user_badges_watch_${userId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "user_badges", filter: `user_id=eq.${userId}` },
+        { event: "INSERT", schema: "public", table: "user_badges" },
         async (payload) => {
-          const row = payload.new as { badge_id: string; celebrated: boolean };
-          if (earnedIdsRef.current.has(row.badge_id)) return;
+          const row = payload.new as { user_id: string; badge_id: string; celebrated: boolean };
+          if (row.user_id !== userId || earnedIdsRef.current.has(row.badge_id)) return;
           const { data: badge } = await supabase.from("badges").select("*").eq("id", row.badge_id).single();
           if (!badge) return;
           setEarnedIds((prev) => new Set([...prev, row.badge_id]));
           setExternalGrant(badge as BadgeDef);
           if (!row.celebrated) {
-            await supabase.from("user_badges").update({ celebrated: true }).eq("user_id", userId).eq("badge_id", row.badge_id);
+            await supabase.rpc("mark_badges_celebrated", { target_badge_ids: [row.badge_id] });
           }
         }
       )
       .on(
         "postgres_changes",
-        { event: "DELETE", schema: "public", table: "user_badges", filter: `user_id=eq.${userId}` },
+        { event: "DELETE", schema: "public", table: "user_badges" },
         (payload) => {
-          const badgeId = (payload.old as { badge_id: string }).badge_id;
+          const row = payload.old as { user_id?: string; badge_id?: string };
+          if (row.user_id !== userId || !row.badge_id) return;
+          const badgeId = row.badge_id;
           setEarnedIds((prev) => {
             if (!prev.has(badgeId)) return prev;
             const next = new Set(prev);
@@ -104,7 +109,7 @@ export function useBadges(userId: string | null) {
       if (badgeRows && badgeRows.length > 0) {
         setPendingCelebrations(badgeRows as BadgeDef[]);
       }
-      await supabase.from("user_badges").update({ celebrated: true }).eq("user_id", userId).in("badge_id", badgeIds);
+      await supabase.rpc("mark_badges_celebrated", { target_badge_ids: badgeIds });
     })();
   }, [userId, supabase]);
 
