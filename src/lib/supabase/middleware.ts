@@ -57,32 +57,27 @@ export async function updateSession(request: NextRequest) {
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 
-  // /admin 체크와 중복 조회하지 않도록 role은 한 번만 가져와서 재사용한다.
-  let roleFetched = false;
+  // 역할/사이트 설정/명단 등록 여부를 하나씩 순서대로(직렬로) 기다리면 매 페이지
+  // 진입마다 Supabase 왕복이 여러 번 누적돼 체감상 2초 가까운 지연이 생긴다(예전에
+  // (site)/layout.tsx의 직렬 조회 때문에 겪었던 것과 같은 종류의 문제가 미들웨어의
+  // 권한 체크가 늘어나면서 다시 생김). 이 요청에서 필요할 수 있는 조회를 전부 한 번에
+  // 병렬로 가져와서 왕복 횟수를 줄인다. 예외 페이지(로그인/점검/명단차단 안내 등)는
+  // 어차피 이 값들이 필요 없으므로 조회 자체를 건너뛴다.
   let role: string | null = null;
-  const getRole = async () => {
-    if (roleFetched) return role;
-    roleFetched = true;
-    if (!user) return null;
-    const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
-    role = profile?.role ?? null;
-    return role;
-  };
-
-  // 잠금 모드 체크와 외부 계정 차단 체크가 둘 다 site_settings를 참조하므로 한 번만 가져와서 재사용한다.
-  let settingsFetched = false;
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
-  const getSiteSettings = async () => {
-    if (settingsFetched) return siteSettings;
-    settingsFetched = true;
-    const { data } = await supabase
-      .from("site_settings")
-      .select("maintenance_mode, restrict_external_checkin")
-      .eq("id", "default")
-      .maybeSingle();
-    siteSettings = data;
-    return siteSettings;
-  };
+  let directoryAllowed = false;
+  if (user && !isSpecialPageExempt) {
+    const [roleResult, settingsResult, directoryResult] = await Promise.all([
+      supabase.from("profiles").select("role").eq("id", user.id).single(),
+      supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
+      user.email
+        ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    role = roleResult.data?.role ?? null;
+    siteSettings = settingsResult.data;
+    directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
+  }
 
   // 학교 구성원 명단(directory_members)에 없는 이메일은 로그인은 되어도 사이트를 이용할 수
   // 없게 막는다. admin/superadmin은 명단과 무관하게 항상 통과시켜야 관리자가 실수로 스스로를
@@ -90,41 +85,24 @@ export async function updateSession(request: NextRequest) {
   // "외부 계정 관리" 화면의 스위치(restrict_external_checkin)로 켜고 끌 수 있다 — 꺼두면
   // 명단에 없는 계정도 로그인해 정상적으로 이용할 수 있다.
   if (user && !isAccessCheckExempt) {
-    const r = await getRole();
-    const isPrivileged = !!r && ["admin", "superadmin"].includes(r);
+    const isPrivileged = !!role && ["admin", "superadmin"].includes(role);
     if (!isPrivileged) {
-      const settings = await getSiteSettings();
-      const restrictionEnabled = settings?.restrict_external_checkin !== false;
-      if (restrictionEnabled) {
-        let allowed = false;
-        if (user.email) {
-          const { data: dm } = await supabase
-            .from("directory_members")
-            .select("is_allowed")
-            .eq("email", user.email)
-            .maybeSingle();
-          allowed = !!dm?.is_allowed;
-        }
-        if (!allowed) {
-          await supabase.rpc("record_login_access_attempt");
-          const url = request.nextUrl.clone();
-          url.pathname = "/access-restricted";
-          return NextResponse.redirect(url);
-        }
+      const restrictionEnabled = siteSettings?.restrict_external_checkin !== false;
+      if (restrictionEnabled && !directoryAllowed) {
+        await supabase.rpc("record_login_access_attempt");
+        const url = request.nextUrl.clone();
+        url.pathname = "/access-restricted";
+        return NextResponse.redirect(url);
       }
     }
   }
 
-  if (!isMaintenanceExempt) {
-    const settings = await getSiteSettings();
-    if (settings?.maintenance_mode) {
-      const r = await getRole();
-      const isAdmin = !!r && ["admin", "superadmin"].includes(r);
-      if (!isAdmin) {
-        const url = request.nextUrl.clone();
-        url.pathname = "/maintenance";
-        return NextResponse.redirect(url);
-      }
+  if (!isMaintenanceExempt && siteSettings?.maintenance_mode) {
+    const isAdmin = !!role && ["admin", "superadmin"].includes(role);
+    if (!isAdmin) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/maintenance";
+      return NextResponse.redirect(url);
     }
   }
 
@@ -135,7 +113,7 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.set("next", pathname);
       return NextResponse.redirect(url);
     }
-    const r = await getRole();
+    const r = role;
     // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "조직 활동
     // 관리"(안건함/조직 일정/활동기록) 화면만 예외적으로 sub_editor 이상에게 열어주고,
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
