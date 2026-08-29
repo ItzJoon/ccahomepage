@@ -1002,3 +1002,45 @@ end $$;
 -- 막는 기능을 관리자가 "외부 계정 관리" 화면에서 껐다 켤 수 있게 하는 설정값.
 -- 기본값 true(제한함)로 두어 기존 동작을 그대로 유지한다.
 alter table site_settings add column if not exists restrict_external_checkin boolean not null default true;
+
+-- ------------------------------------------------------------
+-- 28. 구성원 조회 - 다른 학생/교사 프로필 보기 (읽기 전용)
+-- ------------------------------------------------------------
+-- 구성원 조회(/members)에서 학생/교사를 클릭하면 그 사람의 마이페이지를 읽기 전용으로 볼 수
+-- 있게 한다. profiles 테이블의 select 정책은 본인/관리자/editor 이상만 허용하므로(개인정보
+-- 보호), 다른 사람이 서로의 이름/닉네임/사진/소개만 볼 수 있도록 별도 뷰를 만든다. 이 뷰는
+-- security_invoker를 켜지 않아(기본값) profiles의 RLS를 우회하고, 뷰 자체에서 노출 컬럼과
+-- 대상(학생/교사 명단에 있는 사람만)을 제한한다 — 이메일 외 role/freeze_credits 같은 민감한
+-- 값은 아예 select 목록에 넣지 않아 API로 직접 조회해도 새어나가지 않는다.
+create or replace view directory_profile_view as
+select
+  p.id,
+  p.name,
+  p.nickname,
+  p.bio,
+  p.profile_image,
+  dm.email,
+  dm.member_type,
+  dm.display_name,
+  dm.grade,
+  dm.homeroom,
+  dm.homeroom_label,
+  dm.subject
+from profiles p
+join directory_members dm on dm.email = p.email
+where dm.member_type in ('student','teacher');
+
+grant select on directory_profile_view to authenticated;
+
+-- 다른 사람의 뱃지도 함께 보여주기 위해, 조회 대상이 명단상 학생/교사면 그 사람의 user_badges를
+-- 누구나(로그인 사용자) 볼 수 있게 select 정책을 하나 더 추가한다(비밀 뱃지도 "이미 획득한"
+-- 상태로만 보여주는 것이라 노출에 문제 없음 — 아직 못 받은 시크릿 뱃지는 애초에 이 목록에 없음).
+drop policy if exists "user_badges_select_public_directory" on user_badges;
+create policy "user_badges_select_public_directory" on user_badges for select
+  using (
+    exists (
+      select 1 from profiles p
+      join directory_members dm on dm.email = p.email
+      where p.id = user_badges.user_id and dm.member_type in ('student','teacher')
+    )
+  );

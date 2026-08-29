@@ -204,6 +204,21 @@ export interface DirectoryMember {
   created_at: string;
 }
 
+export interface DirectoryProfileView {
+  id: string;
+  name: string | null;
+  nickname: string | null;
+  bio: string | null;
+  profile_image: string | null;
+  email: string;
+  member_type: MemberType;
+  display_name: string;
+  grade: "10" | "11" | "12" | null;
+  homeroom: 1 | 2 | 3 | null;
+  homeroom_label: string | null;
+  subject: string | null;
+}
+
 export type LoginAccessStatus = "pending" | "approved" | "blocked";
 
 export interface LoginAccessRequest {

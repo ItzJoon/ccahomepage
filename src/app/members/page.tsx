@@ -5,7 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
-import type { DirectoryMember } from "@/lib/types";
+import type { DirectoryMember, DirectoryProfileView } from "@/lib/types";
 
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 const GRADES = ["10", "11", "12"] as const;
@@ -16,12 +16,26 @@ export default function DirectoryPage() {
   const { rows } = useRealtimeList<DirectoryMember>("directory_members", {
     orderBy: { column: "display_name" },
   });
+  // 명단에는 있지만 아직 가입(첫 로그인)하지 않은 사람도 있을 수 있다. 그런 계정은 profiles
+  // row가 없어 프로필을 보여줄 게 없으므로, 이메일 기준으로 가입 여부를 따로 조회해서
+  // 회색으로 표시하고 클릭을 막는다. profiles는 RLS상 본인/관리자만 열람 가능해서, 이 조회는
+  // 뷰(directory_profile_view)를 통해 우회한다(뷰 자체가 이름/사진/소개 등 공개 가능한 값만 노출).
+  const [profilesByEmail, setProfilesByEmail] = useState<Record<string, DirectoryProfileView>>({});
   const [tab, setTab] = useState<"student" | "teacher">("student");
   const [grades, setGrades] = useState<Set<string>>(new Set(GRADES));
   const [q, setQ] = useState("");
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
+  }, [supabase]);
+
+  useEffect(() => {
+    supabase
+      .from("directory_profile_view")
+      .select("*")
+      .then(({ data }) => {
+        setProfilesByEmail(Object.fromEntries(((data as DirectoryProfileView[]) ?? []).map((p) => [p.email, p])));
+      });
   }, [supabase]);
 
   const toggleGrade = (g: string) => {
@@ -68,11 +82,43 @@ export default function DirectoryPage() {
     );
   }
 
+  const renderCard = (m: DirectoryMember, sub: string) => {
+    const joined = profilesByEmail[m.email];
+    const inner = (
+      <>
+        <div className="font-bold">{m.display_name}</div>
+        <div className="text-blue text-sm mt-1">{sub}</div>
+      </>
+    );
+    if (joined) {
+      return (
+        <Link
+          key={m.id}
+          href={`/members/${joined.id}`}
+          className="bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
+        >
+          {inner}
+        </Link>
+      );
+    }
+    return (
+      <div
+        key={m.id}
+        title="아직 가입하지 않은 계정입니다"
+        className="bg-[#F5F6F8] border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
+      >
+        {inner}
+        <div className="text-[11px] text-muted mt-1.5">미가입</div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <SectionTitle eyebrow="DIRECTORY" title="구성원 조회" />
       <p className="text-muted mb-4 text-sm">
-        학교 전체 학생·교사 명단입니다. 학생자치회 임원 소개는{" "}
+        학교 전체 학생·교사 명단입니다. 이름을 클릭하면 프로필을 볼 수 있어요(아직 가입하지 않은
+        계정은 회색으로 표시됩니다). 학생자치회 임원 소개는{" "}
         <Link href="/organizations" className="text-blue font-bold">
           학생자치회 소개
         </Link>{" "}
@@ -100,12 +146,17 @@ export default function DirectoryPage() {
 
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {tab === "student" && (
-          <div className="flex gap-3">
+          <div className="flex gap-1.5">
             {GRADES.map((g) => (
-              <label key={g} className="flex items-center gap-1.5 text-sm">
-                <input type="checkbox" checked={grades.has(g)} onChange={() => toggleGrade(g)} />
+              <button
+                key={g}
+                onClick={() => toggleGrade(g)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
+                  grades.has(g) ? "bg-teal text-white border-teal" : "bg-white text-muted border-border"
+                }`}
+              >
                 {g}학년
-              </label>
+              </button>
             ))}
           </div>
         )}
@@ -119,26 +170,14 @@ export default function DirectoryPage() {
 
       {tab === "student" ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-          {students.map((m) => (
-            <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
-              <div className="font-bold">{m.display_name}</div>
-              <div className="text-blue text-sm mt-1">
-                {m.grade}학년 {m.homeroom ? HOMEROOM_LABEL[m.homeroom] : ""}
-              </div>
-            </div>
-          ))}
+          {students.map((m) => renderCard(m, `${m.grade}학년 ${m.homeroom ? HOMEROOM_LABEL[m.homeroom] : ""}`))}
           {students.length === 0 && (
             <div className="text-muted text-center py-8 text-sm col-span-4">일치하는 학생이 없습니다.</div>
           )}
         </div>
       ) : (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-          {teachers.map((m) => (
-            <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
-              <div className="font-bold">{m.display_name}</div>
-              <div className="text-blue text-sm mt-1">{m.subject || "-"}</div>
-            </div>
-          ))}
+          {teachers.map((m) => renderCard(m, m.subject || "-"))}
           {teachers.length === 0 && (
             <div className="text-muted text-center py-8 text-sm col-span-4">일치하는 교사가 없습니다.</div>
           )}
