@@ -101,11 +101,13 @@ export default function AdminAccessRequestsPage() {
             checked={settings?.restrict_external_checkin ?? true}
             onChange={(e) => toggleRestriction(e.target.checked)}
           />
-          외부 계정(명단 밖에서 개별 승인된 계정)에는 체크인 토스트·뱃지 팝업 안 띄우기
+          외부 계정 자동 차단 기능 켜기
         </label>
         <p className="text-muted text-xs mt-1.5">
-          꺼두면(체크 해제) 외부 계정도 학생/교사와 동일하게 접속 시 체크인 토스트와 뱃지 축하
-          팝업이 뜹니다. 기본값은 켜짐(제한함)입니다.
+          켜두면(기본값) 학교 명단(directory_members)에 없는 계정은 로그인 시 자동으로
+          접근이 차단되어 이 화면에서 개별 승인해야만 이용할 수 있습니다. 꺼두면 차단
+          로직 자체를 건너뛰어, 명단에 없는 계정도 학생/교사와 동일하게 바로 이용할 수
+          있습니다(체크인 토스트·뱃지 팝업 포함).
         </p>
       </div>
 

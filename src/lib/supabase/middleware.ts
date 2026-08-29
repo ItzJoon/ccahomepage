@@ -69,37 +69,54 @@ export async function updateSession(request: NextRequest) {
     return role;
   };
 
+  // 잠금 모드 체크와 외부 계정 차단 체크가 둘 다 site_settings를 참조하므로 한 번만 가져와서 재사용한다.
+  let settingsFetched = false;
+  let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
+  const getSiteSettings = async () => {
+    if (settingsFetched) return siteSettings;
+    settingsFetched = true;
+    const { data } = await supabase
+      .from("site_settings")
+      .select("maintenance_mode, restrict_external_checkin")
+      .eq("id", "default")
+      .maybeSingle();
+    siteSettings = data;
+    return siteSettings;
+  };
+
   // 학교 구성원 명단(directory_members)에 없는 이메일은 로그인은 되어도 사이트를 이용할 수
   // 없게 막는다. admin/superadmin은 명단과 무관하게 항상 통과시켜야 관리자가 실수로 스스로를
-  // 잠그는 사고를 막을 수 있다(사이트 잠금 모드와 동일한 안전장치).
+  // 잠그는 사고를 막을 수 있다(사이트 잠금 모드와 동일한 안전장치). 이 차단 기능 자체는
+  // "외부 계정 관리" 화면의 스위치(restrict_external_checkin)로 켜고 끌 수 있다 — 꺼두면
+  // 명단에 없는 계정도 로그인해 정상적으로 이용할 수 있다.
   if (user && !isAccessCheckExempt) {
     const r = await getRole();
     const isPrivileged = !!r && ["admin", "superadmin"].includes(r);
     if (!isPrivileged) {
-      let allowed = false;
-      if (user.email) {
-        const { data: dm } = await supabase
-          .from("directory_members")
-          .select("is_allowed")
-          .eq("email", user.email)
-          .maybeSingle();
-        allowed = !!dm?.is_allowed;
-      }
-      if (!allowed) {
-        await supabase.rpc("record_login_access_attempt");
-        const url = request.nextUrl.clone();
-        url.pathname = "/access-restricted";
-        return NextResponse.redirect(url);
+      const settings = await getSiteSettings();
+      const restrictionEnabled = settings?.restrict_external_checkin !== false;
+      if (restrictionEnabled) {
+        let allowed = false;
+        if (user.email) {
+          const { data: dm } = await supabase
+            .from("directory_members")
+            .select("is_allowed")
+            .eq("email", user.email)
+            .maybeSingle();
+          allowed = !!dm?.is_allowed;
+        }
+        if (!allowed) {
+          await supabase.rpc("record_login_access_attempt");
+          const url = request.nextUrl.clone();
+          url.pathname = "/access-restricted";
+          return NextResponse.redirect(url);
+        }
       }
     }
   }
 
   if (!isMaintenanceExempt) {
-    const { data: settings } = await supabase
-      .from("site_settings")
-      .select("maintenance_mode")
-      .eq("id", "default")
-      .maybeSingle();
+    const settings = await getSiteSettings();
     if (settings?.maintenance_mode) {
       const r = await getRole();
       const isAdmin = !!r && ["admin", "superadmin"].includes(r);
