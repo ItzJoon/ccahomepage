@@ -136,7 +136,14 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     const r = await getRole();
-    if (!r || !["editor", "admin", "superadmin"].includes(r)) {
+    // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "조직 활동
+    // 관리"(안건함/조직 일정/활동기록) 화면만 예외적으로 sub_editor 이상에게 열어주고,
+    // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
+    const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
+    const adminAllowedRoles = isOrgActivitiesPath
+      ? ["sub_editor", "editor", "admin", "superadmin"]
+      : ["editor", "admin", "superadmin"];
+    if (!r || !adminAllowedRoles.includes(r)) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       url.searchParams.set("denied", "1");

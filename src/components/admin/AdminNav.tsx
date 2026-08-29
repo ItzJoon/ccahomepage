@@ -58,17 +58,23 @@ function NavLink({ href, label, active, t }: { href: string; label: string; acti
 export default function AdminNav({ role, initialThemeKey }: { role?: string; initialThemeKey?: HomeThemeKey }) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
+  // sub_editor는 middleware에서 /admin/org-activities/* 외 다른 관리 화면 접근 자체가
+  // 막혀 있으므로, 눌러도 튕겨나가기만 하는 다른 메뉴들은 아예 보여주지 않는다.
+  const isSubEditor = role === "sub_editor";
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
-      {NAV.filter((n) => role === "superadmin" || !SUPERADMIN_ONLY_HREFS.has(n.href)).map((n) => (
-        <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
-      ))}
-      {/* 사이트 전체 디자인을 바꾸는 기능이라 superadmin에게만 메뉴 자체를 보여준다 */}
-      {role === "superadmin" && (
-        <NavLink href="/admin/theme" label="테마" active={pathname === "/admin/theme"} t={t} />
+      {!isSubEditor && (
+        <>
+          {NAV.filter((n) => role === "superadmin" || !SUPERADMIN_ONLY_HREFS.has(n.href)).map((n) => (
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+          ))}
+          {/* 사이트 전체 디자인을 바꾸는 기능이라 superadmin에게만 메뉴 자체를 보여준다 */}
+          {role === "superadmin" && (
+            <NavLink href="/admin/theme" label="테마" active={pathname === "/admin/theme"} t={t} />
+          )}
+          <div className={`border-t ${t.adminAsideBorder} my-2`} />
+        </>
       )}
-
-      <div className={`border-t ${t.adminAsideBorder} my-2`} />
       <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">조직 활동 관리</div>
       {ORG_ACTIVITIES_NAV.map((n) => (
         <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />

@@ -1152,3 +1152,30 @@ left join profiles p on p.id = e.created_by;
 -- 둔다. admin/superadmin이 /admin/users에서 개별적으로 켜고 끌 수 있다.
 alter table profiles add column if not exists is_council boolean not null default false;
 alter table profiles add column if not exists is_judiciary boolean not null default false;
+
+-- ------------------------------------------------------------
+-- 35. sub_editor에게 "조직 활동 관리"(안건함/조직 일정/활동기록)만 권한 부여
+-- ------------------------------------------------------------
+-- sub_editor 역할은 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). 이번에
+-- "조직 활동 관리" 3개 화면(/admin/org-activities/*)만 sub_editor 이상이 쓸 수 있게
+-- 범위를 좁혀서 처음으로 권한을 부여한다. is_editor_or_above()를 그대로 넓히면 이
+-- 함수를 쓰는 다른 모든 테이블(posts/events/rules/notifications 등)까지 sub_editor에게
+-- 열리므로, 이 3개 테이블 전용 함수를 따로 둔다.
+create or replace function is_org_activities_manager()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('sub_editor','editor','admin','superadmin')
+  );
+$$ language sql stable security definer;
+
+drop policy if exists "org_events_write_editor" on org_events;
+create policy "org_events_write_editor" on org_events for all using (is_org_activities_manager()) with check (is_org_activities_manager());
+
+drop policy if exists "org_records_write_editor" on org_records;
+create policy "org_records_write_editor" on org_records for all using (is_org_activities_manager()) with check (is_org_activities_manager());
+
+-- 안건 상태 변경(검토중/승인/반려/완료)만 sub_editor에게 열어준다. 삭제(admin 이상)와
+-- 등록(로그인한 학생 본인)은 기존 정책 그대로 유지.
+drop policy if exists "proposals_update_editor" on proposals;
+create policy "proposals_update_editor" on proposals for update using (is_org_activities_manager());
