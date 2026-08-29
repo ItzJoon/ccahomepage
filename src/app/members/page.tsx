@@ -148,9 +148,9 @@ export default function DirectoryPage() {
         {tab === "student" && (
           <div className="flex gap-1.5">
             <button
-              onClick={() => setGrades(new Set(GRADES))}
-              className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
-                grades.size === GRADES.length ? "bg-teal text-white border-teal" : "bg-white text-muted border-border"
+              onClick={() => setGrades(grades.size === GRADES.length ? new Set() : new Set(GRADES))}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 ${
+                grades.size === GRADES.length ? "bg-navy text-white border-navy" : "bg-white text-navy border-navy"
               }`}
             >
               전체
