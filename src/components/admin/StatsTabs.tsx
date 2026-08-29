@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { createClient } from "@/lib/supabase/client";
+import { useRealtimeList } from "@/hooks/useRealtimeList";
 
 type TopStreak = { user_id: string; streak_count: number; profiles: { name: string | null; email: string } | null };
 type AttendanceRow = {
@@ -14,6 +16,8 @@ type AttendanceRow = {
   created_at: string;
 };
 
+const LOG_SELECT = "id, name, nickname, email, visit_date, streak_count, is_freeze, created_at";
+
 export default function StatsTabs({
   totalUsers,
   studentCount,
@@ -21,7 +25,6 @@ export default function StatsTabs({
   staffCount,
   todayVisitCount,
   topStreaks,
-  attendanceLog,
 }: {
   totalUsers: number;
   studentCount: number;
@@ -29,9 +32,49 @@ export default function StatsTabs({
   staffCount: number;
   todayVisitCount: number;
   topStreaks: TopStreak[];
-  attendanceLog: AttendanceRow[];
 }) {
   const [tab, setTab] = useState<"log" | "summary">("log");
+  const supabase = createClient();
+
+  // 전체 접속 기록은 다른 관리 화면들과 같은 방식(useRealtimeList)으로 실시간 반영한다.
+  // 예전에는 페이지 진입 시 서버에서 한 번만 조회해서, 화면을 열어둔 채로 있으면 그 이후
+  // 생긴 체크인이 새로고침 전까지 전혀 보이지 않는 문제가 있었다. postgres_changes
+  // 구독은 뷰가 아니라 원본 테이블에서만 동작하므로 table은 user_attendance, 실제 조회는
+  // 이름/이메일이 조인된 user_attendance_with_name 뷰에서 한다.
+  const { rows: liveLog, loading: liveLogLoading } = useRealtimeList<AttendanceRow>("user_attendance", {
+    selectFrom: "user_attendance_with_name",
+    select: LOG_SELECT,
+    orderBy: { column: "created_at", ascending: false },
+    limit: 200,
+  });
+
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<AttendanceRow[] | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    const q = search.trim();
+    if (!q) {
+      setSearchResults(null);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      // PostgREST의 or() 필터 문법에서 콤마/괄호가 특별한 의미를 가지므로 제거해 안전하게 만든다.
+      const safeQ = q.replace(/[,()]/g, "");
+      const { data } = await supabase
+        .from("user_attendance_with_name")
+        .select(LOG_SELECT)
+        .or(`name.ilike.%${safeQ}%,nickname.ilike.%${safeQ}%,email.ilike.%${safeQ}%`)
+        .order("created_at", { ascending: false })
+        .limit(300);
+      setSearchResults((data as any) ?? []);
+      setSearching(false);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, supabase]);
+
+  const attendanceLog = searchResults ?? liveLog;
 
   return (
     <div>
@@ -79,7 +122,17 @@ export default function StatsTabs({
             </div>
           </div>
 
-          <h3 className="mb-2">전체 접속 기록 (최신순, 최근 200건)</h3>
+          <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+            <h3 className="m-0">
+              전체 접속 기록 {searchResults ? `(검색 결과 ${searchResults.length}건)` : "(최신순, 최근 200건)"}
+            </h3>
+            <input
+              className="border border-border rounded-lg px-3 py-1.5 text-sm w-full max-w-xs"
+              placeholder="이름 또는 이메일로 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
           <table className="w-full border-collapse bg-white">
             <thead>
               <tr>
@@ -101,7 +154,15 @@ export default function StatsTabs({
                 </tr>
               ))}
               {attendanceLog.length === 0 && (
-                <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
+                <tr>
+                  <td colSpan={5} className="text-muted text-center py-8 text-sm">
+                    {searching || (liveLogLoading && !searchResults)
+                      ? "불러오는 중…"
+                      : searchResults
+                      ? "검색 결과가 없습니다."
+                      : "아직 접속 기록이 없습니다."}
+                  </td>
+                </tr>
               )}
             </tbody>
           </table>

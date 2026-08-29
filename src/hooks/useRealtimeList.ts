@@ -12,7 +12,12 @@ export function useRealtimeList<T extends { id: string }>(
   table: string,
   options?: {
     select?: string;
+    // 뷰(예: 이름/이메일을 조인한 user_attendance_with_name)를 조회하고 싶지만
+    // Realtime 구독(postgres_changes)은 뷰가 아니라 원본 테이블에서만 동작하므로,
+    // 조회 대상만 다르게 지정할 수 있게 한다. 생략하면 기존처럼 table을 그대로 조회한다.
+    selectFrom?: string;
     orderBy?: { column: string; ascending?: boolean };
+    limit?: number;
     filter?: (query: any) => any;
   }
 ) {
@@ -25,13 +30,14 @@ export function useRealtimeList<T extends { id: string }>(
   );
 
   const load = useCallback(async () => {
-    let query = supabase.from(table).select(options?.select ?? "*");
+    let query = supabase.from(options?.selectFrom ?? table).select(options?.select ?? "*");
     if (options?.filter) query = options.filter(query);
     if (options?.orderBy) {
       query = query.order(options.orderBy.column, {
         ascending: options.orderBy.ascending ?? true,
       });
     }
+    if (options?.limit) query = query.limit(options.limit);
     const { data } = await query;
     setRows((data as unknown as T[]) ?? []);
     setLoading(false);

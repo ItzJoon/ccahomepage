@@ -1092,3 +1092,21 @@ end $$;
 alter table posts add column if not exists video_source text check (video_source in ('drive','upload'));
 alter table posts add column if not exists video_url text;
 alter table posts add column if not exists video_path text;
+
+-- ------------------------------------------------------------
+-- 31. 접속 통계 화면 실시간 반영
+-- ------------------------------------------------------------
+-- /admin/stats의 "전체 접속 기록"은 지금까지 서버 컴포넌트에서 페이지 진입 시 한 번만
+-- 조회했다(다른 관리 화면들과 달리 useRealtimeList를 쓰지 않음) — 그래서 관리자가 화면을
+-- 열어둔 채로 있으면 그 이후에 생긴 체크인은 새로고침 전까지 전혀 보이지 않았다("특정 시각
+-- 이후 일부 계정이 안 보인다"는 문의의 원인). user_attendance를 Realtime 발행 목록에
+-- 추가해서 다른 관리 화면들과 동일하게 즉시 반영되도록 한다.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_attendance'
+  ) then
+    alter publication supabase_realtime add table public.user_attendance;
+  end if;
+end $$;
