@@ -135,17 +135,30 @@ export function useBadges(userId: string | null) {
   /**
    * 아직 못 받은 뱃지 중 조건을 만족하는 것들을 실제로 지급합니다(공용 로직). 지급 즉시 호출한
    * 쪽에서 축하 팝업을 보여줄 것이므로 celebrated=true로 기록한다.
+   *
+   * earnedIds는 useBadges가 아직 로딩 중일 때 호출되면(예: 체크인 직후 badges 목록이 채 안
+   * 불러와진 시점) 오래된 값일 수 있어, 이미 보유한 뱃지를 "새로 획득"으로 잘못 판단할 수 있다.
+   * 그래서 일반 insert 대신 `on conflict (user_id, badge_id) do nothing` + `.select()`를 써서,
+   * DB에 실제로 새로 들어간 행만 결과로 받는다 — 이미 있던 뱃지는 조용히 무시되고(에러도 안 남),
+   * 그 뱃지에 대한 축하 팝업도 뜨지 않는다(이미 받은 뱃지가 재접속 때마다 다시 축하되는 버그 방지).
    */
   const grant = useCallback(
     async (toGrant: BadgeDef[]) => {
       if (!userId || toGrant.length === 0) return [];
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("user_badges")
-        .insert(toGrant.map((b) => ({ user_id: userId, badge_id: b.id, celebrated: true })));
-      if (!error) {
-        setEarnedIds((prev) => new Set([...prev, ...toGrant.map((b) => b.id)]));
+        .upsert(
+          toGrant.map((b) => ({ user_id: userId, badge_id: b.id, celebrated: true })),
+          { onConflict: "user_id,badge_id", ignoreDuplicates: true }
+        )
+        .select("badge_id");
+      if (error || !data) return [];
+      const insertedIds = new Set(data.map((r) => r.badge_id));
+      const actuallyGranted = toGrant.filter((b) => insertedIds.has(b.id));
+      if (actuallyGranted.length > 0) {
+        setEarnedIds((prev) => new Set([...prev, ...actuallyGranted.map((b) => b.id)]));
       }
-      return toGrant;
+      return actuallyGranted;
     },
     [userId, supabase]
   );

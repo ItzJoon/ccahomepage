@@ -184,6 +184,7 @@ export interface SiteSettings {
   maintenance_mode: boolean;
   maintenance_message: string;
   maintenance_until: string | null;
+  restrict_external_checkin: boolean;
   updated_at: string;
 }
 

@@ -59,7 +59,11 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         .order("sent_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
-      supabase.from("site_settings").select("maintenance_mode").eq("id", "default").maybeSingle(),
+      supabase
+        .from("site_settings")
+        .select("maintenance_mode, restrict_external_checkin")
+        .eq("id", "default")
+        .maybeSingle(),
     ]);
 
   // 사이트 잠금 모드 중에는 admin/superadmin만 우회하므로(middleware.ts와 동일 기준), 그 외
@@ -67,9 +71,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
   const showNotifications = !settings?.maintenance_mode || isLockdownExempt;
   // 연속 접속 체크인/뱃지 시스템은 실제 학교 구성원(학생/교사)을 위한 기능이라, "외부 계정
-  // 관리"에서 개별 승인된 계정(member_type='other')에게는 의미가 없다("접속 1일째" 팝업 등이
-  // 계속 뜨는 게 어색함). admin/superadmin은 명단 등록 여부와 무관하게 항상 사용할 수 있게 둔다.
-  const checkInEligible = isLockdownExempt || memberType === "student" || memberType === "teacher";
+  // 관리"에서 개별 승인된 계정(member_type='other')에게는 기본적으로 막아둔다("접속 1일째"
+  // 팝업 등이 뜨는 게 어색해서). admin/superadmin은 명단 등록 여부와 무관하게 항상 가능하고,
+  // restrict_external_checkin을 관리자가 꺼두면(기본값 true) 외부 계정도 다시 허용된다.
+  const checkInEligible =
+    isLockdownExempt ||
+    settings?.restrict_external_checkin === false ||
+    memberType === "student" ||
+    memberType === "teacher";
 
   return (
     <html lang="ko">

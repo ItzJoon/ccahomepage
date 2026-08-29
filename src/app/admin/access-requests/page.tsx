@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import type { LoginAccessRequest } from "@/lib/types";
+import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
   pending: { text: "대기 중", className: "text-gold" },
@@ -16,9 +16,12 @@ export default function AdminAccessRequestsPage() {
   const { rows, reload } = useRealtimeList<LoginAccessRequest>("login_access_requests", {
     orderBy: { column: "attempted_at", ascending: false },
   });
+  const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
+  const settings = settingsRows.find((r) => r.id === "default");
   const [myId, setMyId] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [togglingRestriction, setTogglingRestriction] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -66,6 +69,12 @@ export default function AdminAccessRequestsPage() {
     reload();
   };
 
+  const toggleRestriction = async (checked: boolean) => {
+    setTogglingRestriction(true);
+    await supabase.from("site_settings").update({ restrict_external_checkin: checked }).eq("id", "default");
+    setTogglingRestriction(false);
+  };
+
   const pending = rows.filter((r) => r.status === "pending");
   const decided = rows.filter((r) => r.status !== "pending");
 
@@ -83,6 +92,22 @@ export default function AdminAccessRequestsPage() {
           이 화면은 admin 이상만 열람할 수 있습니다.
         </div>
       )}
+
+      <div className="bg-white border border-border rounded-xl p-4 mb-6">
+        <label className="flex items-center gap-2 text-sm font-bold">
+          <input
+            type="checkbox"
+            disabled={!isAdmin || !settings || togglingRestriction}
+            checked={settings?.restrict_external_checkin ?? true}
+            onChange={(e) => toggleRestriction(e.target.checked)}
+          />
+          외부 계정(명단 밖에서 개별 승인된 계정)에는 체크인 토스트·뱃지 팝업 안 띄우기
+        </label>
+        <p className="text-muted text-xs mt-1.5">
+          꺼두면(체크 해제) 외부 계정도 학생/교사와 동일하게 접속 시 체크인 토스트와 뱃지 축하
+          팝업이 뜹니다. 기본값은 켜짐(제한함)입니다.
+        </p>
+      </div>
 
       <h3 className="text-sm font-bold text-muted mb-2">대기 중인 요청 ({pending.length})</h3>
       <table className="w-full border-collapse bg-white mb-6">

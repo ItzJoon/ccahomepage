@@ -64,6 +64,10 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     if (!userId || attendance.loading || attendance.checkedToday || firedRef.current) return;
     if (maintenanceMode === null || maintenanceMode) return; // 잠금 중이거나 확인 전이면 보류
     if (!checkInEligible) return; // 학교 구성원이 아닌 계정(외부 승인 계정)은 체크인하지 않음
+    // badges 목록/보유 뱃지(earnedIds)가 아직 로딩 중이면 기다린다 — 여기서 바로 checkMilestones를
+    // 부르면 오래된(비어있는) earnedIds를 기준으로 판단해 이미 받은 뱃지를 "새로 획득"으로 잘못
+    // 인식할 수 있다(예: 이미 3일 뱃지가 있는데 재접속 시 축하 팝업이 다시 뜨는 버그).
+    if (badgesLoading) return;
     firedRef.current = true;
     (async () => {
       const nextStreak = await attendance.checkIn();
@@ -74,7 +78,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, attendance.loading, attendance.checkedToday, maintenanceMode]);
+  }, [userId, attendance.loading, attendance.checkedToday, maintenanceMode, badgesLoading]);
 
   // 날짜 조건 뱃지는 "새 체크인" 이벤트가 아니라 "오늘 로그인해서 사이트에 들어왔는지"만 보므로,
   // 이미 오늘 체크인을 마친 사용자(뱃지가 생기기 전에 먼저 접속했던 사용자 포함)도 접속할 때마다

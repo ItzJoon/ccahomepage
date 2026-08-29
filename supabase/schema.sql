@@ -994,3 +994,11 @@ begin
     end if;
   end loop;
 end $$;
+
+-- ------------------------------------------------------------
+-- 27. 외부 계정 체크인 제한 켜고 끄기
+-- ------------------------------------------------------------
+-- member_type='other'(명단 밖에서 개별 승인된 외부 계정)에게 연속 접속 체크인/뱃지 팝업을
+-- 막는 기능을 관리자가 "외부 계정 관리" 화면에서 껐다 켤 수 있게 하는 설정값.
+-- 기본값 true(제한함)로 두어 기존 동작을 그대로 유지한다.
+alter table site_settings add column if not exists restrict_external_checkin boolean not null default true;
