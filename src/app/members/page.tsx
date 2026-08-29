@@ -147,6 +147,14 @@ export default function DirectoryPage() {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         {tab === "student" && (
           <div className="flex gap-1.5">
+            <button
+              onClick={() => setGrades(new Set(GRADES))}
+              className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
+                grades.size === GRADES.length ? "bg-teal text-white border-teal" : "bg-white text-muted border-border"
+              }`}
+            >
+              전체
+            </button>
             {GRADES.map((g) => (
               <button
                 key={g}
