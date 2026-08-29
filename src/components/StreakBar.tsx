@@ -1,6 +1,7 @@
 "use client";
 
 import { useAttendance } from "@/hooks/useAttendance";
+import { homeTheme as t } from "@/lib/homeTheme";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -16,7 +17,7 @@ export default function StreakBar({ userId }: { userId: string | null }) {
 
   if (!userId) {
     return (
-      <div className="flex justify-between items-center bg-white border border-border rounded-xl px-4 py-3 mb-5 text-sm text-muted">
+      <div className={`flex justify-between items-center bg-white ${t.cardBorder} ${t.cardRadius} px-4 py-3 mb-5 text-sm text-muted`}>
         로그인하면 연속 접속일수와 방문 기록을 확인할 수 있어요.
       </div>
     );
@@ -24,7 +25,7 @@ export default function StreakBar({ userId }: { userId: string | null }) {
   if (loading) return null;
 
   return (
-    <div className="flex justify-between items-center bg-white border border-border rounded-xl px-4 py-3 mb-5 flex-wrap gap-2.5">
+    <div className={`flex justify-between items-center bg-white ${t.cardBorder} ${t.cardRadius} px-4 py-3 mb-5 flex-wrap gap-2.5`}>
       <div>
         <strong>🔥 연속 접속 {streak}일째</strong>
         <span className="text-muted"> · 최근 방문 {history[0] ? fmt(history[0]) : "기록 없음"}</span>

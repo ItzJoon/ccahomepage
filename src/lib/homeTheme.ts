@@ -16,7 +16,7 @@ export const homeThemeStyles = {
     navActive: "bg-white/15 text-white",
     navIdle: "text-[#C9D2E3] hover:bg-white/10 hover:text-white",
     navText: "text-[#C9D2E3] hover:text-white",
-    authBtn: "border border-white/30 hover:bg-white/10",
+    authBtn: "rounded-md border border-white/30 hover:bg-white/10",
     iconBtnHover: "hover:bg-white/10",
     mobileBorder: "border-t border-white/10",
 
@@ -38,7 +38,7 @@ export const homeThemeStyles = {
     sectionAccentBar: "hidden",
 
     noticeHover: "hover:bg-[#F2F4F8]",
-    eventDateBg: "bg-navy",
+    eventDateBg: "bg-navy rounded-lg",
     newsHoverBorder: "hover:border-blue",
     quickTile: "bg-[#F2F4F8] hover:bg-[#E7ECF5] rounded-xl",
   },
@@ -51,7 +51,7 @@ export const homeThemeStyles = {
     navActive: "text-ccahGreen font-bold",
     navIdle: "text-ink hover:text-ccahGreen",
     navText: "text-ink hover:text-ccahGreen",
-    authBtn: "border-2 border-ink hover:bg-ink hover:text-white",
+    authBtn: "rounded-none border-2 border-ink hover:bg-ink hover:text-white",
     iconBtnHover: "hover:bg-ccahGreenLight",
     mobileBorder: "border-t-2 border-ink",
 

@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import SectionTitle from "@/components/SectionTitle";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
+import { homeTheme as t } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock } from "@/lib/types";
 
 function fmt(d: string) {
@@ -15,13 +15,38 @@ function fmt(d: string) {
 }
 
 const QUICK_MENU = [
-  ["📢", "공지사항", "/notices"],
-  ["🏛️", "학생자치회 소개", "/organizations"],
-  ["📅", "일정 캘린더", "/calendar"],
-  ["📖", "생활규정", "/rules"],
+  ["📢", "공지사항", "/notices"],
+  ["🏛️", "학생자치회 소개", "/organizations"],
+  ["📅", "일정 캘린더", "/calendar"],
+  ["📖", "생활규정", "/rules"],
   ["💬", "Q&A", "/qna"],
-  ["🙋", "마이페이지", "/mypage"],
+  ["🙋", "마이페이지", "/mypage"],
 ];
+
+// 홈 화면 전용 블록 제목. 다른 페이지에서 두루 쓰는 SectionTitle과는 별개로 두어(공용
+// 컴포넌트를 건드리면 다른 페이지 톤까지 바뀌므로) 여기서만 테마 색상 바를 넣는다.
+function BlockTitle({
+  eyebrow,
+  title,
+  action,
+}: {
+  eyebrow: string;
+  title: string;
+  action?: React.ReactNode;
+}) {
+  return (
+    <div className="flex justify-between items-end mb-4 gap-3 flex-wrap">
+      <div>
+        <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${t.sectionEyebrow}`}>{eyebrow}</div>
+        <div className="flex items-center gap-2.5">
+          <span className={`w-1 h-6 ${t.sectionAccentBar} bg-current ${t.sectionEyebrow}`} />
+          <h2 className={`text-[22px] ${t.sectionHeadingFont}`}>{title}</h2>
+        </div>
+      </div>
+      {action}
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
@@ -51,20 +76,20 @@ export default function HomePage() {
 
   return (
     <div>
-      <div className="bg-gradient-to-br from-navy to-blue text-white rounded-2xl px-8 py-10 mb-5">
-        <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">
+      <div className={`${t.heroBg} ${t.heroAccent} text-white px-8 py-10 mb-5`}>
+        <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${t.heroEyebrow}`}>
           STUDENT SELF-GOVERNANCE
         </div>
-        <h1 className="text-3xl mb-2.5">학생이 만드는 학교, 학생자치회</h1>
+        <h1 className={`text-3xl mb-2.5 ${t.heroHeadingFont}`}>학생이 만드는 학교, 학생자치회</h1>
         <p className="text-[#D7DEEC] mb-4">
-          공지·일정·소식을 한눈에 확인하고 여러분의 목소리를 Q&amp;A로 전해주세요.
+          공지·일정·소식을 한눈에 확인하고 여러분의 목소리를 Q&amp;A로 전해주세요.
         </p>
         <div className="flex gap-2.5 flex-wrap">
-          <Link href="/notices" className="bg-gold text-white font-bold text-sm rounded-lg px-[18px] py-2.5">
-            공지사항 보기
+          <Link href="/notices" className={t.heroPrimaryBtn}>
+            공지사항 보기
           </Link>
-          <Link href="/qna" className="border border-white/40 text-white font-bold text-sm rounded-lg px-[18px] py-2.5">
-            질문하기
+          <Link href="/qna" className={t.heroSecondaryBtn}>
+            질문하기
           </Link>
         </div>
       </div>
@@ -75,88 +100,88 @@ export default function HomePage() {
         {visibleBlocks.map((b) => {
           if (b.id === "notice")
             return (
-              <div key={b.id} className="bg-white border border-border rounded-2xl p-5">
-                <SectionTitle
+              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
+                <BlockTitle
                   eyebrow="NOTICE"
-                  title="최신 공지"
-                  action={<Link href="/notices" className="text-blue font-semibold text-sm">전체보기</Link>}
+                  title="최신 공지"
+                  action={<Link href="/notices" className="text-blue font-semibold text-sm">전체보기</Link>}
                 />
                 <ul className="list-none m-0 p-0">
                   {notices.slice(0, 5).map((n) => (
                     <li key={n.id} className="border-b border-border py-2.5">
-                      <Link href={`/notices/${n.id}`} className="flex items-center gap-2 hover:opacity-70">
+                      <Link href={`/notices/${n.id}`} className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}>
                         {n.is_pinned && <Pin />}
                         <span className="flex-1 text-sm">{n.title}</span>
                         <span className="text-xs text-muted">{fmt(n.publish_at)}</span>
                       </Link>
                     </li>
                   ))}
-                  {notices.length === 0 && <li className="text-muted text-center py-6 text-sm">등록된 공지가 없습니다.</li>}
+                  {notices.length === 0 && <li className="text-muted text-center py-6 text-sm">등록된 공지가 없습니다.</li>}
                 </ul>
               </div>
             );
           if (b.id === "event")
             return (
-              <div key={b.id} className="bg-white border border-border rounded-2xl p-5">
-                <SectionTitle
+              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
+                <BlockTitle
                   eyebrow="SCHEDULE"
-                  title="다가오는 일정"
-                  action={<Link href="/calendar" className="text-blue font-semibold text-sm">전체보기</Link>}
+                  title="다가오는 일정"
+                  action={<Link href="/calendar" className="text-blue font-semibold text-sm">전체보기</Link>}
                 />
                 <div className="flex flex-col gap-2.5">
                   {upcoming.map((e) => (
                     <Link
                       href={`/events/${e.id}`}
                       key={e.id}
-                      className="flex gap-3 items-center p-1.5 rounded-lg hover:bg-[#F2F4F8]"
+                      className={`flex gap-3 items-center p-1.5 rounded-lg ${t.noticeHover}`}
                     >
-                      <div className="bg-navy text-white rounded-lg px-2.5 py-1.5 text-xs font-bold whitespace-nowrap">
+                      <div className={`${t.eventDateBg} text-white px-2.5 py-1.5 text-xs font-bold whitespace-nowrap`}>
                         {fmt(e.start_at).slice(5)}
                       </div>
                       <div>
                         <div className="font-semibold text-sm">{e.title}</div>
-                        <div className="text-xs text-muted">{e.location || "장소 미정"}</div>
+                        <div className="text-xs text-muted">{e.location || "장소 미정"}</div>
                       </div>
                     </Link>
                   ))}
-                  {upcoming.length === 0 && <div className="text-muted text-center py-6 text-sm">예정된 일정이 없습니다.</div>}
+                  {upcoming.length === 0 && <div className="text-muted text-center py-6 text-sm">예정된 일정이 없습니다.</div>}
                 </div>
               </div>
             );
           if (b.id === "news")
             return (
-              <div key={b.id} className="bg-white border border-border rounded-2xl p-5 md:col-span-2">
-                <SectionTitle
+              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
+                <BlockTitle
                   eyebrow="NEWS"
-                  title="학생자치회 뉴스"
-                  action={<Link href="/news" className="text-blue font-semibold text-sm">전체보기</Link>}
+                  title="학생자치회 뉴스"
+                  action={<Link href="/news" className="text-blue font-semibold text-sm">전체보기</Link>}
                 />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {news.slice(0, 3).map((n) => (
                     <Link
                       href={`/news/${n.id}`}
                       key={n.id}
-                      className="border border-border rounded-xl p-4 hover:border-blue block"
+                      className={`${t.cardBorder} ${t.cardRadius} p-4 ${t.newsHoverBorder} block`}
                     >
                       <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
                       <div className="font-bold mb-2">{n.title}</div>
                       <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>
                     </Link>
                   ))}
-                  {news.length === 0 && <div className="text-muted text-center py-6 text-sm">등록된 뉴스가 없습니다.</div>}
+                  {news.length === 0 && <div className="text-muted text-center py-6 text-sm">등록된 뉴스가 없습니다.</div>}
                 </div>
               </div>
             );
           if (b.id === "quick")
             return (
-              <div key={b.id} className="bg-white border border-border rounded-2xl p-5 md:col-span-2">
-                <SectionTitle eyebrow="QUICK MENU" title="빠른 메뉴" />
+              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
+                <BlockTitle eyebrow="QUICK MENU" title="빠른 메뉴" />
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5">
                   {QUICK_MENU.map(([icon, label, href]) => (
                     <Link
                       href={href}
                       key={href}
-                      className="bg-[#F2F4F8] hover:bg-[#E7ECF5] rounded-xl px-2 py-4 flex flex-col items-center gap-1.5 text-sm font-semibold"
+                      className={`${t.quickTile} px-2 py-4 flex flex-col items-center gap-1.5 text-sm font-semibold`}
                     >
                       <span className="text-2xl">{icon}</span>
                       <span>{label}</span>
