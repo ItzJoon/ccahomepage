@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import Linkify from "@/components/Linkify";
 import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote } from "@/lib/types";
 
 const STATUS_LABEL: Record<Proposal["status"], string> = {
@@ -239,7 +240,7 @@ function ProposalsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: st
                 <h3 className="text-base m-0">{p.title}</h3>
               </div>
               <div className="text-muted text-xs mb-2">{orgName(p.org_id)} · {fmt(p.created_at)}</div>
-              <p className="text-sm whitespace-pre-wrap">{p.summary}</p>
+              <p className="text-sm whitespace-pre-wrap"><Linkify text={p.summary} /></p>
               <div className="flex items-center gap-2 mt-2.5">
                 <button
                   onClick={() => castVote(p.id, "yes")}
@@ -574,7 +575,7 @@ function RecordsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: stri
               <h3 className="text-base m-0">{r.title}</h3>
             </div>
             <div className="text-muted text-xs mb-2">{orgName(r.org_id)} · {fmt(r.created_at)}</div>
-            <p className="text-sm whitespace-pre-wrap">{r.content}</p>
+            <p className="text-sm whitespace-pre-wrap"><Linkify text={r.content} /></p>
           </div>
         ))}
         {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 기록이 없습니다.</div>}

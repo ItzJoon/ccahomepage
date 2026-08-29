@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
+import Linkify from "@/components/Linkify";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -29,7 +30,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
       <Badge color="teal">{post.category}</Badge>
       <h1 className="text-2xl my-2">{post.title}</h1>
       <div className="text-muted text-sm mb-[18px]">{fmt(post.created_at)}</div>
-      <div className="leading-8 whitespace-pre-wrap text-[15px]">{post.content}</div>
+      <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>
       {post.video_source === "drive" && post.video_url && (
         <div className="mt-5 aspect-video">
           <iframe

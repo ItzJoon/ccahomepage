@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
+import Linkify from "@/components/Linkify";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -39,7 +40,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
           {fmt(post.publish_at)} · <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} />
         </div>
       </div>
-      <div className="leading-8 whitespace-pre-wrap text-[15px]">{post.content}</div>
+      <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>
       {attachments && attachments.length > 0 && (
         <div className="mt-5 p-3.5 bg-bg rounded-xl">
           <div className="font-bold text-xs mb-1.5">첨부파일</div>

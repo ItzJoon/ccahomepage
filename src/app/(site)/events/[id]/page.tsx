@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
+import Linkify from "@/components/Linkify";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -25,7 +26,9 @@ export default async function EventDetailPage({ params }: { params: { id: string
         {fmt(event.start_at)} {event.end_at ? `~ ${fmt(event.end_at)}` : ""} · {event.location || "장소 미정"}
         {" · "}등록자 {event.creator_name || "정보 없음"}
       </div>
-      <div className="leading-8 whitespace-pre-wrap text-[15px]">{event.description || "상세 설명이 없습니다."}</div>
+      <div className="leading-8 whitespace-pre-wrap text-[15px]">
+        {event.description ? <Linkify text={event.description} /> : "상세 설명이 없습니다."}
+      </div>
       {attachments && attachments.length > 0 && (
         <div className="mt-5 p-3.5 bg-bg rounded-xl">
           <div className="font-bold text-xs mb-1.5">첨부파일</div>

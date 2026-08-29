@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import Linkify from "@/components/Linkify";
 import type { RuleDoc } from "@/lib/types";
 
 export default function RulesPage() {
@@ -44,7 +45,7 @@ export default function RulesPage() {
           {rule ? (
             <>
               <h2>{rule.title}</h2>
-              <pre className="whitespace-pre-wrap font-sans leading-8 text-sm">{rule.content}</pre>
+              <pre className="whitespace-pre-wrap font-sans leading-8 text-sm"><Linkify text={rule.content} /></pre>
             </>
           ) : (
             <div className="text-muted text-center py-8 text-sm">규정을 선택해주세요.</div>

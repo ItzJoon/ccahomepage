@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import Linkify from "@/components/Linkify";
 
 interface QuestionWithAnswer {
   id: string;
@@ -163,11 +164,11 @@ export default function QnaPage() {
               {openId === q.id && (
                 <div className="pt-2.5 text-sm">
                   {/* RLS가 이미 열람 가능한 질문만 내려주므로, 내려온 행은 그대로 표시합니다 */}
-                  <p>{q.content}</p>
+                  <p><Linkify text={q.content} /></p>
                   {q.answers && q.answers.length > 0 ? (
                     <div className="mt-2.5 bg-bg rounded-lg p-2.5">
                       <strong>학생자치회 답변</strong>
-                      <p className="m-0">{q.answers[0].content}</p>
+                      <p className="m-0"><Linkify text={q.answers[0].content} /></p>
                     </div>
                   ) : (
                     <p className="text-muted">아직 답변이 등록되지 않았습니다.</p>
