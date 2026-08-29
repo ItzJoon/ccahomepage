@@ -170,7 +170,8 @@ export const homeThemeStyles = {
       "inline-block bg-appleBlue text-white text-xs font-bold uppercase tracking-wide rounded-full px-2.5 py-1.5 mb-3",
     heroEyebrowText: "2026 CCHS Student Council",
     heroTitleText: "CCHS 학생자치회",
-    heroHeadingClass: "font-caveat font-bold text-appleInk text-[42px] md:text-[56px] leading-[1.1] tracking-tight mb-2",
+    heroHeadingClass:
+      "font-caveat font-bold text-appleInk text-[42px] md:text-[56px] leading-[1.1] tracking-tight [word-spacing:0.2em] mb-2",
     heroSubtitleText: "2026 중앙기독고등학교 자치회가 전하는 학교 소식, 그리고 소통",
     heroSubtextClass: "text-appleMuted text-lg mb-4",
     heroPrimaryBtn:
