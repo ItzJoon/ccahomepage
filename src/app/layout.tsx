@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: "학생자치회",
   description: "학생자치회 공식 사이트",
   verification: {
-    google: "여기에_고유코드",
+    google: "googleb020e907b1fe0293",
   },
 };
 
