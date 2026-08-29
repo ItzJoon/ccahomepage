@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
 import type { BadgeDef, DirectoryProfileView } from "@/lib/types";
@@ -11,6 +10,7 @@ const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3:
 
 export default function MemberProfilePage() {
   const supabase = createClient();
+  const router = useRouter();
   const params = useParams<{ id: string }>();
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<DirectoryProfileView | null>(null);
@@ -55,9 +55,9 @@ export default function MemberProfilePage() {
         <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
         <div className="bg-white border border-border rounded-xl p-8 text-center text-muted text-sm">
           존재하지 않거나 볼 수 없는 프로필입니다.{" "}
-          <Link href="/members" className="text-blue font-bold">
+          <button onClick={() => router.back()} className="text-blue font-bold">
             구성원 조회로 돌아가기
-          </Link>
+          </button>
         </div>
       </div>
     );
@@ -71,9 +71,9 @@ export default function MemberProfilePage() {
   return (
     <div>
       <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
-      <Link href="/members" className="text-blue font-bold text-sm mb-3.5 inline-block">
+      <button onClick={() => router.back()} className="text-blue font-bold text-sm mb-3.5 inline-block">
         ← 구성원 조회로
-      </Link>
+      </button>
 
       <div className="bg-white border border-border rounded-2xl p-5 mb-4">
         <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-4 items-center">

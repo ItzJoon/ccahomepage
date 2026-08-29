@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
@@ -12,6 +13,8 @@ const GRADES = ["10", "11", "12"] as const;
 
 export default function DirectoryPage() {
   const supabase = createClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const { rows } = useRealtimeList<DirectoryMember>("directory_members", {
     orderBy: { column: "display_name" },
@@ -21,9 +24,26 @@ export default function DirectoryPage() {
   // 회색으로 표시하고 클릭을 막는다. profiles는 RLS상 본인/관리자만 열람 가능해서, 이 조회는
   // 뷰(directory_profile_view)를 통해 우회한다(뷰 자체가 이름/사진/소개 등 공개 가능한 값만 노출).
   const [profilesByEmail, setProfilesByEmail] = useState<Record<string, DirectoryProfileView>>({});
-  const [tab, setTab] = useState<"student" | "teacher">("student");
-  const [grades, setGrades] = useState<Set<string>>(new Set(GRADES));
-  const [q, setQ] = useState("");
+  // 탭/학년 필터/검색어를 URL 쿼리에 반영해둔다 — 구성원을 눌러 프로필로 갔다가 뒤로가기로
+  // 돌아왔을 때, 상태가 URL(브라우저 히스토리)에 그대로 남아있어서 필터가 초기화되지 않는다.
+  const [tab, setTab] = useState<"student" | "teacher">(searchParams.get("tab") === "teacher" ? "teacher" : "student");
+  const [grades, setGrades] = useState<Set<string>>(() => {
+    const g = searchParams.get("grades");
+    if (g === null) return new Set(GRADES);
+    if (g === "") return new Set();
+    return new Set(g.split(","));
+  });
+  const [q, setQ] = useState(searchParams.get("q") ?? "");
+
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (tab !== "student") params.set("tab", tab);
+    const gradesArr = Array.from(grades);
+    if (gradesArr.length !== GRADES.length) params.set("grades", gradesArr.join(","));
+    if (q) params.set("q", q);
+    const qs = params.toString();
+    router.replace(qs ? `/members?${qs}` : "/members", { scroll: false });
+  }, [tab, grades, q, router]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setSignedIn(!!data.user));
