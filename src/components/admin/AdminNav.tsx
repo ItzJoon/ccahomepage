@@ -26,6 +26,16 @@ const NAV = [
   { href: "/admin/maintenance", label: "사이트 잠금" },
 ];
 
+// 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
+// 볼 수 있어야 한다(직접 URL 접근은 middleware.ts에서 별도로 막는다).
+const SUPERADMIN_ONLY_HREFS = new Set([
+  "/admin/badges",
+  "/admin/users",
+  "/admin/access-requests",
+  "/admin/stats",
+  "/admin/maintenance",
+]);
+
 // 기존 메뉴들과 섞이지 않도록 구분선 아래에 별도 그룹으로 묶어서 보여준다.
 const ORG_ACTIVITIES_NAV = [
   { href: "/admin/org-activities/proposals", label: "안건함" },
@@ -50,7 +60,7 @@ export default function AdminNav({ role }: { role?: string }) {
   const { t } = useHomeTheme();
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
-      {NAV.map((n) => (
+      {NAV.filter((n) => role === "superadmin" || !SUPERADMIN_ONLY_HREFS.has(n.href)).map((n) => (
         <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
       ))}
       {/* 사이트 전체 디자인을 바꾸는 기능이라 superadmin에게만 메뉴 자체를 보여준다 */}

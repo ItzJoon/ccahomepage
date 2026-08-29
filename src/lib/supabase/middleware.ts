@@ -142,6 +142,24 @@ export async function updateSession(request: NextRequest) {
       url.searchParams.set("denied", "1");
       return NextResponse.redirect(url);
     }
+    // 아래 관리 메뉴들은 admin이 아니라 superadmin만 볼 수 있어야 한다(사이트 전체에
+    // 영향을 주거나 민감한 개인정보를 다루는 화면들). 메뉴 자체는 AdminNav에서 숨기지만,
+    // URL을 직접 입력해 들어오는 시도도 여기서 막는다.
+    const superadminOnlyPrefixes = [
+      "/admin/access-requests",
+      "/admin/badges",
+      "/admin/users",
+      "/admin/stats",
+      "/admin/maintenance",
+    ];
+    if (superadminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+      if (r !== "superadmin") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin";
+        url.searchParams.set("denied", "1");
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return response;
