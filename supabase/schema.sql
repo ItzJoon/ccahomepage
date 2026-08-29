@@ -1110,3 +1110,18 @@ begin
     alter publication supabase_realtime add table public.user_attendance;
   end if;
 end $$;
+
+-- ------------------------------------------------------------
+-- 32. 연속 접속 상위 목록 중복 표시 수정
+-- ------------------------------------------------------------
+-- "연속 접속일수 상위 학생" 목록이 user_attendance 원본 테이블(날짜별로 행이 하나씩 쌓임)을
+-- 그룹 없이 그대로 정렬해서, 같은 학생이 접속한 날짜 수만큼 서로 다른 streak_count 값으로
+-- 여러 번 나타났다(예: 1일째 행과 2일째 행이 각각 "다른 사람"처럼 목록에 표시). 사용자별로
+-- 가장 최근 접속일(=현재 연속 기록)의 streak_count만 남기는 뷰를 만들어 대체한다.
+create or replace view user_latest_attendance
+with (security_invoker = true) as
+select distinct on (ua.user_id)
+  ua.user_id, ua.streak_count, ua.visit_date, p.name, p.email
+from user_attendance ua
+join profiles p on p.id = ua.user_id
+order by ua.user_id, ua.visit_date desc;

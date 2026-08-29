@@ -23,9 +23,11 @@ export default async function AdminStatsPage() {
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).in("role", ["editor", "admin", "superadmin"]),
     supabase.from("user_attendance").select("visit_date").eq("visit_date", today),
+    // 같은 학생이 접속한 날짜 수만큼 여러 행으로 중복 표시되지 않도록, 사용자별 최신
+    // 접속(=현재 연속 기록)만 남긴 뷰(user_latest_attendance)에서 가져온다.
     supabase
-      .from("user_attendance")
-      .select("user_id, streak_count, profiles(name, email)")
+      .from("user_latest_attendance")
+      .select("user_id, streak_count, name, email")
       .order("streak_count", { ascending: false })
       .limit(10),
   ]);

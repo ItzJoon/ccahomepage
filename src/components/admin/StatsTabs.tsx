@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 
-type TopStreak = { user_id: string; streak_count: number; profiles: { name: string | null; email: string } | null };
+type TopStreak = { user_id: string; streak_count: number; name: string | null; email: string };
 type AttendanceRow = {
   id: string;
   name: string | null;
@@ -183,8 +183,8 @@ export default function StatsTabs({
             <tbody>
               {topStreaks.map((row, i) => (
                 <tr key={i}>
-                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.name || "-"}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.profiles?.email}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{row.name || "-"}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{row.email}</td>
                   <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
                 </tr>
               ))}

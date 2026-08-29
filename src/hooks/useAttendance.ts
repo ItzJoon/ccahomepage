@@ -3,12 +3,17 @@
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+// new Date().toISOString()는 항상 UTC 기준 날짜라서, 한국 시간 자정~오전 9시 사이에는
+// 실제로는 "오늘"인데도 어제 날짜로 계산되는 버그가 있었다(예: 한국시간 8/29 08:00 =
+// UTC 8/28 23:00, slice(0,10)이 "8/28"을 반환). 이러면 어제 이미 저장된 행과 visit_date가
+// 겹쳐 unique 제약에 걸려 insert가 조용히 실패하고, 그날은 연속 접속일수가 올라가지 않는다.
+// 한국 시간대(Asia/Seoul) 기준 달력 날짜를 직접 계산해서 이 문제를 없앤다.
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
-function addDays(n: number) {
-  const d = new Date();
-  d.setDate(d.getDate() + n);
+function addDays(base: string, n: number) {
+  const d = new Date(`${base}T00:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 }
 
@@ -51,8 +56,8 @@ export function useAttendance(userId: string | null) {
   const checkIn = useCallback(async () => {
     if (!userId || checkedToday) return null;
     const today = todayStr();
-    const yesterday = addDays(-1);
-    const dayBeforeYesterday = addDays(-2);
+    const yesterday = addDays(today, -1);
+    const dayBeforeYesterday = addDays(today, -2);
 
     // 어제 기록이 없어도, 그저께까지는 이어져 있고 스트릭 프리즈가 남아있으면
     // 어제 하루를 프리즈로 채워서 연속 기록을 유지합니다.
