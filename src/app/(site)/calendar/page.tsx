@@ -5,14 +5,12 @@ import Link from "next/link";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import { todayKST } from "@/lib/date";
 import type { EventItem } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
-}
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
 }
 
 type EventWithCreator = EventItem & { creator_name: string | null };
@@ -92,7 +90,7 @@ export default function CalendarPage() {
               if (!d) return <div key={i} />;
               const dateStr = `${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
               const evs = eventsByDate[dateStr] || [];
-              const isToday = dateStr === todayStr();
+              const isToday = dateStr === todayKST();
               return (
                 <div
                   key={i}

@@ -1,9 +1,10 @@
 import { createClient } from "@/lib/supabase/server";
+import { todayKST } from "@/lib/date";
 import StatsTabs from "@/components/admin/StatsTabs";
 
 export default async function AdminStatsPage() {
   const supabase = createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKST();
 
   const [
     { count: totalUsers },

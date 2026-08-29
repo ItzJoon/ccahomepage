@@ -7,6 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { todayKST } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock } from "@/lib/types";
 
@@ -92,7 +93,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayKST();
   const upcoming = events.filter((e) => e.start_at >= today).slice(0, 3);
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
 

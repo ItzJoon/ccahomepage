@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { todayKST } from "@/lib/date";
 import type { BadgeDef } from "@/lib/types";
 
 /**
@@ -182,7 +183,7 @@ export function useBadges(userId: string | null) {
    */
   const checkDateBadges = useCallback(async () => {
     if (!userId) return [];
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayKST();
     const newlyEarned = badges.filter(
       (b) => b.award_type === "date" && !earnedIds.has(b.id) && matchesDateCondition(b, today)
     );

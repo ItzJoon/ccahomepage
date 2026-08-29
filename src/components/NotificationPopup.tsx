@@ -2,14 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { todayKST } from "@/lib/date";
 import type { NotificationItem } from "@/lib/types";
 
-function todayStr() {
-  return new Date().toISOString().slice(0, 10);
-}
-
 function isHiddenToday(id: string) {
-  return localStorage.getItem(`notif_hide_${id}`) === todayStr();
+  return localStorage.getItem(`notif_hide_${id}`) === todayKST();
 }
 
 /**
@@ -68,7 +65,7 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
   if (!current) return null;
 
   const hideToday = () => {
-    localStorage.setItem(`notif_hide_${current.id}`, todayStr());
+    localStorage.setItem(`notif_hide_${current.id}`, todayKST());
     setCurrent(null);
   };
 

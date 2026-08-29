@@ -1,0 +1,30 @@
+// new Date().toISOString()는 항상 UTC 기준 날짜라서, 한국 시간 자정~오전 9시 사이에는
+// 실제로는 "오늘"인데도 어제 날짜로 계산되는 버그가 여러 곳에서 반복 발생했다(예: 한국시간
+// 8/29 08:00 = UTC 8/28 23:00, slice(0,10)이 "8/28"을 반환). 한국 시간대(Asia/Seoul) 기준
+// 날짜/자정 계산을 한 곳에 모아두고 "오늘"이 필요한 모든 곳에서 이걸 쓴다.
+
+/** 한국 시간(Asia/Seoul) 기준 오늘 날짜 문자열(YYYY-MM-DD). */
+export function todayKST(): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
+}
+
+// 한국은 서머타임이 없어 UTC+9 고정이라, locale 문자열을 왕복 파싱하는 것보다
+// 오프셋을 직접 더하고 빼는 편이 더 정확하고 서버/브라우저의 로컬 타임존과도 무관하다.
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+
+/**
+ * 지금부터 한국 시간 기준 다음 자정까지 남은 초. "오늘 하루" 단위로 리셋되는 쿠키 등의
+ * 만료 시간을 정할 때 쓴다 — 조회 시점으로부터의 고정된 24시간이 아니라, 실제 달력상
+ * 자정이 지나면 리셋되게 하기 위함이다.
+ */
+export function secondsUntilNextMidnightKST(): number {
+  const now = new Date();
+  const kstShifted = new Date(now.getTime() + KST_OFFSET_MS);
+  const nextMidnightShiftedUTC = Date.UTC(
+    kstShifted.getUTCFullYear(),
+    kstShifted.getUTCMonth(),
+    kstShifted.getUTCDate() + 1
+  );
+  const nextMidnightRealUTC = nextMidnightShiftedUTC - KST_OFFSET_MS;
+  return Math.max(1, Math.round((nextMidnightRealUTC - now.getTime()) / 1000));
+}
