@@ -51,7 +51,28 @@ export default function AdminMembersPage() {
     reload();
   };
 
+  // 조직 페이지에 표시되는 순서를 조정한다. order_index는 같은 조직 내에서만 의미가
+  // 있으므로(다른 조직 구성원과는 순서를 비교하지 않음), 같은 org_id끼리만 비교해서
+  // 이웃과 순서를 맞바꾼다(조직 관리 화면의 move()와 동일한 방식).
+  const moveMember = async (m: MemberRow, dir: number) => {
+    const sameOrg = [...members].filter((x) => x.org_id === m.org_id).sort((a, b) => a.order_index - b.order_index);
+    const idx = sameOrg.findIndex((x) => x.id === m.id);
+    const swap = sameOrg[idx + dir];
+    if (!swap) return;
+    await Promise.all([
+      supabase.from("members").update({ order_index: swap.order_index }).eq("id", m.id),
+      supabase.from("members").update({ order_index: m.order_index }).eq("id", swap.id),
+    ]);
+    reload();
+  };
+
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
+  const orgOrderIndex = (id: string) => orgs.find((o) => o.id === id)?.order_index ?? Infinity;
+  // 화살표로 순서를 바꿀 때 바로 옆자리가 보여야 직관적이므로, 목록도 조직별로 묶어서
+  // 그 안에서 order_index 순으로 보여준다(조직 관리 화면의 조직 순서를 그대로 따름).
+  const sortedMembers = [...members].sort(
+    (a, b) => orgOrderIndex(a.org_id) - orgOrderIndex(b.org_id) || a.order_index - b.order_index
+  );
 
   const linkAccount = (p: Profile) => setForm((f) => ({ ...f, user_id: p.id, name: accountDisplayName(p) }));
   const unlinkAccount = () => setForm((f) => ({ ...f, user_id: "" }));
@@ -67,6 +88,7 @@ export default function AdminMembersPage() {
         <table className="w-full border-collapse bg-white">
           <thead>
             <tr>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">순서</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-14">사진</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">직책</th>
@@ -75,10 +97,14 @@ export default function AdminMembersPage() {
             </tr>
           </thead>
           <tbody>
-            {members.map((m) => {
+            {sortedMembers.map((m) => {
               const photo = m.photo_url || m.profile?.profile_image;
               return (
                 <tr key={m.id} onClick={() => startEdit(m)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === m.id ? "bg-[#EAF0FB]" : ""}`}>
+                  <td className="p-2.5 border-b border-border">
+                    <button className="text-xs text-blue mr-1" onClick={(e) => { e.stopPropagation(); moveMember(m, -1); }}>▲</button>
+                    <button className="text-xs text-blue" onClick={(e) => { e.stopPropagation(); moveMember(m, 1); }}>▼</button>
+                  </td>
                   <td className="p-2.5 border-b border-border">
                     {photo ? (
                       <img src={photo} alt={m.name} className="w-8 h-8 rounded-full object-cover" />
@@ -97,7 +123,7 @@ export default function AdminMembersPage() {
                 </tr>
               );
             })}
-            {members.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">구성원이 없습니다.</td></tr>}
+            {sortedMembers.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">구성원이 없습니다.</td></tr>}
           </tbody>
         </table>
       </div>
