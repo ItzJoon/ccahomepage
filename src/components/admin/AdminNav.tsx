@@ -37,9 +37,10 @@ function NavLink({ href, label, active, t }: { href: string; label: string; acti
   return (
     <Link
       href={href}
-      className={`text-left px-3 py-2.5 rounded-lg text-sm ${active ? t.adminNavActive : t.adminNavIdle}`}
+      className={`flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-sm ${active ? t.adminNavActive : t.adminNavIdle}`}
     >
-      {label}
+      <span className="flex-1">{label}</span>
+      {active && <span className={t.adminNavIndicator} />}
     </Link>
   );
 }

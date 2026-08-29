@@ -27,28 +27,44 @@ const QUICK_MENU = [
 ];
 
 // 홈 화면 전용 블록 제목. 다른 페이지에서 두루 쓰는 SectionTitle과는 별개로 두어(공용
-// 컴포넌트를 건드리면 다른 페이지 톤까지 바뀌므로) 여기서만 테마 색상 바를 넣는다.
+// 컴포넌트를 건드리면 다른 페이지 톤까지 바뀌므로) 여기서만 테마별 제목 스타일을 적용한다.
 function BlockTitle({
   eyebrow,
   title,
-  action,
+  moreHref,
   t,
 }: {
   eyebrow: string;
   title: string;
-  action?: React.ReactNode;
+  moreHref?: string;
   t: Theme;
 }) {
   return (
     <div className="flex justify-between items-end mb-4 gap-3 flex-wrap">
       <div>
-        <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${t.sectionEyebrow}`}>{eyebrow}</div>
+        <div className={t.sectionEyebrow}>{eyebrow}</div>
         <div className="flex items-center gap-2.5">
-          <span className={`w-1 h-6 ${t.sectionAccentBar} bg-current ${t.sectionEyebrow}`} />
-          <h2 className={`text-[22px] ${t.sectionHeadingFont}`}>{title}</h2>
+          <span className={`w-1 h-6 ${t.sectionAccentBar} bg-current ${t.sectionAccentColor}`} />
+          <h2 className={t.sectionHeadingClass}>{title}</h2>
         </div>
       </div>
-      {action}
+      {moreHref && (
+        <Link href={moreHref} className={t.sectionMoreBtn}>
+          전체보기 ›
+        </Link>
+      )}
+    </div>
+  );
+}
+
+// 공지/일정/뉴스 각 카드가 비어있을 때 보여주는 자리. classic/green은 지금까지처럼 문구
+// 한 줄만 보이고(emptyStateIconWrap/Desc가 hidden), apple은 아이콘 원 + 제목 + 설명 2줄로 보인다.
+function EmptyState({ icon, title, desc, t }: { icon: string; title: string; desc: string; t: Theme }) {
+  return (
+    <div className={t.emptyStateWrap}>
+      <div className={t.emptyStateIconWrap}>{icon}</div>
+      <div className={t.emptyStateTitle}>{title}</div>
+      <div className={t.emptyStateDesc}>{desc}</div>
     </div>
   );
 }
@@ -82,14 +98,10 @@ export default function HomePage() {
 
   return (
     <div>
-      <div className={`${t.heroBg} ${t.heroAccent} text-white px-8 py-10 mb-5`}>
-        <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${t.heroEyebrow}`}>
-          STUDENT SELF-GOVERNANCE
-        </div>
-        <h1 className={`text-3xl mb-2.5 ${t.heroHeadingFont}`}>학생이 만드는 학교, 학생자치회</h1>
-        <p className="text-[#D7DEEC] mb-4">
-          공지·일정·소식을 한눈에 확인하고 여러분의 목소리를 Q&amp;A로 전해주세요.
-        </p>
+      <div className={t.heroCard}>
+        <div className={t.heroEyebrow}>{t.heroEyebrowText}</div>
+        <h1 className={t.heroHeadingClass}>{t.heroTitleText}</h1>
+        <p className={t.heroSubtextClass}>{t.heroSubtitleText}</p>
         <div className="flex gap-2.5 flex-wrap">
           <Link href="/notices" className={t.heroPrimaryBtn}>
             공지사항 보기
@@ -106,13 +118,8 @@ export default function HomePage() {
         {visibleBlocks.map((b) => {
           if (b.id === "notice")
             return (
-              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
-                <BlockTitle
-                  t={t}
-                  eyebrow="NOTICE"
-                  title="최신 공지"
-                  action={<Link href="/notices" className="text-blue font-semibold text-sm">전체보기</Link>}
-                />
+              <div key={b.id} className={`${t.cardShape} p-5`}>
+                <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <ul className="list-none m-0 p-0">
                   {notices.slice(0, 5).map((n) => (
                     <li key={n.id} className="border-b border-border py-2.5">
@@ -123,19 +130,18 @@ export default function HomePage() {
                       </Link>
                     </li>
                   ))}
-                  {notices.length === 0 && <li className="text-muted text-center py-6 text-sm">등록된 공지가 없습니다.</li>}
+                  {notices.length === 0 && (
+                    <li>
+                      <EmptyState icon="🔕" title="등록된 공지글이 없습니다" desc="최근에 작성된 공지사항이 이곳에 표시됩니다." t={t} />
+                    </li>
+                  )}
                 </ul>
               </div>
             );
           if (b.id === "event")
             return (
-              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
-                <BlockTitle
-                  t={t}
-                  eyebrow="SCHEDULE"
-                  title="다가오는 일정"
-                  action={<Link href="/calendar" className="text-blue font-semibold text-sm">전체보기</Link>}
-                />
+              <div key={b.id} className={`${t.cardShape} p-5`}>
+                <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
                 <div className="flex flex-col gap-2.5">
                   {upcoming.map((e) => (
                     <Link
@@ -152,47 +158,48 @@ export default function HomePage() {
                       </div>
                     </Link>
                   ))}
-                  {upcoming.length === 0 && <div className="text-muted text-center py-6 text-sm">예정된 일정이 없습니다.</div>}
+                  {upcoming.length === 0 && (
+                    <EmptyState icon="📅" title="다가오는 예정된 일정이 없습니다" desc="학사 일정 및 자치회 행사 정보가 등록되면 업데이트됩니다." t={t} />
+                  )}
                 </div>
               </div>
             );
           if (b.id === "news")
             return (
-              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
-                <BlockTitle
-                  t={t}
-                  eyebrow="NEWS"
-                  title="학생자치회 뉴스"
-                  action={<Link href="/news" className="text-blue font-semibold text-sm">전체보기</Link>}
-                />
+              <div key={b.id} className={`${t.cardShape} p-5 md:col-span-2`}>
+                <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {news.slice(0, 3).map((n) => (
                     <Link
                       href={`/news/${n.id}`}
                       key={n.id}
-                      className={`${t.cardBorder} ${t.cardRadius} p-4 ${t.newsHoverBorder} block`}
+                      className={`border border-border rounded-xl p-4 ${t.newsHoverBorder} block`}
                     >
                       <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
                       <div className="font-bold mb-2">{n.title}</div>
                       <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>
                     </Link>
                   ))}
-                  {news.length === 0 && <div className="text-muted text-center py-6 text-sm">등록된 뉴스가 없습니다.</div>}
+                  {news.length === 0 && (
+                    <div className="md:col-span-3">
+                      <EmptyState icon="📰" title="발행된 뉴스가 존재하지 않습니다" desc="자치회 활동 소식지와 행사 리뷰를 준비 중입니다." t={t} />
+                    </div>
+                  )}
                 </div>
               </div>
             );
           if (b.id === "quick")
             return (
-              <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
+              <div key={b.id} className={`${t.cardShape} p-5 md:col-span-2`}>
                 <BlockTitle t={t} eyebrow="QUICK MENU" title="빠른 메뉴" />
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5">
                   {QUICK_MENU.map(([icon, label, href]) => (
                     <Link
                       href={href}
                       key={href}
-                      className={`${t.quickTile} px-2 py-4 flex flex-col items-center gap-1.5 text-sm font-semibold`}
+                      className={`${t.quickTile} flex flex-col items-center gap-1.5 text-sm font-semibold`}
                     >
-                      <span className="text-2xl">{icon}</span>
+                      {t.quickShowIcon && <span className="text-2xl">{icon}</span>}
                       <span>{label}</span>
                     </Link>
                   ))}

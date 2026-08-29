@@ -3,7 +3,7 @@
    무시되므로, 반드시 파일 맨 위에 둔다. (이 순서 문제 때문에 Jua뿐 아니라 지금까지
    Noto Sans KR/Noto Serif KR 웹폰트도 실제로는 로드되지 않고 있었다 — Noto Sans KR은
    시스템 한글 폰트와 생김새가 비슷해서 눈에 잘 안 띄었을 뿐이다.) */
-@import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap');
 
 @tailwind base;
 @tailwind components;

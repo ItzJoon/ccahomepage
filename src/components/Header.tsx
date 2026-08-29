@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -8,6 +8,7 @@ import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
+import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import type { PageDoc, Profile } from "@/lib/types";
 
 const NAV = [
@@ -41,6 +42,9 @@ export default function Header({
   const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
   const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt, checkInEligible);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profileMenuOpen, setProfileMenuOpen] = useState(false);
+  const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -51,7 +55,22 @@ export default function Header({
 
   useEffect(() => {
     setMobileOpen(false);
+    setProfileMenuOpen(false);
   }, [pathname]);
+
+  // 드롭다운 바깥을 클릭하면 닫히게 한다.
+  useEffect(() => {
+    if (!profileMenuOpen) return;
+    const onClickOutside = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setProfileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [profileMenuOpen]);
+
+  const displayName = profile?.nickname || profile?.name || "내 계정";
 
   return (
     <>
@@ -67,7 +86,7 @@ export default function Header({
             <Link
               key={n.href}
               href={n.href}
-              className={`px-2.5 py-2 rounded-md text-sm whitespace-nowrap ${pathname === n.href ? t.navActive : t.navIdle}`}
+              className={`${t.navShape} whitespace-nowrap ${pathname === n.href ? t.navActive : t.navIdle}`}
             >
               {n.label}
             </Link>
@@ -76,9 +95,7 @@ export default function Header({
             <Link
               key={p.id}
               href={`/pages/${p.slug}`}
-              className={`px-2.5 py-2 rounded-md text-sm whitespace-nowrap ${
-                pathname === `/pages/${p.slug}` ? t.navActive : t.navIdle
-              }`}
+              className={`${t.navShape} whitespace-nowrap ${pathname === `/pages/${p.slug}` ? t.navActive : t.navIdle}`}
             >
               {p.title}
             </Link>
@@ -88,17 +105,45 @@ export default function Header({
         <div className="hidden md:flex items-center gap-2 shrink-0">
           {profile ? (
             <>
-              <Link href="/mypage" className={`text-sm font-semibold whitespace-nowrap ${t.navText}`}>
-                마이페이지
-              </Link>
               {isAdmin && (
                 <Link href="/admin" className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
                   관리자
                 </Link>
               )}
-              <button onClick={signOut} className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
-                로그아웃
-              </button>
+              <div className="relative" ref={profileMenuRef}>
+                <button
+                  onClick={() => setProfileMenuOpen((v) => !v)}
+                  className={`text-sm font-semibold px-3 py-1.5 whitespace-nowrap ${t.profileTrigger}`}
+                >
+                  {displayName} ▾
+                </button>
+                {profileMenuOpen && (
+                  <div className={`absolute right-0 top-full mt-2 w-48 py-1.5 z-30 ${t.profileDropdown}`}>
+                    <Link
+                      href="/mypage"
+                      onClick={() => setProfileMenuOpen(false)}
+                      className={`block px-4 py-2 text-sm ${t.profileDropdownItem}`}
+                    >
+                      마이페이지
+                    </Link>
+                    <button
+                      onClick={() => {
+                        setProfileMenuOpen(false);
+                        setQuickEditOpen(true);
+                      }}
+                      className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem}`}
+                    >
+                      닉네임 · 소개 수정
+                    </button>
+                    <button
+                      onClick={signOut}
+                      className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownDanger}`}
+                    >
+                      로그아웃
+                    </button>
+                  </div>
+                )}
+              </div>
             </>
           ) : (
             <Link href="/login" className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
@@ -148,6 +193,15 @@ export default function Header({
                 <Link href="/mypage" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm font-semibold ${t.navIdle}`}>
                   마이페이지
                 </Link>
+                <button
+                  onClick={() => {
+                    closeMobile();
+                    setQuickEditOpen(true);
+                  }}
+                  className={`px-2.5 py-2 rounded-md text-sm text-left ${t.navIdle}`}
+                >
+                  닉네임 · 소개 수정
+                </button>
                 {isAdmin && (
                   <Link href="/admin" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
                     관리자
@@ -174,6 +228,14 @@ export default function Header({
     </header>
     {toast !== null && <CheckInToast streak={toast} />}
     {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
+    {quickEditOpen && profile && (
+      <ProfileQuickEditModal
+        userId={profile.id}
+        initialNickname={profile.nickname ?? ""}
+        initialBio={profile.bio ?? ""}
+        onClose={() => setQuickEditOpen(false)}
+      />
+    )}
     </>
   );
 }

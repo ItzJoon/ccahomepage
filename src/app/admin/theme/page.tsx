@@ -12,6 +12,7 @@ const THEME_KEYS = Object.keys(homeThemeStyles) as (keyof typeof homeThemeStyles
 const SWATCHES: Record<string, string[]> = {
   classic: ["#16233F", "#2C4A7C", "#B8790F"],
   green: ["#111111", "#1D6F42", "#4ABA78"],
+  apple: ["#2563eb", "#f2f2f7", "#111827"],
 };
 
 export default function AdminThemePage() {
