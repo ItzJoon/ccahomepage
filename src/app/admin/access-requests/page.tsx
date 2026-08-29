@@ -69,6 +69,27 @@ export default function AdminAccessRequestsPage() {
     reload();
   };
 
+  // 이미 허용한 계정을 다시 미승인 상태로 되돌린다. directory_members의 is_allowed를 false로
+  // 내리고(영구 차단이 아니라 "다시 승인 대기" 상태), login_access_requests도 pending으로
+  // 되돌려서 대기 목록에 다시 나타나게 한다.
+  const revokeApproval = async (req: LoginAccessRequest) => {
+    setBusyId(req.id);
+    const { data: existing } = await supabase
+      .from("directory_members")
+      .select("id")
+      .eq("email", req.email)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("directory_members").update({ is_allowed: false }).eq("id", existing.id);
+    }
+    await supabase
+      .from("login_access_requests")
+      .update({ status: "pending", decided_by: null, decided_at: null })
+      .eq("id", req.id);
+    setBusyId(null);
+    reload();
+  };
+
   const toggleRestriction = async (checked: boolean) => {
     setTogglingRestriction(true);
     await supabase.from("site_settings").update({ restrict_external_checkin: checked }).eq("id", "default");
@@ -165,6 +186,7 @@ export default function AdminAccessRequestsPage() {
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">최근 시도</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">상태</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">처리 시각</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28" />
           </tr>
         </thead>
         <tbody>
@@ -180,12 +202,23 @@ export default function AdminAccessRequestsPage() {
                 <td className="p-2.5 border-b border-border text-sm text-muted">
                   {r.decided_at ? new Date(r.decided_at).toLocaleString("ko-KR") : "-"}
                 </td>
+                <td className="p-2.5 border-b border-border">
+                  {r.status === "approved" && (
+                    <button
+                      onClick={() => revokeApproval(r)}
+                      disabled={busyId === r.id}
+                      className="text-red text-xs font-bold disabled:opacity-50"
+                    >
+                      다시 막기
+                    </button>
+                  )}
+                </td>
               </tr>
             );
           })}
           {decided.length === 0 && (
             <tr>
-              <td colSpan={4} className="text-muted text-center py-6 text-sm">
+              <td colSpan={5} className="text-muted text-center py-6 text-sm">
                 처리 이력이 없습니다.
               </td>
             </tr>
