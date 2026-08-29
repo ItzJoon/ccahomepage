@@ -3,8 +3,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL) : undefined,
-  title: "학생자치회",
-  description: "학생자치회 공식 사이트",
+  title: {
+    default: "중앙기독고등학교 학생자치회",
+    template: "%s | 중앙기독고등학교 학생자치회",
+  },
+  description: "학생자치회 공식 홈페이지 — 공지사항, 조직 소개, 학사일정, 규정 등을 확인하세요.",
   verification: {
     google: "95ZwXJ_vN51YAY4FWQv4OR3AC0yR6MbKc2eA4K3hAfc",
   },
