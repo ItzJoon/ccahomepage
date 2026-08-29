@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
+import { homeTheme as t } from "@/lib/homeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import type { PageDoc, Profile } from "@/lib/types";
@@ -53,9 +54,9 @@ export default function Header({
 
   return (
     <>
-    <header className="sticky top-0 z-20 bg-navy text-white">
+    <header className={`sticky top-0 z-20 ${t.headerBg} ${t.headerText} ${t.headerBorder}`}>
       <div className="max-w-[1180px] mx-auto flex items-center justify-between gap-4 px-5 py-3">
-        <Link href="/" className="font-bold text-lg flex items-center gap-2 shrink-0" onClick={closeMobile}>
+        <Link href="/" className={`font-bold text-lg flex items-center gap-2 shrink-0 ${t.logoFont}`} onClick={closeMobile}>
           <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
           <span className="whitespace-nowrap">학생자치회</span>
         </Link>
@@ -65,9 +66,7 @@ export default function Header({
             <Link
               key={n.href}
               href={n.href}
-              className={`px-2.5 py-2 rounded-md text-sm whitespace-nowrap ${
-                pathname === n.href ? "bg-white/15 text-white" : "text-[#C9D2E3] hover:bg-white/10 hover:text-white"
-              }`}
+              className={`px-2.5 py-2 rounded-md text-sm whitespace-nowrap ${pathname === n.href ? t.navActive : t.navIdle}`}
             >
               {n.label}
             </Link>
@@ -77,7 +76,7 @@ export default function Header({
               key={p.id}
               href={`/pages/${p.slug}`}
               className={`px-2.5 py-2 rounded-md text-sm whitespace-nowrap ${
-                pathname === `/pages/${p.slug}` ? "bg-white/15 text-white" : "text-[#C9D2E3] hover:bg-white/10 hover:text-white"
+                pathname === `/pages/${p.slug}` ? t.navActive : t.navIdle
               }`}
             >
               {p.title}
@@ -88,20 +87,20 @@ export default function Header({
         <div className="hidden md:flex items-center gap-2 shrink-0">
           {profile ? (
             <>
-              <Link href="/mypage" className="text-sm text-[#C9D2E3] hover:text-white font-semibold whitespace-nowrap">
+              <Link href="/mypage" className={`text-sm font-semibold whitespace-nowrap ${t.navText}`}>
                 마이페이지
               </Link>
               {isAdmin && (
-                <Link href="/admin" className="text-sm px-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10 whitespace-nowrap">
+                <Link href="/admin" className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
                   관리자
                 </Link>
               )}
-              <button onClick={signOut} className="text-sm px-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10 whitespace-nowrap">
+              <button onClick={signOut} className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
                 로그아웃
               </button>
             </>
           ) : (
-            <Link href="/login" className="text-sm px-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10 whitespace-nowrap">
+            <Link href="/login" className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
               로그인
             </Link>
           )}
@@ -109,7 +108,7 @@ export default function Header({
 
         <button
           type="button"
-          className="md:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-md hover:bg-white/10 text-xl leading-none"
+          className={`md:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
           onClick={() => setMobileOpen((v) => !v)}
           aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
           aria-expanded={mobileOpen}
@@ -119,16 +118,14 @@ export default function Header({
       </div>
 
       {mobileOpen && (
-        <div className="md:hidden border-t border-white/10 px-5 py-3">
+        <div className={`md:hidden ${t.mobileBorder} px-5 py-3`}>
           <nav className="flex flex-col gap-0.5">
             {NAV.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
                 onClick={closeMobile}
-                className={`px-2.5 py-2 rounded-md text-sm ${
-                  pathname === n.href ? "bg-white/15 text-white" : "text-[#C9D2E3] hover:bg-white/10 hover:text-white"
-                }`}
+                className={`px-2.5 py-2 rounded-md text-sm ${pathname === n.href ? t.navActive : t.navIdle}`}
               >
                 {n.label}
               </Link>
@@ -138,22 +135,20 @@ export default function Header({
                 key={p.id}
                 href={`/pages/${p.slug}`}
                 onClick={closeMobile}
-                className={`px-2.5 py-2 rounded-md text-sm ${
-                  pathname === `/pages/${p.slug}` ? "bg-white/15 text-white" : "text-[#C9D2E3] hover:bg-white/10 hover:text-white"
-                }`}
+                className={`px-2.5 py-2 rounded-md text-sm ${pathname === `/pages/${p.slug}` ? t.navActive : t.navIdle}`}
               >
                 {p.title}
               </Link>
             ))}
           </nav>
-          <div className="flex flex-col gap-0.5 mt-2 pt-2 border-t border-white/10">
+          <div className={`flex flex-col gap-0.5 mt-2 pt-2 ${t.mobileBorder}`}>
             {profile ? (
               <>
-                <Link href="/mypage" onClick={closeMobile} className="px-2.5 py-2 rounded-md text-sm text-[#C9D2E3] hover:bg-white/10 hover:text-white font-semibold">
+                <Link href="/mypage" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm font-semibold ${t.navIdle}`}>
                   마이페이지
                 </Link>
                 {isAdmin && (
-                  <Link href="/admin" onClick={closeMobile} className="px-2.5 py-2 rounded-md text-sm text-[#C9D2E3] hover:bg-white/10 hover:text-white">
+                  <Link href="/admin" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
                     관리자
                   </Link>
                 )}
@@ -162,13 +157,13 @@ export default function Header({
                     closeMobile();
                     signOut();
                   }}
-                  className="px-2.5 py-2 rounded-md text-sm text-left text-[#C9D2E3] hover:bg-white/10 hover:text-white"
+                  className={`px-2.5 py-2 rounded-md text-sm text-left ${t.navIdle}`}
                 >
                   로그아웃
                 </button>
               </>
             ) : (
-              <Link href="/login" onClick={closeMobile} className="px-2.5 py-2 rounded-md text-sm text-[#C9D2E3] hover:bg-white/10 hover:text-white">
+              <Link href="/login" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
                 로그인
               </Link>
             )}
