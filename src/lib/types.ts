@@ -9,6 +9,8 @@ export interface Profile {
   role: Role;
   profile_image: string | null;
   freeze_credits: number;
+  is_council: boolean;
+  is_judiciary: boolean;
   created_at: string;
 }
 

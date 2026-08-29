@@ -35,6 +35,11 @@ export default function AdminUsersPage() {
     reload();
   };
 
+  const toggleFlag = async (id: string, field: "is_council" | "is_judiciary", value: boolean) => {
+    await supabase.from("profiles").update({ [field]: value }).eq("id", id);
+    reload();
+  };
+
   const list = rows
     .filter((p) => (p.email || "").includes(q) || (p.name || "").includes(q))
     .filter((p) => {
@@ -76,6 +81,8 @@ export default function AdminUsersPage() {
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">명단 정보</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">권한</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">임원회</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">사법위원회</th>
           </tr>
         </thead>
         <tbody>
@@ -112,10 +119,26 @@ export default function AdminUsersPage() {
                     </span>
                   )}
                 </td>
+                <td className="p-2.5 border-b border-border text-center">
+                  <input
+                    type="checkbox"
+                    disabled={!canEdit}
+                    checked={p.is_council}
+                    onChange={(e) => toggleFlag(p.id, "is_council", e.target.checked)}
+                  />
+                </td>
+                <td className="p-2.5 border-b border-border text-center">
+                  <input
+                    type="checkbox"
+                    disabled={!canEdit}
+                    checked={p.is_judiciary}
+                    onChange={(e) => toggleFlag(p.id, "is_judiciary", e.target.checked)}
+                  />
+                </td>
               </tr>
             );
           })}
-          {list.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
+          {list.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
       </table>
     </div>

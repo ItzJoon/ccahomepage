@@ -1142,3 +1142,13 @@ create or replace view events_with_creator as
 select e.*, coalesce(p.nickname, p.name) as creator_name
 from events e
 left join profiles p on p.id = e.created_by;
+
+-- ------------------------------------------------------------
+-- 34. 임원회/사법위원회 플래그
+-- ------------------------------------------------------------
+-- "학생회 임원회"·"사법위원회"는 아직 role/조직 체계에 정식으로 없어서(이슈 #21,
+-- 9/1 회의에서 확정 예정), role 값에 끼워 넣는 대신(끼워 넣으면 코드 곳곳의
+-- role.includes(...) 체크를 전부 다시 검토해야 함) role과 독립적인 boolean 플래그로
+-- 둔다. admin/superadmin이 /admin/users에서 개별적으로 켜고 끌 수 있다.
+alter table profiles add column if not exists is_council boolean not null default false;
+alter table profiles add column if not exists is_judiciary boolean not null default false;

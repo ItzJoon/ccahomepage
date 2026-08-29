@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
-import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote, Member } from "@/lib/types";
+import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote } from "@/lib/types";
 
 const STATUS_LABEL: Record<Proposal["status"], string> = {
   review: "검토 중",
@@ -38,11 +38,6 @@ const RECORD_CATEGORY_COLOR: Record<OrgRecord["category"], "navy" | "teal" | "go
   minutes: "gold",
 };
 
-// "학생회 임원회" 역할이 아직 role/조직 체계에 정식으로 없어서(9/1 회의에서 확정 예정,
-// 이슈 #21), 우선 학생회 전체를 이끄는 두 조직(학생회장단/CCHS 총학생회) 소속 여부로
-// 판단한다. 나중에 임원회가 별도 role이나 조직으로 확정되면 이 목록만 바꾸면 된다.
-const EXECUTIVE_ORG_NAMES = ["학생회장단", "CCHS 총학생회"];
-
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
@@ -57,17 +52,19 @@ function fmtDateTime(iso: string) {
 export default function OrgActivitiesPage() {
   const [tab, setTab] = useState<"proposals" | "events" | "records" | "executive">("proposals");
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
-  const { rows: members } = useRealtimeList<Member>("members");
   const [orgFilter, setOrgFilter] = useState("all");
-  const [userId, setUserId] = useState<string | null>(null);
+  const [isExecutive, setIsExecutive] = useState(false);
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      // "학생회 임원회" 여부는 profiles.is_council 플래그로 관리한다(admin이 /admin/users
+      // 에서 개별 지정). role과 독립적인 값이라 role 체크와 별도로 조회한다.
+      const { data: me } = await supabase.from("profiles").select("is_council").eq("id", data.user.id).single();
+      setIsExecutive(!!me?.is_council);
+    });
   }, [supabase]);
-
-  const executiveOrgIds = orgs.filter((o) => EXECUTIVE_ORG_NAMES.includes(o.name)).map((o) => o.id);
-  const isExecutive = !!userId && members.some((m) => m.user_id === userId && executiveOrgIds.includes(m.org_id));
 
   return (
     <div>
