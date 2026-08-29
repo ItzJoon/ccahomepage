@@ -243,3 +243,16 @@ export interface LoginAccessRequest {
   decided_at: string | null;
   created_at: string;
 }
+
+export type AuditAction = "insert" | "update" | "delete";
+
+export interface AuditLog {
+  id: string;
+  user_id: string | null;
+  action: AuditAction;
+  target_table: string | null;
+  target_id: string | null;
+  before_data: Record<string, any> | null;
+  after_data: Record<string, any> | null;
+  created_at: string;
+}

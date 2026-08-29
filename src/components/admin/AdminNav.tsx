@@ -24,6 +24,7 @@ const NAV = [
   { href: "/admin/access-requests", label: "외부 계정 관리" },
   { href: "/admin/stats", label: "접속 통계" },
   { href: "/admin/maintenance", label: "사이트 잠금" },
+  { href: "/admin/activity-logs", label: "활동 로그" },
 ];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
@@ -34,6 +35,7 @@ const SUPERADMIN_ONLY_HREFS = new Set([
   "/admin/access-requests",
   "/admin/stats",
   "/admin/maintenance",
+  "/admin/activity-logs",
 ]);
 
 // 기존 메뉴들과 섞이지 않도록 구분선 아래에 별도 그룹으로 묶어서 보여준다.

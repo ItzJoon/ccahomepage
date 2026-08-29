@@ -1179,3 +1179,113 @@ create policy "org_records_write_editor" on org_records for all using (is_org_ac
 -- 등록(로그인한 학생 본인)은 기존 정책 그대로 유지.
 drop policy if exists "proposals_update_editor" on proposals;
 create policy "proposals_update_editor" on proposals for update using (is_org_activities_manager());
+
+-- ------------------------------------------------------------
+-- 36. 관리자 활동 로그 (audit_logs) 자동 기록
+-- ------------------------------------------------------------
+-- audit_logs 테이블은 이미 있었지만(user_id/action/target_table/target_id/created_at)
+-- 실제로 기록하는 곳이 어디에도 없어서 항상 비어 있었다. 클라이언트 코드 곳곳(관리자
+-- 페이지마다 흩어진 수십 개의 supabase.insert/update/delete 호출)에 일일이 로그
+-- 기록을 끼워 넣는 대신, DB 트리거로 주요 테이블에 자동 기록되게 한다 — 나중에 새로운
+-- 저장 경로가 추가돼도(예: 새 관리 화면) 빠짐없이 기록되고, 클라이언트 코드를 신뢰하지
+-- 않아도 된다(우회 불가능).
+alter table audit_logs add column if not exists before_data jsonb;
+alter table audit_logs add column if not exists after_data jsonb;
+
+create index if not exists audit_logs_user_id_idx on audit_logs(user_id);
+create index if not exists audit_logs_created_at_idx on audit_logs(created_at desc);
+create index if not exists audit_logs_target_table_idx on audit_logs(target_table);
+
+create or replace function log_audit_event()
+returns trigger as $$
+begin
+  insert into audit_logs (user_id, action, target_table, target_id, before_data, after_data)
+  values (
+    auth.uid(),
+    lower(TG_OP),
+    TG_TABLE_NAME,
+    (case when TG_OP = 'DELETE' then old.id else new.id end)::text,
+    case when TG_OP in ('UPDATE','DELETE') then to_jsonb(old) else null end,
+    case when TG_OP in ('INSERT','UPDATE') then to_jsonb(new) else null end
+  );
+  return coalesce(new, old);
+end;
+$$ language plpgsql security definer;
+
+-- 공지/뉴스, 일정, 조직, 구성원, 규정, Q&A 답변은 작성/수정/삭제를 전부 기록한다.
+drop trigger if exists audit_posts on posts;
+create trigger audit_posts after insert or update or delete on posts
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_events on events;
+create trigger audit_events after insert or update or delete on events
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_organizations on organizations;
+create trigger audit_organizations after insert or update or delete on organizations
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_members on members;
+create trigger audit_members after insert or update or delete on members
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_rules on rules;
+create trigger audit_rules after insert or update or delete on rules
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_answers on answers;
+create trigger audit_answers after insert or update or delete on answers
+  for each row execute function log_audit_event();
+
+-- profiles는 닉네임/소개 등 학생 본인이 수시로 바꾸는 필드가 많아서 전체를 다 기록하면
+-- 로그가 그 잡음으로 뒤덮인다. role(권한) 변경만 기록한다.
+drop trigger if exists audit_profiles_role on profiles;
+create trigger audit_profiles_role after update on profiles
+  for each row
+  when (old.role is distinct from new.role)
+  execute function log_audit_event();
+
+-- 외부 계정 관리: 명단 등록/허용 상태 변경, 요청 승인·차단 처리(pending↔approved/blocked).
+drop trigger if exists audit_directory_members on directory_members;
+create trigger audit_directory_members after insert or update on directory_members
+  for each row execute function log_audit_event();
+
+-- insert(최초 차단 시도 기록)는 시스템이 자동으로 남기는 것이라 "관리자 행위"가
+-- 아니므로 제외하고, update(관리자의 승인/차단/되돌리기 결정)만 기록한다.
+drop trigger if exists audit_login_access_requests on login_access_requests;
+create trigger audit_login_access_requests after update on login_access_requests
+  for each row execute function log_audit_event();
+
+-- 뱃지 지급(insert)/회수(delete).
+drop trigger if exists audit_user_badges on user_badges;
+create trigger audit_user_badges after insert or delete on user_badges
+  for each row execute function log_audit_event();
+
+-- 안건 상태 변경(검토중/승인/반려/완료)만 기록.
+drop trigger if exists audit_proposals_status on proposals;
+create trigger audit_proposals_status after update on proposals
+  for each row
+  when (old.status is distinct from new.status)
+  execute function log_audit_event();
+
+drop trigger if exists audit_org_events on org_events;
+create trigger audit_org_events after insert or update or delete on org_events
+  for each row execute function log_audit_event();
+
+drop trigger if exists audit_org_records on org_records;
+create trigger audit_org_records after insert or update or delete on org_records
+  for each row execute function log_audit_event();
+
+-- 사이트 잠금(점검 모드) on/off만 기록.
+drop trigger if exists audit_site_settings_maintenance on site_settings;
+create trigger audit_site_settings_maintenance after update on site_settings
+  for each row
+  when (old.maintenance_mode is distinct from new.maintenance_mode)
+  execute function log_audit_event();
+
+-- 조회는 superadmin만(기존엔 admin도 가능했음 — 이 로그는 /admin/activity-logs 전용이라
+-- superadmin 전용으로 좁힌다). 쓰기는 log_audit_event()가 SECURITY DEFINER로 RLS를
+-- 우회해서 넣는 것 외에는 막는다(클라이언트가 직접 가짜 로그를 끼워넣지 못하게).
+drop policy if exists "audit_logs_admin_read" on audit_logs;
+create policy "audit_logs_superadmin_read" on audit_logs for select using (is_superadmin());
+drop policy if exists "audit_logs_insert_admin" on audit_logs;
