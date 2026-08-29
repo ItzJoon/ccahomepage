@@ -5,9 +5,6 @@ export const metadata: Metadata = {
   metadataBase: process.env.NEXT_PUBLIC_SITE_URL ? new URL(process.env.NEXT_PUBLIC_SITE_URL) : undefined,
   title: "학생자치회",
   description: "학생자치회 공식 사이트",
-  verification: {
-    google: "googleb020e907b1fe0293",
-  },
 };
 
 /**
