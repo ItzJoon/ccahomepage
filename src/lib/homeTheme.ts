@@ -43,6 +43,11 @@ export const homeThemeStyles = {
     eventDateBg: "bg-navy rounded-lg",
     newsHoverBorder: "hover:border-blue",
     quickTile: "bg-[#F2F4F8] hover:bg-[#E7ECF5] rounded-xl",
+
+    adminHeaderMuted: "text-[#C9D2E3]",
+    adminNavActive: "bg-navy text-white font-bold",
+    adminNavIdle: "text-navy hover:bg-[#F2F4F8]",
+    adminAsideBorder: "border-border",
   },
   /** Figma "Sneaker Product Page"(실제로는 학교 포털 목업) 참고 — 검정+초록 브루탈리즘 */
   green: {
@@ -78,6 +83,11 @@ export const homeThemeStyles = {
     eventDateBg: "bg-ink",
     newsHoverBorder: "hover:border-ccahGreen",
     quickTile: "border border-ink hover:bg-ccahGreen hover:text-white",
+
+    adminHeaderMuted: "text-ink/60",
+    adminNavActive: "bg-ink text-white font-bold",
+    adminNavIdle: "text-ink hover:bg-ccahGreenLight",
+    adminAsideBorder: "border-ink",
   },
 } as const;
 

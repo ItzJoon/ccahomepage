@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -14,6 +15,19 @@ export const metadata: Metadata = {
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // /admin 하위 경로는 자체 헤더/사이드바(admin/layout.tsx)를 그리므로, 학생용 헤더/푸터/
+  // 알림 배너·팝업을 여기서 또 그리면 관리자 화면 위에 학생용 헤더가 겹쳐 보인다(어색한 원인).
+  // usePathname은 서버 컴포넌트에서 못 쓰므로, middleware.ts가 실어 보낸 x-pathname 헤더로
+  // 판단한다.
+  const pathname = headers().get("x-pathname") ?? "";
+  if (pathname.startsWith("/admin")) {
+    return (
+      <html lang="ko">
+        <body>{children}</body>
+      </html>
+    );
+  }
+
   const supabase = createClient();
 
   // 프로필/커스텀 페이지/배너/팝업/잠금 여부 조회는 서로 의존관계가 없는데, 하나씩 순서대로

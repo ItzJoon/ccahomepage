@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
-import Link from "next/link";
 import { getCurrentProfile } from "@/lib/supabase/server";
 import AdminNav from "@/components/admin/AdminNav";
+import AdminHeader from "@/components/admin/AdminHeader";
 
 export const dynamic = "force-dynamic";
 
@@ -14,22 +14,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <div className="min-h-screen bg-[#F2F4F8]">
-      <header className="bg-navy text-white sticky top-0 z-20">
-        <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-3 px-5 py-3 flex-wrap">
-          <Link href="/admin" className="font-bold text-lg flex items-center gap-2 shrink-0">
-            <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
-            <span className="whitespace-nowrap">학생자치회 관리자</span>
-          </Link>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs text-[#C9D2E3] truncate max-w-[200px]">
-              {profile.nickname || profile.name || profile.email} · {profile.role}
-            </span>
-            <Link href="/" className="text-sm px-3 py-1.5 rounded-md border border-white/30 hover:bg-white/10 shrink-0 whitespace-nowrap">
-              학생 화면 미리보기
-            </Link>
-          </div>
-        </div>
-      </header>
+      <AdminHeader profile={profile} />
       <div className="max-w-[1280px] mx-auto flex">
         <AdminNav role={profile.role} />
         <main className="flex-1 p-6 min-w-0">{children}</main>
