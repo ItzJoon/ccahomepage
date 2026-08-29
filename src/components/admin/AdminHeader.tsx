@@ -18,7 +18,7 @@ export default function AdminHeader({ profile }: { profile: Profile }) {
             {profile.nickname || profile.name || profile.email} · {profile.role}
           </span>
           <Link href="/" className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}>
-            학생 화면 미리보기
+            홈페이지로 돌아가기
           </Link>
         </div>
       </div>
