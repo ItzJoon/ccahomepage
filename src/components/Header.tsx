@@ -9,6 +9,7 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { PageDoc, Profile } from "@/lib/types";
 
 const NAV = [
@@ -27,15 +28,17 @@ export default function Header({
   profile,
   customPages,
   checkInEligible = true,
+  initialThemeKey,
 }: {
   profile: Profile | null;
   customPages: PageDoc[];
   checkInEligible?: boolean;
+  initialThemeKey?: HomeThemeKey;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
-  const { t } = useHomeTheme();
+  const { t } = useHomeTheme(initialThemeKey);
   const isAdmin = profile && ["editor", "admin", "superadmin"].includes(profile.role);
   // 사이트 잠금 모드는 admin/superadmin만 우회하므로(editor는 예외 아님), 연속 접속 체크인도
   // 같은 기준으로 잠금 중 보류 여부를 판단한다.

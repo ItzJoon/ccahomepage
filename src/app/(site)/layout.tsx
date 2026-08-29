@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
 import NotificationPopup from "@/components/NotificationPopup";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
+import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { data: latestBanner },
     { data: latestPopup },
     { data: settings },
+    { data: siteTheme },
   ] = await Promise.all([
     (async () => {
       const profile = await getCurrentProfile();
@@ -65,7 +67,17 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .select("maintenance_mode, restrict_external_checkin")
         .eq("id", "default")
         .maybeSingle(),
+      supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
     ]);
+
+  // 헤더/푸터/홈 화면 테마는 원래 클라이언트에서 site_theme을 실시간 구독해서 가져오는데,
+  // 그 구독이 처음 값을 받아오기 전까지는 잠깐 기본값(green)으로 렌더링돼서, 페이지를
+  // 이동할 때마다 실제 테마(예: apple)가 나타나기 전에 green이 잠깐 깜빡이는 문제가 있었다.
+  // 서버에서 미리 조회한 값을 초기값으로 내려주면 첫 렌더부터 정확한 테마로 그려져서
+  // 깜빡임이 없어진다(실시간 구독 자체는 그대로 유지되어, 관리자가 테마를 바꾸면 여전히
+  // 즉시 반영된다).
+  const rawThemeValue = siteTheme?.theme ?? "";
+  const initialThemeKey = isHomeThemeKey(rawThemeValue) ? rawThemeValue : DEFAULT_HOME_THEME;
 
   // 사이트 잠금 모드 중에는 admin/superadmin만 우회하므로(middleware.ts와 동일 기준), 그 외
   // 사용자에게는 아직 정식 운영 전이라 배너/팝업 알림 같은 상호작용도 함께 보류한다.
@@ -83,11 +95,16 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="min-h-screen flex flex-col">
-      <Header profile={profile as any} customPages={customPages ?? []} checkInEligible={checkInEligible} />
+      <Header
+        profile={profile as any}
+        customPages={customPages ?? []}
+        checkInEligible={checkInEligible}
+        initialThemeKey={initialThemeKey}
+      />
       {showNotifications && <NotificationBanner initial={latestBanner as any} />}
       {showNotifications && <NotificationPopup initial={latestPopup as any} />}
       <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
-      <Footer />
+      <Footer initialThemeKey={initialThemeKey} />
     </div>
   );
 }

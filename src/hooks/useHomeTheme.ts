@@ -1,16 +1,22 @@
 "use client";
 
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import { homeThemeStyles, DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
+import { homeThemeStyles, DEFAULT_HOME_THEME, isHomeThemeKey, type HomeThemeKey } from "@/lib/homeTheme";
 import type { SiteTheme } from "@/lib/types";
 
 /**
  * 현재 적용 중인 홈 화면/헤더/푸터 테마를 DB(site_theme)에서 실시간으로 가져온다.
  * /admin/theme에서 superadmin이 바꾸면 이 훅을 쓰는 모든 화면에 즉시 반영된다.
+ *
+ * 실시간 구독(useRealtimeList)은 처음 값을 받아오기 전까지 항상 빈 배열로 시작하므로,
+ * 그 사이에는 DEFAULT_HOME_THEME(green)으로 폴백해서 렌더링됐다 — 페이지를 이동할
+ * 때마다 실제 테마(예: apple)가 나오기 전에 green이 잠깐 깜빡이는 원인이었다. 서버
+ * 컴포넌트에서 미리 조회해둔 값을 initial로 넘겨주면, 구독 값이 도착하기 전까지는
+ * DEFAULT_HOME_THEME 대신 그 값으로 폴백해서 첫 렌더부터 정확한 테마가 그려진다.
  */
-export function useHomeTheme() {
+export function useHomeTheme(initial?: HomeThemeKey) {
   const { rows } = useRealtimeList<SiteTheme>("site_theme");
   const row = rows.find((r) => r.id === "default");
-  const key = row && isHomeThemeKey(row.theme) ? row.theme : DEFAULT_HOME_THEME;
+  const key = row && isHomeThemeKey(row.theme) ? row.theme : initial ?? DEFAULT_HOME_THEME;
   return { themeKey: key, t: homeThemeStyles[key] };
 }

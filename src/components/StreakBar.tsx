@@ -2,6 +2,7 @@
 
 import { useAttendance } from "@/hooks/useAttendance";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import type { HomeThemeKey } from "@/lib/homeTheme";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -12,9 +13,9 @@ function fmt(d: string) {
  * 실제 체크인/토스트/뱃지 축하는 Header에서 사이트 전역으로 처리하고,
  * 여기서는 홈 화면에 현재 스트릭 상태만 표시한다.
  */
-export default function StreakBar({ userId }: { userId: string | null }) {
+export default function StreakBar({ userId, initialThemeKey }: { userId: string | null; initialThemeKey?: HomeThemeKey }) {
   const { streak, checkedToday, history, loading } = useAttendance(userId);
-  const { t } = useHomeTheme();
+  const { t } = useHomeTheme(initialThemeKey);
 
   if (!userId) {
     return (

@@ -1,9 +1,10 @@
 "use client";
 
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import type { HomeThemeKey } from "@/lib/homeTheme";
 
-export default function Footer() {
-  const { t } = useHomeTheme();
+export default function Footer({ initialThemeKey }: { initialThemeKey?: HomeThemeKey } = {}) {
+  const { t } = useHomeTheme(initialThemeKey);
   return (
     <footer className={`${t.footerBg} ${t.footerText} ${t.footerBorder} text-center py-4 text-sm`}>
       © 학생자치회 · 이 사이트는 관리자 페이지에서 실시간으로 관리됩니다.
