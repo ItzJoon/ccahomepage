@@ -1444,3 +1444,21 @@ create or replace function increment_post_view_count(target_id uuid)
 returns void as $$
   update posts set view_count = view_count + 1 where id = target_id;
 $$ language sql security definer;
+
+-- ------------------------------------------------------------
+-- 39. 활동 로그: 조회수 갱신을 "수정"으로 잘못 기록하던 버그 수정
+-- ------------------------------------------------------------
+-- audit_posts 트리거가 insert/update/delete를 전부 감시하는데, view_count만 바뀐 UPDATE
+-- (=누군가 글을 조회만 한 것)도 "수정" 행위로 기록되고 있었다. INSERT 트리거의 WHEN
+-- 절에서는 OLD를 참조할 수 없어(Postgres 제약) insert/update/delete를 별도 트리거로
+-- 분리하고, update 트리거에만 view_count를 제외한 나머지 컬럼이 실제로 달라졌을 때만
+-- 기록하는 조건을 건다.
+drop trigger if exists audit_posts on posts;
+create trigger audit_posts_insert after insert on posts
+  for each row execute function log_audit_event();
+create trigger audit_posts_update after update on posts
+  for each row
+  when ((to_jsonb(OLD) - 'view_count') is distinct from (to_jsonb(NEW) - 'view_count'))
+  execute function log_audit_event();
+create trigger audit_posts_delete after delete on posts
+  for each row execute function log_audit_event();
