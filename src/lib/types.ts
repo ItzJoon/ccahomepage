@@ -188,6 +188,13 @@ export interface SiteSettings {
   updated_at: string;
 }
 
+export interface SiteTheme {
+  id: string;
+  theme: string;
+  updated_at: string;
+  updated_by: string | null;
+}
+
 export type MemberType = "student" | "teacher" | "other";
 
 export interface DirectoryMember {

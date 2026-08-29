@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
-import { homeTheme as t } from "@/lib/homeTheme";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import type { PageDoc, Profile } from "@/lib/types";
@@ -34,6 +34,7 @@ export default function Header({
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const isAdmin = profile && ["editor", "admin", "superadmin"].includes(profile.role);
   // 사이트 잠금 모드는 admin/superadmin만 우회하므로(editor는 예외 아님), 연속 접속 체크인도
   // 같은 기준으로 잠금 중 보류 여부를 판단한다.

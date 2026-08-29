@@ -93,6 +93,7 @@ council-site/
 | `site_settings` | 사이트 잠금(점검) 모드 on/off, 안내 문구, 예정 종료일 |
 | `directory_members` | 학교 전체 학생/교사 명단(이메일/학년·반/과목 등) + 로그인 허용 여부(`is_allowed`) |
 | `login_access_requests` | 명단에 없는 이메일의 로그인 시도 기록, 관리자 승인/차단 상태 |
+| `site_theme` | 헤더/푸터/홈 화면 디자인 테마(`theme` 컬럼). superadmin만 수정 가능 |
 
 `profiles`에는 마이페이지 프로필 설정용 `nickname`, `bio` 컬럼과 스트릭 프리즈 개수 `freeze_credits` 컬럼이 추가되었고,
 `user_attendance`에는 프리즈로 채워진 날짜인지 표시하는 `is_freeze` 컬럼과 실제 체크인 시각 `created_at`
@@ -280,6 +281,9 @@ npm run dev
 - 그 외 권한은 admin과 동일
 - **사이트 잠금(점검 모드) 켜고 끄기** — 켜져 있는 동안에도 admin/superadmin은 사이트를
   평소처럼 이용 가능(잠금의 영향을 받지 않음)
+- **헤더/푸터/홈 화면 디자인 테마 전환** — `/admin/theme`에서 선택하면 모든 방문자 화면에
+  실시간 반영됩니다. 이 메뉴는 admin에게는 아예 보이지 않고, DB(`site_theme`)에도
+  superadmin만 쓸 수 있는 정책이 걸려 있어 admin이 API를 직접 호출해도 바꿀 수 없습니다.
 
 > 이 섹션은 역할/권한이 바뀔 때마다 함께 업데이트합니다.
 
@@ -457,7 +461,30 @@ npm run dev
   이미 활동 중이던 student/teacher 계정도 명단에 없으면 다음 접속부터 접근이 막히므로,
   `seed_directory.sql`로 실제 명단을 먼저 채워두고 배포하세요.
 
-## 14. 향후 확장
+## 14. 헤더/푸터/홈 화면 디자인 테마
+
+헤더·푸터·홈 화면(`/`)의 색상·테두리·폰트를 통째로 바꿀 수 있는 테마 시스템입니다. 다른
+페이지(공지사항 목록, Q&A, 관리자 화면 등)의 스타일은 이 시스템의 영향을 받지 않습니다.
+
+- **구조**: `src/lib/homeTheme.ts`의 `homeThemeStyles` 객체가 테마별 className 값(카드
+  테두리, 히어로 배경, 버튼 스타일 등)을 담고 있습니다. `Header.tsx`/`Footer.tsx`/
+  `StreakBar.tsx`/홈 `page.tsx`는 로고·내비 배열·인증 처리·데이터 페칭 같은 **로직은
+  그대로 두고**, `useHomeTheme()` 훅(`src/hooks/useHomeTheme.ts`)으로 현재 테마의 스타일
+  값만 가져와 className에 꽂아 씁니다. 그래서 이 컴포넌트들에 어떤 기능이 추가되더라도
+  테마 전환 자체는 항상 안전합니다.
+- **현재 적용 중인 테마**는 DB(`site_theme.theme`, 기본값 `'green'`)에 저장되고
+  Realtime으로 구독되므로, 관리자가 바꾸면 접속 중인 모든 화면에 새로고침 없이 반영됩니다.
+- **관리자 화면(`/admin/theme`, superadmin 전용)**: 테마 카드를 클릭하면 즉시 적용됩니다.
+  이 메뉴는 `AdminNav`에서 `role === "superadmin"`일 때만 보이고, DB 쪽에서도
+  `site_theme_update_superadmin` 정책이 `is_superadmin()`만 통과시키므로 admin이 API를
+  직접 호출해도 바꿀 수 없습니다(`site_settings`와 별도 테이블로 둔 이유는 스키마 주석 참고).
+- **테마 추가하는 법**: `homeThemeStyles`와 `THEME_LABELS`(둘 다 `src/lib/homeTheme.ts`)에
+  새 키를 하나 추가하면 `/admin/theme`의 선택지도 자동으로 늘어납니다. 컴포넌트 쪽 로직은
+  건드릴 필요가 없습니다.
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "29. 홈 화면/헤더/푸터 디자인 테마"
+  블록을 실행하세요.
+
+## 15. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이

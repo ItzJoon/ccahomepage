@@ -1,7 +1,7 @@
 "use client";
 
 import { useAttendance } from "@/hooks/useAttendance";
-import { homeTheme as t } from "@/lib/homeTheme";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -14,6 +14,7 @@ function fmt(d: string) {
  */
 export default function StreakBar({ userId }: { userId: string | null }) {
   const { streak, checkedToday, history, loading } = useAttendance(userId);
+  const { t } = useHomeTheme();
 
   if (!userId) {
     return (

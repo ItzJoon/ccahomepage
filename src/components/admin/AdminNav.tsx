@@ -42,13 +42,17 @@ function NavLink({ href, label, active }: { href: string; label: string; active:
   );
 }
 
-export default function AdminNav() {
+export default function AdminNav({ role }: { role?: string }) {
   const pathname = usePathname();
   return (
     <aside className="w-[190px] bg-white border-r border-border p-2.5 flex flex-col gap-0.5 shrink-0">
       {NAV.map((n) => (
         <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} />
       ))}
+      {/* 사이트 전체 디자인을 바꾸는 기능이라 superadmin에게만 메뉴 자체를 보여준다 */}
+      {role === "superadmin" && (
+        <NavLink href="/admin/theme" label="테마" active={pathname === "/admin/theme"} />
+      )}
 
       <div className="border-t border-border my-2" />
       <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">조직 활동 관리</div>

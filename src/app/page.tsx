@@ -6,8 +6,11 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
-import { homeTheme as t } from "@/lib/homeTheme";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
+import type { homeThemeStyles } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock } from "@/lib/types";
+
+type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -29,10 +32,12 @@ function BlockTitle({
   eyebrow,
   title,
   action,
+  t,
 }: {
   eyebrow: string;
   title: string;
   action?: React.ReactNode;
+  t: Theme;
 }) {
   return (
     <div className="flex justify-between items-end mb-4 gap-3 flex-wrap">
@@ -50,6 +55,7 @@ function BlockTitle({
 
 export default function HomePage() {
   const [userId, setUserId] = useState<string | null>(null);
+  const { t } = useHomeTheme();
   const { rows: blocks } = useRealtimeList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
@@ -102,6 +108,7 @@ export default function HomePage() {
             return (
               <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
                 <BlockTitle
+                  t={t}
                   eyebrow="NOTICE"
                   title="최신 공지"
                   action={<Link href="/notices" className="text-blue font-semibold text-sm">전체보기</Link>}
@@ -124,6 +131,7 @@ export default function HomePage() {
             return (
               <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5`}>
                 <BlockTitle
+                  t={t}
                   eyebrow="SCHEDULE"
                   title="다가오는 일정"
                   action={<Link href="/calendar" className="text-blue font-semibold text-sm">전체보기</Link>}
@@ -152,6 +160,7 @@ export default function HomePage() {
             return (
               <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
                 <BlockTitle
+                  t={t}
                   eyebrow="NEWS"
                   title="학생자치회 뉴스"
                   action={<Link href="/news" className="text-blue font-semibold text-sm">전체보기</Link>}
@@ -175,7 +184,7 @@ export default function HomePage() {
           if (b.id === "quick")
             return (
               <div key={b.id} className={`bg-white ${t.cardBorder} ${t.cardRadius} p-5 md:col-span-2`}>
-                <BlockTitle eyebrow="QUICK MENU" title="빠른 메뉴" />
+                <BlockTitle t={t} eyebrow="QUICK MENU" title="빠른 메뉴" />
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5">
                   {QUICK_MENU.map(([icon, label, href]) => (
                     <Link

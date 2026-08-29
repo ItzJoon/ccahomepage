@@ -1044,3 +1044,38 @@ create policy "user_badges_select_public_directory" on user_badges for select
       where p.id = user_badges.user_id and dm.member_type in ('student','teacher')
     )
   );
+
+-- ------------------------------------------------------------
+-- 29. 홈 화면/헤더/푸터 디자인 테마 (관리자 화면에서 superadmin만 전환)
+-- ------------------------------------------------------------
+-- 헤더/푸터/홈 화면의 색상·테두리·폰트 값(src/lib/homeTheme.ts의 homeThemeStyles 키)을
+-- DB에 저장해두고, /admin/theme에서 superadmin이 바꾸면 모든 방문자 화면에 실시간 반영된다.
+-- 별도 테이블로 둔 이유: site_settings는 이미 admin 이상 누구나 수정 가능한 정책이 걸려있어서,
+-- 같은 테이블에 넣으면 그 정책 때문에 superadmin 전용으로 좁힐 수 없다(RLS 정책은 OR로
+-- 합쳐지므로 컬럼 단위로 쓰기 권한을 나눌 수 없음).
+create table if not exists site_theme (
+  id text primary key default 'default',
+  theme text not null default 'green',
+  updated_at timestamptz not null default now(),
+  updated_by uuid references profiles(id)
+);
+
+insert into site_theme (id) values ('default') on conflict (id) do nothing;
+
+alter table site_theme enable row level security;
+
+-- 잠금 여부(site_settings)와 마찬가지로, 비로그인 사용자도 화면을 그려야 하므로 전체 공개 열람.
+drop policy if exists "site_theme_read_all" on site_theme;
+create policy "site_theme_read_all" on site_theme for select using (true);
+drop policy if exists "site_theme_update_superadmin" on site_theme;
+create policy "site_theme_update_superadmin" on site_theme for update using (is_superadmin());
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'site_theme'
+  ) then
+    alter publication supabase_realtime add table public.site_theme;
+  end if;
+end $$;

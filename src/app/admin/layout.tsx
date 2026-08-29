@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
       </header>
       <div className="max-w-[1280px] mx-auto flex">
-        <AdminNav />
+        <AdminNav role={profile.role} />
         <main className="flex-1 p-6 min-w-0">{children}</main>
       </div>
     </div>
