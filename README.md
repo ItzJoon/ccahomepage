@@ -100,7 +100,8 @@ council-site/
 컬럼이 추가되었습니다(`visit_date`는 날짜만 저장해서 같은 날 여러 명이 체크인하면 순서를 알 수 없어,
 `/admin/stats`의 "전체 접속 기록"은 `created_at` 기준 최신순으로 정렬됩니다). `user_attendance_with_name`
 뷰는 `user_attendance`에 `profiles`를 조인해 이름/이메일이 함께 보이도록 만든 것으로, Supabase
-테이블 편집기나 SQL Editor에서 직접 조회할 때도 유용합니다.
+테이블 편집기나 SQL Editor에서 직접 조회할 때도 유용합니다. `posts`에는 뉴스 회의록 동영상용
+`video_source`(`drive`/`upload`), `video_url`, `video_path` 컬럼이 추가되었습니다(15번 섹션 참고).
 
 전체 컬럼 정의와 관계는 `supabase/schema.sql`을 참고하세요.
 
@@ -484,7 +485,26 @@ npm run dev
 - 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "29. 홈 화면/헤더/푸터 디자인 테마"
   블록을 실행하세요.
 
-## 15. 향후 확장
+## 15. 뉴스 회의록 동영상 첨부
+
+`/admin/news`(뉴스 관리)에서 글을 작성/수정할 때 회의록 동영상을 하나 붙일 수 있습니다
+(공지사항 관리에는 이 UI가 뜨지 않습니다 — 뉴스 전용 기능).
+
+- **구글 드라이브 링크**: 드라이브 공유 링크(`.../file/d/FILE_ID/view?usp=sharing`)를
+  입력하면 됩니다. 링크 공유 설정이 "링크가 있는 모든 사용자"로 되어 있어야 재생됩니다.
+  뉴스 상세 페이지에서 자동으로 임베드 가능한 `/preview` 링크로 바꿔서 `iframe`으로
+  보여줍니다.
+- **직접 업로드**: Supabase Storage의 `news-videos` 버킷에 올라가고 상세 페이지에서
+  `<video>` 태그로 재생됩니다. 무료 플랜은 전체 Storage 용량이 1GB라 파일당
+  **50MB 이하**로 권장하며, 업로드 폼에서도 그 이상은 막습니다.
+- 동영상을 교체하거나 "제거" 버튼을 누르면 이전에 업로드했던 파일은 Storage에서
+  함께 삭제됩니다(링크 방식은 삭제할 파일이 없으므로 값만 비웁니다).
+- 데이터는 `posts` 테이블의 `video_source`(`drive`/`upload`), `video_url`, `video_path`
+  (업로드 파일 경로, 삭제용) 컬럼에 저장됩니다.
+- 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "30. 뉴스 회의록 동영상 첨부"
+  블록과, `supabase/storage.sql`의 `news-videos` 버킷 부분을 실행하세요.
+
+## 16. 향후 확장
 
 `pages` / `menus` / `blocks` 테이블과 관리자의 **페이지/메뉴 빌더** 화면을 이용하면,
 설문조사·투표·행사 신청·동아리 페이지·학생회비 안내 같은 기능도 코드 배포 없이

@@ -74,3 +74,30 @@ using (
   bucket_id = 'profile-photos'
   and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
 );
+
+-- 뉴스 회의록 동영상 업로드 버킷 (기능: 뉴스 회의록 동영상 첨부). attachments 버킷과 동일하게
+-- 공개 읽기 + editor 이상만 쓰기. 별도 버킷으로 둔 이유는 동영상이 커서 파일 관리·용량 파악을
+-- 첨부파일(attachments)과 분리해두기 위함이다.
+insert into storage.buckets (id, name, public)
+values ('news-videos', 'news-videos', true)
+on conflict (id) do nothing;
+
+drop policy if exists "news_videos_public_read" on storage.objects;
+create policy "news_videos_public_read"
+on storage.objects for select
+using (bucket_id = 'news-videos');
+
+drop policy if exists "news_videos_insert_editor" on storage.objects;
+create policy "news_videos_insert_editor"
+on storage.objects for insert
+with check (bucket_id = 'news-videos' and public.is_editor_or_above());
+
+drop policy if exists "news_videos_update_editor" on storage.objects;
+create policy "news_videos_update_editor"
+on storage.objects for update
+using (bucket_id = 'news-videos' and public.is_editor_or_above());
+
+drop policy if exists "news_videos_delete_editor" on storage.objects;
+create policy "news_videos_delete_editor"
+on storage.objects for delete
+using (bucket_id = 'news-videos' and public.is_editor_or_above());

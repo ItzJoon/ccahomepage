@@ -18,7 +18,14 @@ const emptyForm = {
   is_pinned: false,
   status: "published" as "published" | "scheduled" | "draft",
   publish_at: new Date().toISOString().slice(0, 10),
+  video_source: null as "drive" | "upload" | null,
+  video_url: "" as string | null,
+  video_path: null as string | null,
 };
+
+// Supabase 무료 플랜은 전체 Storage 용량이 1GB라, 동영상 하나가 너무 크면 금방 찬다.
+// 강제로 막지는 않고 안내만 하되, 너무 큰 파일은 업로드 자체를 막는다.
+const MAX_VIDEO_MB = 50;
 
 export default function PostManager({
   type,
@@ -43,6 +50,8 @@ export default function PostManager({
   const [saving, setSaving] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [videoUploading, setVideoUploading] = useState(false);
+  const [videoError, setVideoError] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -67,6 +76,9 @@ export default function PostManager({
       is_pinned: item.is_pinned,
       status: item.status,
       publish_at: item.publish_at,
+      video_source: item.video_source,
+      video_url: item.video_url,
+      video_path: item.video_path,
     });
     setNewFiles([]);
     setExistingFiles(item.attachments ?? []);
@@ -104,6 +116,37 @@ export default function PostManager({
     if (!confirm("삭제하시겠습니까?")) return;
     await supabase.from("posts").delete().eq("id", id);
     reload();
+  };
+
+  const uploadVideo = async (file: File) => {
+    setVideoError(null);
+    if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
+      setVideoError(`동영상 파일은 ${MAX_VIDEO_MB}MB 이하만 업로드할 수 있습니다.`);
+      return;
+    }
+    setVideoUploading(true);
+    // 기존에 올려둔 동영상을 교체하는 경우, 이전 파일을 지워서 용량을 낭비하지 않는다.
+    if (form.video_path) {
+      await supabase.storage.from("news-videos").remove([form.video_path]);
+    }
+    const path = `${Date.now()}-${file.name}`;
+    const { error: uploadError } = await supabase.storage.from("news-videos").upload(path, file);
+    if (uploadError) {
+      setVideoError(uploadError.message);
+      setVideoUploading(false);
+      return;
+    }
+    const { data: pub } = supabase.storage.from("news-videos").getPublicUrl(path);
+    setForm((f) => ({ ...f, video_source: "upload", video_url: pub.publicUrl, video_path: path }));
+    setVideoUploading(false);
+  };
+
+  const removeVideo = async () => {
+    if (form.video_path) {
+      await supabase.storage.from("news-videos").remove([form.video_path]);
+    }
+    setForm((f) => ({ ...f, video_source: null, video_url: "", video_path: null }));
+    setVideoError(null);
   };
 
   const removeExistingFile = async (attId: string, path: string | null) => {
@@ -250,6 +293,63 @@ export default function PostManager({
             ))}
           </div>
           <FileUpload files={newFiles} onChange={setNewFiles} />
+
+          {type === "news" && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">회의록 동영상 (선택)</label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, video_source: "drive", video_url: "" })}
+                  className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border ${
+                    form.video_source === "drive" ? "bg-navy text-white border-navy" : "border-border"
+                  }`}
+                >
+                  구글 드라이브 링크
+                </button>
+                <label
+                  className={`flex-1 text-center text-xs font-bold rounded-lg px-2 py-1.5 border cursor-pointer ${
+                    form.video_source === "upload" ? "bg-navy text-white border-navy" : "border-border"
+                  }`}
+                >
+                  {videoUploading ? "업로드 중…" : "파일 업로드"}
+                  <input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    disabled={videoUploading}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) uploadVideo(f);
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+                {form.video_source && (
+                  <button type="button" onClick={removeVideo} className="text-xs text-red font-bold px-2">
+                    제거
+                  </button>
+                )}
+              </div>
+              {form.video_source === "drive" && (
+                <input
+                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                  placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
+                  value={form.video_url ?? ""}
+                  onChange={(e) => setForm({ ...form, video_url: e.target.value })}
+                />
+              )}
+              {form.video_source === "upload" && form.video_url && (
+                <p className="text-xs text-teal m-0">업로드됨: {form.video_path?.split("-").slice(1).join("-")}</p>
+              )}
+              <p className="text-[11px] text-muted m-0">
+                드라이브 링크는 "링크가 있는 모든 사용자" 공유로 설정해야 재생됩니다. 직접 업로드는
+                용량이 크면 저장 공간을 많이 차지하니 {MAX_VIDEO_MB}MB 이하 파일을 권장합니다.
+              </p>
+              {videoError && <p className="text-xs text-red m-0">{videoError}</p>}
+            </>
+          )}
+
           <div className="flex gap-2 mt-3.5">
             <button disabled={saving} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">
               {saving ? "저장 중…" : "저장"}

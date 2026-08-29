@@ -46,6 +46,9 @@ export interface Post {
   author_id: string | null;
   view_count: number;
   created_at: string;
+  video_source: "drive" | "upload" | null;
+  video_url: string | null;
+  video_path: string | null;
 }
 
 export interface EventItem {

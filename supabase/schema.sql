@@ -1079,3 +1079,16 @@ begin
     alter publication supabase_realtime add table public.site_theme;
   end if;
 end $$;
+
+-- ------------------------------------------------------------
+-- 30. 뉴스 회의록 동영상 첨부 (Google Drive 링크 / 직접 업로드)
+-- ------------------------------------------------------------
+-- posts(type='news') 작성 시 동영상을 하나 붙일 수 있게 한다. video_source로 두 가지 중
+-- 하나를 고른다: 'drive'(구글 드라이브 공유 링크, 상세 페이지에서 iframe으로 임베드) 또는
+-- 'upload'(Storage에 올린 파일, <video> 태그로 재생). video_path는 'upload'일 때만 채워지고
+-- 나중에 교체/삭제 시 storage.objects에서 지우는 용도다. 공지(notice)에는 UI를 안 띄우므로
+-- 항상 null로 남는다. 별도 not null 제약 없이 두 컬럼 다 nullable로 둬서(동영상 없음 = 둘 다
+-- null) 기존 posts 데이터와 호환된다.
+alter table posts add column if not exists video_source text check (video_source in ('drive','upload'));
+alter table posts add column if not exists video_url text;
+alter table posts add column if not exists video_path text;
