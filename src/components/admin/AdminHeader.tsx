@@ -6,10 +6,11 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { Profile } from "@/lib/types";
 
-export default function AdminHeader({ profile }: { profile: Profile }) {
-  const { t } = useHomeTheme();
+export default function AdminHeader({ profile, initialThemeKey }: { profile: Profile; initialThemeKey?: HomeThemeKey }) {
+  const { t } = useHomeTheme(initialThemeKey);
   const router = useRouter();
   const supabase = createClient();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);

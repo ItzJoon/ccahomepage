@@ -221,8 +221,8 @@ export const THEME_LABELS: Record<HomeThemeKey, { label: string; description: st
   apple: { label: "애플 스타일", description: "화이트+블루(#2563eb), 부드러운 그림자, Caveat 손글씨 제목" },
 };
 
-/** DB(site_theme)에서 아직 값을 못 읽어왔을 때 쓰는 기본값 */
-export const DEFAULT_HOME_THEME: HomeThemeKey = "green";
+/** DB(site_theme)에 아직 행이 없거나 값을 못 읽어왔을 때 쓰는 기본값 */
+export const DEFAULT_HOME_THEME: HomeThemeKey = "classic";
 
 export function isHomeThemeKey(value: string): value is HomeThemeKey {
   return value in homeThemeStyles;

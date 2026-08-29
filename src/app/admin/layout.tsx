@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
-import { getCurrentProfile } from "@/lib/supabase/server";
+import { createClient, getCurrentProfile } from "@/lib/supabase/server";
+import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminHeader from "@/components/admin/AdminHeader";
 
@@ -12,11 +13,20 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login?next=/admin");
   }
 
+  // AdminHeader/AdminNav도 site_theme을 실시간 구독해서 가져오는데, 그 값이 도착하기 전까지는
+  // 항상 기본값으로 렌더링돼서 /admin 진입마다 "기본 UI"가 잠깐 보였다 실제 테마로 바뀌는
+  // 깜빡임이 있었다((site)/layout.tsx에서 같은 문제를 고친 것과 동일한 원인). 여기서도
+  // 서버에서 미리 조회한 값을 초기값으로 내려준다.
+  const supabase = createClient();
+  const { data: siteTheme } = await supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle();
+  const rawThemeValue = siteTheme?.theme ?? "";
+  const initialThemeKey = isHomeThemeKey(rawThemeValue) ? rawThemeValue : DEFAULT_HOME_THEME;
+
   return (
     <div className="min-h-screen bg-[#F2F4F8]">
-      <AdminHeader profile={profile} />
+      <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
       <div className="max-w-[1280px] mx-auto flex">
-        <AdminNav role={profile.role} />
+        <AdminNav role={profile.role} initialThemeKey={initialThemeKey} />
         <main className="flex-1 p-6 min-w-0">{children}</main>
       </div>
     </div>

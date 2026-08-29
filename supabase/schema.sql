@@ -1055,7 +1055,7 @@ create policy "user_badges_select_public_directory" on user_badges for select
 -- 합쳐지므로 컬럼 단위로 쓰기 권한을 나눌 수 없음).
 create table if not exists site_theme (
   id text primary key default 'default',
-  theme text not null default 'green',
+  theme text not null default 'classic',
   updated_at timestamptz not null default now(),
   updated_by uuid references profiles(id)
 );

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
-import type { homeThemeStyles } from "@/lib/homeTheme";
+import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
@@ -55,9 +55,9 @@ function NavLink({ href, label, active, t }: { href: string; label: string; acti
   );
 }
 
-export default function AdminNav({ role }: { role?: string }) {
+export default function AdminNav({ role, initialThemeKey }: { role?: string; initialThemeKey?: HomeThemeKey }) {
   const pathname = usePathname();
-  const { t } = useHomeTheme();
+  const { t } = useHomeTheme(initialThemeKey);
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
       {NAV.filter((n) => role === "superadmin" || !SUPERADMIN_ONLY_HREFS.has(n.href)).map((n) => (
