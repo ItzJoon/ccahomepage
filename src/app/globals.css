@@ -1,8 +1,13 @@
+/* @import는 CSS 스펙상 다른 규칙보다 앞에 있어야 브라우저가 적용한다(안 그러면 조용히
+   무시됨). @tailwind 지시어 뒤에 있으면 실제 컴파일된 CSS에서 다른 규칙 뒤로 밀려나
+   무시되므로, 반드시 파일 맨 위에 둔다. (이 순서 문제 때문에 Jua뿐 아니라 지금까지
+   Noto Sans KR/Noto Serif KR 웹폰트도 실제로는 로드되지 않고 있었다 — Noto Sans KR은
+   시스템 한글 폰트와 생김새가 비슷해서 눈에 잘 안 띄었을 뿐이다.) */
+@import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
-@import url('https://fonts.googleapis.com/css2?family=Jua&family=Noto+Sans+KR:wght@400;500;700;900&family=Noto+Serif+KR:wght@700;900&display=swap');
 
 :root {
   --navy: #16233f;
