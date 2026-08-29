@@ -49,7 +49,11 @@ export async function updateSession(request: NextRequest) {
     pathname === "/login" ||
     pathname === "/maintenance" ||
     pathname === "/access-restricted" ||
-    pathname.startsWith("/auth/callback");
+    pathname.startsWith("/auth/callback") ||
+    // 검색엔진이 사이트 잠금 중에도 robots.txt/sitemap.xml은 정상적으로 받아갈 수 있어야
+    // 한다(HTML 리다이렉트 응답으로 오해하지 않도록).
+    pathname === "/robots.txt" ||
+    pathname === "/sitemap.xml";
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 
