@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge, { Pin } from "@/components/Badge";
+import ViewCounter from "@/components/ViewCounter";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -13,12 +14,6 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다.</div>;
   }
-
-  // 조회수 증가 (best-effort)
-  await supabase
-    .from("posts")
-    .update({ view_count: (post.view_count ?? 0) + 1 })
-    .eq("id", params.id);
 
   const { data: attachments } = await supabase
     .from("attachments")
@@ -41,7 +36,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         {post.is_pinned && <Pin />}
         <h1 className="text-2xl my-2">{post.title}</h1>
         <div className="text-muted text-sm mb-[18px]">
-          {fmt(post.publish_at)} · 조회 {post.view_count + 1}
+          {fmt(post.publish_at)} · <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} />
         </div>
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]">{post.content}</div>

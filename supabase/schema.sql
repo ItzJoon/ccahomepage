@@ -1430,3 +1430,17 @@ drop policy if exists "posts_update_teacher_own" on posts;
 create policy "posts_update_teacher_own" on posts for update
   using (author_id = auth.uid() and type in ('subject_notice','homeroom_notice'))
   with check (author_id = auth.uid() and type in ('subject_notice','homeroom_notice'));
+
+-- ------------------------------------------------------------
+-- 38. 공지 조회수 중복 증가 방지
+-- ------------------------------------------------------------
+-- 공지 상세 페이지가 새로고침할 때마다 조회수를 무조건 1씩 올리고 있었다(중복 방지 없음).
+-- posts UPDATE는 RLS상 editor 이상(또는 작성자 teacher)만 가능해서 실제로는 admin/editor가
+-- 자기 화면을 새로고침할 때만 반영됐고, 정작 학생·익명 방문자의 조회는 RLS에 막혀 애초에
+-- 반영되지 않고 있었다(관리자가 본인 글을 확인할 때마다 카운트가 눈에 띄게 튀어 보인 이유).
+-- 조회수만 안전하게 올릴 수 있는 전용 RPC를 만들어 누구나(익명 포함) 호출 가능하게 하고,
+-- 클라이언트에서 쿠키로 중복 호출을 막는다(같은 브라우저로 하루 안에 새로고침해도 한 번만 카운트).
+create or replace function increment_post_view_count(target_id uuid)
+returns void as $$
+  update posts set view_count = view_count + 1 where id = target_id;
+$$ language sql security definer;
