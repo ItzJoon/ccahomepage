@@ -59,6 +59,7 @@ export interface EventItem {
   end_at: string | null;
   location: string | null;
   category: string;
+  created_by: string | null;
 }
 
 export interface RuleDoc {

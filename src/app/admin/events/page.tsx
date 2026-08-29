@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
@@ -8,16 +8,22 @@ import type { EventItem } from "@/lib/types";
 
 interface EventWithAttachments extends EventItem {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
+  profiles: { name: string | null; nickname: string | null } | null;
 }
 
 const empty = { title: "", description: "", start_at: new Date().toISOString().slice(0, 10), end_at: "", location: "", category: "회의" };
 
 export default function AdminEventsPage() {
   const supabase = createClient();
+  const [myId, setMyId] = useState<string | null>(null);
   const { rows, reload } = useRealtimeList<EventWithAttachments>("events", {
-    select: "*, attachments(*)",
+    select: "*, attachments(*), profiles(name, nickname)",
     orderBy: { column: "start_at" },
   });
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id ?? null));
+  }, [supabase]);
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
@@ -39,7 +45,11 @@ export default function AdminEventsPage() {
     if (!form.title.trim()) return;
     const payload = { ...form, end_at: form.end_at || null };
     if (editing === "new") {
-      const { data, error } = await supabase.from("events").insert(payload).select().single();
+      const { data, error } = await supabase
+        .from("events")
+        .insert({ ...payload, created_by: myId })
+        .select()
+        .single();
       if (!error && data && newFiles.length > 0) {
         await supabase.from("attachments").insert(newFiles.map((f) => ({ event_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
       }
@@ -77,6 +87,7 @@ export default function AdminEventsPage() {
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">등록자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
             </tr>
           </thead>
@@ -85,12 +96,15 @@ export default function AdminEventsPage() {
               <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
                 <td className="p-2.5 border-b border-border text-sm">{e.title}</td>
                 <td className="p-2.5 border-b border-border text-sm">{e.start_at}</td>
+                <td className="p-2.5 border-b border-border text-sm text-muted">
+                  {e.profiles?.nickname || e.profiles?.name || "등록자 정보 없음"}
+                </td>
                 <td className="p-2.5 border-b border-border">
                   <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
           </tbody>
         </table>
       </div>

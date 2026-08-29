@@ -1125,3 +1125,20 @@ select distinct on (ua.user_id)
 from user_attendance ua
 join profiles p on p.id = ua.user_id
 order by ua.user_id, ua.visit_date desc;
+
+-- ------------------------------------------------------------
+-- 33. 일정 등록자 이름 표시
+-- ------------------------------------------------------------
+-- profiles의 select RLS는 본인 것만 볼 수 있게 되어 있어서(profiles_select_self_or_admin),
+-- 학생 화면(/calendar, /events/[id])에서 events.created_by를 profiles와 그대로 조인하면
+-- 다른 사람이 등록한 일정은 이름이 보이지 않는다(RLS가 그 프로필 행을 가려버림). 그렇다고
+-- profiles RLS를 통째로 완화하면 이메일 등 다른 개인정보까지 노출 범위가 넓어지므로,
+-- "이름만" 안전하게 공개하는 뷰를 별도로 둔다. security_invoker를 지정하지 않으면(기본값
+-- false) 뷰가 소유자 권한으로 실행되어 조회자의 profiles RLS와 무관하게 이름을 보여준다
+-- (일정 등록자 이름은 공개돼도 괜찮은 정보라 이 방식을 의도적으로 선택함 — 반대로
+-- user_attendance_with_name/user_latest_attendance는 개인별 접속 기록이라 security_invoker
+-- = true로 반대 방향을 택했다).
+create or replace view events_with_creator as
+select e.*, coalesce(p.nickname, p.name) as creator_name
+from events e
+left join profiles p on p.id = e.created_by;

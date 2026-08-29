@@ -15,8 +15,11 @@ function todayStr() {
   return new Date().toISOString().slice(0, 10);
 }
 
+type EventWithCreator = EventItem & { creator_name: string | null };
+
 export default function CalendarPage() {
-  const { rows: events } = useRealtimeList<EventItem>("events", {
+  const { rows: events } = useRealtimeList<EventWithCreator>("events", {
+    selectFrom: "events_with_creator",
     orderBy: { column: "start_at" },
   });
   const [mode, setMode] = useState<"month" | "list">("month");
@@ -32,7 +35,7 @@ export default function CalendarPage() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const eventsByDate = useMemo(() => {
-    const map: Record<string, EventItem[]> = {};
+    const map: Record<string, EventWithCreator[]> = {};
     events.forEach((e) => {
       map[e.start_at] = map[e.start_at] || [];
       map[e.start_at].push(e);
@@ -119,6 +122,7 @@ export default function CalendarPage() {
               <Link href={`/events/${e.id}`} className="flex items-center gap-2 hover:opacity-70">
                 <Badge color="navy">{e.category}</Badge>
                 <span className="flex-1 text-sm">{e.title}</span>
+                <span className="text-xs text-muted">{e.creator_name || "등록자 정보 없음"}</span>
                 <span className="text-xs text-muted">{fmt(e.start_at)}</span>
               </Link>
             </li>
