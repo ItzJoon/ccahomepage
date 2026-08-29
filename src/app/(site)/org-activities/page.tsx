@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
-import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote } from "@/lib/types";
+import type { Organization, OrgEvent, OrgRecord, Proposal, ProposalVote, Member } from "@/lib/types";
 
 const STATUS_LABEL: Record<Proposal["status"], string> = {
   review: "검토 중",
@@ -38,6 +38,11 @@ const RECORD_CATEGORY_COLOR: Record<OrgRecord["category"], "navy" | "teal" | "go
   minutes: "gold",
 };
 
+// "학생회 임원회" 역할이 아직 role/조직 체계에 정식으로 없어서(9/1 회의에서 확정 예정,
+// 이슈 #21), 우선 학생회 전체를 이끄는 두 조직(학생회장단/CCHS 총학생회) 소속 여부로
+// 판단한다. 나중에 임원회가 별도 role이나 조직으로 확정되면 이 목록만 바꾸면 된다.
+const EXECUTIVE_ORG_NAMES = ["학생회장단", "CCHS 총학생회"];
+
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
@@ -50,9 +55,19 @@ function fmtDateTime(iso: string) {
 
 
 export default function OrgActivitiesPage() {
-  const [tab, setTab] = useState<"proposals" | "events" | "records">("proposals");
+  const [tab, setTab] = useState<"proposals" | "events" | "records" | "executive">("proposals");
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
+  const { rows: members } = useRealtimeList<Member>("members");
   const [orgFilter, setOrgFilter] = useState("all");
+  const [userId, setUserId] = useState<string | null>(null);
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+  }, [supabase]);
+
+  const executiveOrgIds = orgs.filter((o) => EXECUTIVE_ORG_NAMES.includes(o.name)).map((o) => o.id);
+  const isExecutive = !!userId && members.some((m) => m.user_id === userId && executiveOrgIds.includes(m.org_id));
 
   return (
     <div>
@@ -77,22 +92,33 @@ export default function OrgActivitiesPage() {
           >
             활동기록
           </button>
+          {isExecutive && (
+            <button
+              className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "executive" ? "bg-navy text-white" : "bg-white"}`}
+              onClick={() => setTab("executive")}
+            >
+              임원회 캘린더
+            </button>
+          )}
         </div>
-        <select
-          className="border border-border rounded-lg px-3 py-2 text-sm"
-          value={orgFilter}
-          onChange={(e) => setOrgFilter(e.target.value)}
-        >
-          <option value="all">전체 조직</option>
-          {orgs.map((o) => (
-            <option key={o.id} value={o.id}>{o.name}</option>
-          ))}
-        </select>
+        {tab !== "executive" && (
+          <select
+            className="border border-border rounded-lg px-3 py-2 text-sm"
+            value={orgFilter}
+            onChange={(e) => setOrgFilter(e.target.value)}
+          >
+            <option value="all">전체 조직</option>
+            {orgs.map((o) => (
+              <option key={o.id} value={o.id}>{o.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       {tab === "proposals" && <ProposalsTab orgs={orgs} orgFilter={orgFilter} />}
       {tab === "events" && <EventsTab orgs={orgs} orgFilter={orgFilter} />}
       {tab === "records" && <RecordsTab orgs={orgs} orgFilter={orgFilter} />}
+      {tab === "executive" && isExecutive && <ExecutiveCalendarTab orgs={orgs} />}
     </div>
   );
 }
@@ -405,6 +431,40 @@ function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: strin
           </li>
         ))}
         {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</div>}
+      </ul>
+    </div>
+  );
+}
+
+// 어느 부서가 조직 일정(org_events)을 등록하든, 새 데이터를 따로 저장하지 않고 기존
+// org_events를 조직 구분 없이 전부 모아서 보여준다(요청사항: 새 테이블 없이 재사용).
+// 조직 필터 UI는 상위(OrgActivitiesPage)에서 이 탭일 때 숨긴다 — 전체를 한눈에 보는 게
+// 이 캘린더의 목적이라 필터를 두지 않았다.
+function ExecutiveCalendarTab({ orgs }: { orgs: Organization[] }) {
+  const { rows: events } = useRealtimeList<OrgEvent>("org_events", { orderBy: { column: "start_at" } });
+  const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
+
+  return (
+    <div>
+      <p className="text-muted text-sm mb-3">
+        모든 부서의 조직 일정을 한곳에 모아 보여주는 학생회 임원회 전용 캘린더입니다.
+      </p>
+      <ul className="list-none m-0 p-0">
+        {events.map((e) => (
+          <li key={e.id} className="border-b border-border py-2.5">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge color="gold">{orgName(e.org_id)}</Badge>
+              <Badge color="navy">{EVENT_CATEGORY_LABEL[e.category]}</Badge>
+              <span className="flex-1 text-sm font-bold">{e.title}</span>
+            </div>
+            <div className="text-xs text-muted mt-1">
+              {fmtDateTime(e.start_at)} ~ {fmtDateTime(e.end_at)}
+              {e.location ? ` · ${e.location}` : ""}
+            </div>
+            {e.description && <p className="text-sm mt-1">{e.description}</p>}
+          </li>
+        ))}
+        {events.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 조직 일정이 없습니다.</div>}
       </ul>
     </div>
   );
