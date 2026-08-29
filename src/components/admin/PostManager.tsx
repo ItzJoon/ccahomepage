@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "./FileUpload";
-import type { Post } from "@/lib/types";
+import type { Post, PostType } from "@/lib/types";
 
 interface PostWithAttachments extends Post {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
   author: { name: string | null; nickname: string | null; email: string } | null;
+}
+
+interface TeacherInfo {
+  subjects: string[];
+  homeroom: number | null;
+  homeroomLabel: string | null;
 }
 
 const emptyForm = {
@@ -21,7 +27,16 @@ const emptyForm = {
   video_source: null as "drive" | "upload" | null,
   video_url: "" as string | null,
   video_path: null as string | null,
+  type: "notice" as PostType,
+  target_subject: null as string | null,
+  target_homeroom: null as number | null,
 };
+
+function kindLabel(post: Pick<Post, "type" | "target_subject" | "target_homeroom">) {
+  if (post.type === "subject_notice") return `교과·${post.target_subject}`;
+  if (post.type === "homeroom_notice") return `학급·${post.target_homeroom}반`;
+  return null;
+}
 
 // Supabase 무료 플랜은 전체 Storage 용량이 1GB라, 동영상 하나가 너무 크면 금방 찬다.
 // 강제로 막지는 않고 안내만 하되, 너무 큰 파일은 업로드 자체를 막는다.
@@ -37,9 +52,11 @@ export default function PostManager({
   hasSchedulePin?: boolean;
 }) {
   const supabase = createClient();
+  // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
+  // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
   const { rows, reload } = useRealtimeList<PostWithAttachments>("posts", {
     select: "*, attachments(*), author:profiles(name, nickname, email)",
-    filter: (q) => q.eq("type", type),
+    filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
     orderBy: { column: "created_at", ascending: false },
   });
 
@@ -52,6 +69,8 @@ export default function PostManager({
   const [saving, setSaving] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
 
@@ -59,19 +78,53 @@ export default function PostManager({
     supabase.auth.getUser().then(async ({ data }) => {
       setMyId(data.user?.id ?? null);
       if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      const { data: me } = await supabase.from("profiles").select("role, email").eq("id", data.user.id).single();
       setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+      const teacher = me?.role === "teacher";
+      setIsTeacher(teacher);
+      if (teacher && me?.email) {
+        // teacher 본인의 담당 과목(콤마로 여러 개 저장될 수 있음)/담당 학급을 명단에서 가져와
+        // 교과/학급 공지 작성 시 선택지로 쓴다. 본인이 실제로 담당하는 범위인지는 RLS(서버)
+        // 에서도 다시 검증하므로, 여기서는 UI 편의를 위한 조회일 뿐이다.
+        const { data: dm } = await supabase
+          .from("directory_members")
+          .select("subject, homeroom, homeroom_label")
+          .eq("email", me.email)
+          .maybeSingle();
+        const subjects = ((dm?.subject as string | null) ?? "")
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean);
+        setTeacherInfo({ subjects, homeroom: dm?.homeroom ?? null, homeroomLabel: dm?.homeroom_label ?? null });
+      }
     });
   }, [supabase]);
 
   const startNew = () => {
-    setForm({ ...emptyForm });
-    setInitialForm({ ...emptyForm });
+    let initialType: PostType = type;
+    let initialSubject: string | null = null;
+    let initialHomeroom: number | null = null;
+    if (type === "notice" && isTeacher) {
+      if (teacherInfo?.subjects.length) {
+        initialType = "subject_notice";
+        initialSubject = teacherInfo.subjects[0];
+      } else if (teacherInfo?.homeroom) {
+        initialType = "homeroom_notice";
+        initialHomeroom = teacherInfo.homeroom;
+      }
+    }
+    const next = { ...emptyForm, type: initialType, target_subject: initialSubject, target_homeroom: initialHomeroom };
+    setForm(next);
+    setInitialForm(next);
     setNewFiles([]);
     setExistingFiles([]);
     setEditing("new");
   };
   const startEdit = (item: PostWithAttachments) => {
+    // teacher는 본인이 쓴 교과/학급 공지만 수정할 수 있다(RLS도 동일 기준). 다른 선생님의
+    // 공지는 목록에서 보이기만 하고 열어도 수정은 막는다 — 실수로 열었다가 저장해도
+    // RLS가 막아서 조용히 실패하는 것보다 애초에 못 열게 하는 게 낫다.
+    if (isTeacher && item.type !== "notice" && item.author_id !== myId) return;
     const next = {
       title: item.title,
       category: item.category,
@@ -82,6 +135,9 @@ export default function PostManager({
       video_source: item.video_source,
       video_url: item.video_url,
       video_path: item.video_path,
+      type: item.type,
+      target_subject: item.target_subject,
+      target_homeroom: item.target_homeroom,
     };
     setForm(next);
     setInitialForm(next);
@@ -92,11 +148,13 @@ export default function PostManager({
 
   const save = async () => {
     if (!form.title.trim()) return;
+    if (form.type === "subject_notice" && !form.target_subject) return;
+    if (form.type === "homeroom_notice" && !form.target_homeroom) return;
     setSaving(true);
     if (editing === "new") {
       const { data, error } = await supabase
         .from("posts")
-        .insert({ ...form, type, author_id: myId })
+        .insert({ ...form, author_id: myId })
         .select()
         .single();
       if (!error && data && newFiles.length > 0) {
@@ -165,10 +223,17 @@ export default function PostManager({
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">{label} 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">
-            + 새 글
-          </button>
+          {!(type === "notice" && isTeacher && !teacherInfo?.subjects.length && !teacherInfo?.homeroom) && (
+            <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">
+              + 새 글
+            </button>
+          )}
         </div>
+        {type === "notice" && isTeacher && !teacherInfo?.subjects.length && !teacherInfo?.homeroom && (
+          <p className="text-red text-xs mb-3">
+            명단에 담당 과목/학급 정보가 없어 공지를 등록할 수 없습니다. 관리자에게 문의해 주세요.
+          </p>
+        )}
         <table className="w-full border-collapse bg-white">
           <thead>
             <tr>
@@ -180,13 +245,16 @@ export default function PostManager({
             </tr>
           </thead>
           <tbody>
-            {rows.map((n) => (
+            {rows.map((n) => {
+              const readOnlyForMe = isTeacher && n.type !== "notice" && n.author_id !== myId;
+              return (
               <tr
                 key={n.id}
                 onClick={() => startEdit(n)}
-                className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === n.id ? "bg-[#EAF0FB]" : ""}`}
+                className={`hover:bg-[#F2F4F8] ${editing === n.id ? "bg-[#EAF0FB]" : ""} ${readOnlyForMe ? "cursor-default" : "cursor-pointer"}`}
               >
                 <td className="p-2.5 border-b border-border text-sm">
+                  {kindLabel(n) && <span className="text-[11px] font-bold text-blue mr-1">[{kindLabel(n)}]</span>}
                   {n.is_pinned && <span className="pin mr-1">고정</span>} {n.title}
                 </td>
                 <td className="p-2.5 border-b border-border text-sm text-muted">
@@ -224,7 +292,8 @@ export default function PostManager({
                   )}
                 </td>
               </tr>
-            ))}
+              );
+            })}
             {rows.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-muted text-center py-8 text-sm">
@@ -238,6 +307,55 @@ export default function PostManager({
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
           <h3>{editing === "new" ? "새 글 작성" : "글 수정"}</h3>
+
+          {type === "notice" && isTeacher && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">공지 유형</label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  disabled={!teacherInfo?.subjects.length}
+                  onClick={() =>
+                    setForm({ ...form, type: "subject_notice", target_subject: teacherInfo?.subjects[0] ?? null, target_homeroom: null })
+                  }
+                  className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border disabled:opacity-40 disabled:cursor-not-allowed ${
+                    form.type === "subject_notice" ? "bg-navy text-white border-navy" : "border-border"
+                  }`}
+                >
+                  교과 공지
+                </button>
+                <button
+                  type="button"
+                  disabled={!teacherInfo?.homeroom}
+                  onClick={() =>
+                    setForm({ ...form, type: "homeroom_notice", target_homeroom: teacherInfo?.homeroom ?? null, target_subject: null })
+                  }
+                  className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border disabled:opacity-40 disabled:cursor-not-allowed ${
+                    form.type === "homeroom_notice" ? "bg-navy text-white border-navy" : "border-border"
+                  }`}
+                >
+                  학급 공지
+                </button>
+              </div>
+              {form.type === "subject_notice" && (
+                <select
+                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                  value={form.target_subject ?? ""}
+                  onChange={(e) => setForm({ ...form, target_subject: e.target.value })}
+                >
+                  {(teacherInfo?.subjects ?? []).map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              )}
+              {form.type === "homeroom_notice" && (
+                <p className="text-sm text-muted m-0">
+                  담당 학급: {teacherInfo?.homeroomLabel || `${teacherInfo?.homeroom}반`}
+                </p>
+              )}
+            </>
+          )}
+
           <label className="text-xs font-bold text-muted mt-2">제목</label>
           <input
             className="border border-border rounded-lg px-2.5 py-2 text-sm"

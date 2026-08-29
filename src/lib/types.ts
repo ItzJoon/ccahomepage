@@ -36,9 +36,11 @@ export interface Member {
   order_index: number;
 }
 
+export type PostType = "notice" | "news" | "subject_notice" | "homeroom_notice";
+
 export interface Post {
   id: string;
-  type: "notice" | "news";
+  type: PostType;
   title: string;
   content: string;
   category: string;
@@ -51,6 +53,15 @@ export interface Post {
   video_source: "drive" | "upload" | null;
   video_url: string | null;
   video_path: string | null;
+  target_subject: string | null;
+  target_homeroom: number | null;
+}
+
+export interface StudentSubject {
+  id: string;
+  user_id: string;
+  subject: string;
+  created_at: string;
 }
 
 export interface EventItem {

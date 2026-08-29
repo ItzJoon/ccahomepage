@@ -13,8 +13,10 @@ function fmt(d: string) {
 }
 
 export default function NoticesPage() {
+  // 교과/학급 공지도 같이 조회한다 — RLS가 본인이 대상인 것만 돌려주므로(student_subjects
+  // 수강 과목 일치 / homeroom 일치), 여기서 별도로 필터링할 필요는 없다.
   const { rows } = useRealtimeList<Post>("posts", {
-    filter: (q) => q.eq("type", "notice").eq("status", "published"),
+    filter: (q) => q.in("type", ["notice", "subject_notice", "homeroom_notice"]).eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
   const [q, setQ] = useState("");
@@ -56,7 +58,13 @@ export default function NoticesPage() {
           {list.map((n) => (
             <tr key={n.id} className="hover:bg-[#F2F4F8]">
               <td className="p-2.5 border-b border-border">
-                <Badge color="navy">{n.category}</Badge>
+                {n.type === "subject_notice" ? (
+                  <Badge color="teal">교과·{n.target_subject}</Badge>
+                ) : n.type === "homeroom_notice" ? (
+                  <Badge color="gold">학급·{n.target_homeroom}반</Badge>
+                ) : (
+                  <Badge color="navy">{n.category}</Badge>
+                )}
               </td>
               <td className="p-2.5 border-b border-border">
                 <Link href={`/notices/${n.id}`} className="flex items-center gap-1">

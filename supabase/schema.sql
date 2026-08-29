@@ -1289,3 +1289,144 @@ create trigger audit_site_settings_maintenance after update on site_settings
 drop policy if exists "audit_logs_admin_read" on audit_logs;
 create policy "audit_logs_superadmin_read" on audit_logs for select using (is_superadmin());
 drop policy if exists "audit_logs_insert_admin" on audit_logs;
+
+-- ------------------------------------------------------------
+-- 37. 선생님 공지사항 (교과 공지 / 학급 공지)
+-- ------------------------------------------------------------
+-- "교과" 공지 대상 판단에 필요한 학생별 수강 과목 데이터는 아직 없다. 나중에 실제
+-- 데이터를 채워 넣을 예정이라 지금은 구조만 만들어두고 비워둔다 — 데이터가 없으면
+-- 자연히 아무 학생에게도 교과 공지가 안 보이는 상태가 되는 것도 의도된 정상 동작이다.
+create table if not exists student_subjects (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  subject text not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, subject)
+);
+alter table student_subjects enable row level security;
+
+drop policy if exists "student_subjects_read_own_or_staff" on student_subjects;
+create policy "student_subjects_read_own_or_staff" on student_subjects for select
+  using (auth.uid() = user_id or is_editor_or_above());
+drop policy if exists "student_subjects_write_staff" on student_subjects;
+create policy "student_subjects_write_staff" on student_subjects for all
+  using (is_editor_or_above()) with check (is_editor_or_above());
+
+-- "학급" 공지는 이미 있는 directory_members.homeroom(담임 학급)으로 바로 판단 가능해서
+-- 완전히 구현한다 — 교사 본인의 homeroom과 일치하는 학생만 대상이 된다. 다만 지금
+-- directory_members에는 어떤 teacher 행에도 homeroom이 채워져 있지 않아서(담임 배정
+-- 데이터 자체가 아직 없음), student_subjects와 마찬가지로 데이터가 채워지기 전까지는
+-- 학급 공지도 실제로 노출되는 대상이 없는 상태다 — 이 역시 정상이다.
+alter table posts drop constraint if exists posts_type_check;
+alter table posts add constraint posts_type_check
+  check (type in ('notice','news','subject_notice','homeroom_notice'));
+
+alter table posts add column if not exists target_subject text;
+alter table posts add column if not exists target_homeroom int;
+
+-- teacher 및 그 이상 역할(관리 목적 열람용)
+create or replace function is_teacher_or_editor_above()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('teacher','editor','admin','superadmin')
+  );
+$$ language sql stable security definer;
+
+-- teacher 본인이 directory_members에 등록된 담당 과목 중 하나인지(콤마로 여러 개 저장돼
+-- 있을 수 있어 분리해서 비교), 담당 학급(homeroom)과 일치하는지 확인하는 헬퍼. 클라이언트
+-- UI에서 본인 담당 과목/학급만 고르게 하는 것과 별개로, 서버(RLS)에서도 위조를 막는다.
+create or replace function teacher_owns_subject(p_user_id uuid, p_subject text)
+returns boolean as $$
+  select exists (
+    select 1
+    from directory_members dm
+    join profiles p on p.email = dm.email
+    where p.id = p_user_id
+      and dm.member_type = 'teacher'
+      and p_subject = any (
+        select trim(s) from unnest(string_to_array(coalesce(dm.subject, ''), ',')) as s
+      )
+  );
+$$ language sql stable security definer;
+
+create or replace function teacher_owns_homeroom(p_user_id uuid, p_homeroom int)
+returns boolean as $$
+  select exists (
+    select 1
+    from directory_members dm
+    join profiles p on p.email = dm.email
+    where p.id = p_user_id
+      and dm.member_type = 'teacher'
+      and dm.homeroom = p_homeroom
+  );
+$$ language sql stable security definer;
+
+-- 일반 공지/뉴스는 기존처럼 공개 열람(교과/학급 공지는 이 정책에서 제외하고 아래
+-- 전용 정책으로 대상만 볼 수 있게 분리한다).
+drop policy if exists "posts_read_published" on posts;
+create policy "posts_read_published" on posts for select
+  using (
+    type in ('notice','news')
+    and (status = 'published' or is_editor_or_above())
+  );
+
+-- 교과 공지: student_subjects에 해당 과목이 있는 학생만(또는 teacher 이상은 관리 목적으로 전부)
+drop policy if exists "posts_read_subject_notice" on posts;
+create policy "posts_read_subject_notice" on posts for select
+  using (
+    type = 'subject_notice'
+    and (
+      is_teacher_or_editor_above()
+      or (
+        status = 'published'
+        and exists (
+          select 1 from student_subjects ss
+          where ss.user_id = auth.uid() and ss.subject = posts.target_subject
+        )
+      )
+    )
+  );
+
+-- 학급 공지: 본인 homeroom이 일치하는 학생만(또는 teacher 이상은 관리 목적으로 전부)
+drop policy if exists "posts_read_homeroom_notice" on posts;
+create policy "posts_read_homeroom_notice" on posts for select
+  using (
+    type = 'homeroom_notice'
+    and (
+      is_teacher_or_editor_above()
+      or (
+        status = 'published'
+        and exists (
+          select 1 from directory_members dm
+          join profiles p on p.email = dm.email
+          where p.id = auth.uid() and dm.homeroom = posts.target_homeroom
+        )
+      )
+    )
+  );
+
+-- 일반 공지/뉴스는 기존처럼 editor 이상만(교과/학급 공지는 이 정책에서 제외). 이렇게
+-- 완전히 분리해야 일반 공지 작성 권한이 있는 사람이 교과/학급 공지를 쓰거나, 반대로
+-- teacher가 일반 공지를 쓰는 일이 없다.
+drop policy if exists "posts_insert_editor" on posts;
+create policy "posts_insert_editor" on posts for insert
+  with check (type in ('notice','news') and is_editor_or_above());
+
+-- 교과/학급 공지는 teacher 전용, 그리고 본인이 실제로 담당하는 과목/학급인지 서버에서도 검증.
+drop policy if exists "posts_insert_teacher_notice" on posts;
+create policy "posts_insert_teacher_notice" on posts for insert
+  with check (
+    author_id = auth.uid()
+    and (
+      (type = 'subject_notice' and teacher_owns_subject(auth.uid(), target_subject))
+      or (type = 'homeroom_notice' and teacher_owns_homeroom(auth.uid(), target_homeroom))
+    )
+  );
+
+-- teacher는 본인이 작성한 교과/학급 공지만 수정 가능(editor 이상은 기존 posts_update_editor로
+-- 모든 글을 계속 수정 가능, 삭제는 기존처럼 admin 이상만 — posts_delete_admin 그대로 유지).
+drop policy if exists "posts_update_teacher_own" on posts;
+create policy "posts_update_teacher_own" on posts for update
+  using (author_id = auth.uid() and type in ('subject_notice','homeroom_notice'))
+  with check (author_id = auth.uid() and type in ('subject_notice','homeroom_notice'));

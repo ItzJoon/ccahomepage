@@ -31,7 +31,14 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         ← 목록으로
       </Link>
       <div>
-        <Badge color="navy">{post.category}</Badge> {post.is_pinned && <Pin />}
+        {post.type === "subject_notice" ? (
+          <Badge color="teal">교과·{post.target_subject}</Badge>
+        ) : post.type === "homeroom_notice" ? (
+          <Badge color="gold">학급·{post.target_homeroom}반</Badge>
+        ) : (
+          <Badge color="navy">{post.category}</Badge>
+        )}{" "}
+        {post.is_pinned && <Pin />}
         <h1 className="text-2xl my-2">{post.title}</h1>
         <div className="text-muted text-sm mb-[18px]">
           {fmt(post.publish_at)} · 조회 {post.view_count + 1}

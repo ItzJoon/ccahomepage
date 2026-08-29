@@ -140,8 +140,13 @@ export async function updateSession(request: NextRequest) {
     // 관리"(안건함/조직 일정/활동기록) 화면만 예외적으로 sub_editor 이상에게 열어주고,
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
+    // teacher는 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로 접근할 수
+    // 있다(일반 공지 작성 권한은 없음 — 실제 작성 가능 범위는 posts RLS가 결정한다).
+    const isNoticesPath = pathname === "/admin/notices" || pathname.startsWith("/admin/notices/");
     const adminAllowedRoles = isOrgActivitiesPath
       ? ["sub_editor", "editor", "admin", "superadmin"]
+      : isNoticesPath
+      ? ["teacher", "editor", "admin", "superadmin"]
       : ["editor", "admin", "superadmin"];
     if (!r || !adminAllowedRoles.includes(r)) {
       const url = request.nextUrl.clone();
