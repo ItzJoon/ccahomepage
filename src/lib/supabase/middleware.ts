@@ -8,10 +8,6 @@ import { NextResponse, type NextRequest } from "next/server";
  * admin/superadmin을 제외한 모든 사용자를 /maintenance 로 보냅니다(/admin 하위 경로 포함).
  */
 export async function updateSession(request: NextRequest) {
-  // 루트 레이아웃(src/app/layout.tsx)이 서버 컴포넌트라 usePathname을 쓸 수 없어서,
-  // 요청 경로를 헤더로 실어 보낸다 — /admin 경로에서는 학생용 헤더/푸터를 아예 안 그리기
-  // 위한 용도(관리자 화면 자체 헤더/사이드바 위에 학생용 헤더가 겹쳐 보이던 문제 해결).
-  request.headers.set("x-pathname", request.nextUrl.pathname);
   let response = NextResponse.next({ request: { headers: request.headers } });
 
   const supabase = createServerClient(
