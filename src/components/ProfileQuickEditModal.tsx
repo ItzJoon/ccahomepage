@@ -24,6 +24,7 @@ export default function ProfileQuickEditModal({
   const [nickname, setNickname] = useState(initialNickname);
   const [bio, setBio] = useState(initialBio);
   const [saving, setSaving] = useState(false);
+  const isDirty = nickname !== initialNickname || bio !== initialBio;
 
   const save = async () => {
     setSaving(true);
@@ -61,7 +62,7 @@ export default function ProfileQuickEditModal({
           onChange={(e) => setBio(e.target.value)}
         />
         <div className="flex gap-2 mt-3.5">
-          <button onClick={save} disabled={saving} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2">
+          <button onClick={save} disabled={saving || !isDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
             {saving ? "저장 중…" : "저장"}
           </button>
           <button onClick={onClose} className="border border-border text-sm rounded-lg px-4 py-2">

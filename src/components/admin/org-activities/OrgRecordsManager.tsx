@@ -30,17 +30,23 @@ export default function OrgRecordsManager() {
   const { rows: records, reload } = useRealtimeList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
 
   const startNew = () => {
-    setForm({ ...empty, org_id: orgs[0]?.id || "" });
+    const next = { ...empty, org_id: orgs[0]?.id || "" };
+    setForm(next);
+    setInitialForm(next);
     setError(null);
     setEditing("new");
   };
   const startEdit = (r: OrgRecord) => {
-    setForm({ org_id: r.org_id, category: r.category, title: r.title, content: r.content });
+    const next = { org_id: r.org_id, category: r.category, title: r.title, content: r.content };
+    setForm(next);
+    setInitialForm(next);
     setError(null);
     setEditing(r.id);
   };
@@ -119,7 +125,7 @@ export default function OrgRecordsManager() {
           <textarea rows={5} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
           {error && <div className="text-red text-xs">{error}</div>}
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
         </div>

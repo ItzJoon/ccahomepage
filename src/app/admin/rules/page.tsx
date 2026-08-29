@@ -20,12 +20,16 @@ export default function AdminRulesPage() {
   });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
   const [newFiles, setNewFiles] = useState<AttachmentRef[]>([]);
   const [existingFiles, setExistingFiles] = useState<RuleWithAttachments["attachments"]>([]);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm) || newFiles.length > 0;
 
-  const startNew = () => { setForm({ ...empty }); setNewFiles([]); setExistingFiles([]); setEditing("new"); };
+  const startNew = () => { setForm({ ...empty }); setInitialForm({ ...empty }); setNewFiles([]); setExistingFiles([]); setEditing("new"); };
   const startEdit = (r: RuleWithAttachments) => {
-    setForm({ title: r.title, category: r.category, content: r.content });
+    const next = { title: r.title, category: r.category, content: r.content };
+    setForm(next);
+    setInitialForm(next);
     setNewFiles([]);
     setExistingFiles(r.attachments ?? []);
     setEditing(r.id);
@@ -109,7 +113,7 @@ export default function AdminRulesPage() {
           </div>
           <FileUpload files={newFiles} onChange={setNewFiles} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
         </div>

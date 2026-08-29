@@ -45,8 +45,10 @@ export default function PostManager({
 
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [initialForm, setInitialForm] = useState({ ...emptyForm });
   const [newFiles, setNewFiles] = useState<AttachmentRef[]>([]);
   const [existingFiles, setExistingFiles] = useState<PostWithAttachments["attachments"]>([]);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm) || newFiles.length > 0;
   const [saving, setSaving] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   const [iAmAdmin, setIAmAdmin] = useState(false);
@@ -64,12 +66,13 @@ export default function PostManager({
 
   const startNew = () => {
     setForm({ ...emptyForm });
+    setInitialForm({ ...emptyForm });
     setNewFiles([]);
     setExistingFiles([]);
     setEditing("new");
   };
   const startEdit = (item: PostWithAttachments) => {
-    setForm({
+    const next = {
       title: item.title,
       category: item.category,
       content: item.content,
@@ -79,7 +82,9 @@ export default function PostManager({
       video_source: item.video_source,
       video_url: item.video_url,
       video_path: item.video_path,
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
     setNewFiles([]);
     setExistingFiles(item.attachments ?? []);
     setEditing(item.id);
@@ -351,7 +356,7 @@ export default function PostManager({
           )}
 
           <div className="flex gap-2 mt-3.5">
-            <button disabled={saving} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">
+            <button disabled={saving || !isDirty} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
               {saving ? "저장 중…" : "저장"}
             </button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">

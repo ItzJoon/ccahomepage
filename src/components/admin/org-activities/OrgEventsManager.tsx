@@ -40,17 +40,21 @@ export default function OrgEventsManager() {
   const { rows: events, reload } = useRealtimeList<OrgEvent>("org_events", { orderBy: { column: "start_at" } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
 
   const startNew = () => {
-    setForm({ ...empty, org_id: orgs[0]?.id || "" });
+    const next = { ...empty, org_id: orgs[0]?.id || "" };
+    setForm(next);
+    setInitialForm(next);
     setError(null);
     setEditing("new");
   };
   const startEdit = (e: OrgEvent) => {
-    setForm({
+    const next = {
       org_id: e.org_id,
       title: e.title,
       description: e.description || "",
@@ -58,7 +62,9 @@ export default function OrgEventsManager() {
       category: e.category,
       start_at: toDatetimeLocal(e.start_at),
       end_at: toDatetimeLocal(e.end_at),
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
     setError(null);
     setEditing(e.id);
   };
@@ -158,7 +164,7 @@ export default function OrgEventsManager() {
           <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           {error && <div className="text-red text-xs">{error}</div>}
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
         </div>

@@ -46,6 +46,8 @@ export default function MyPage() {
     loadProfile();
   }, [loadProfile]);
 
+  const isProfileDirty = nickname !== (profile?.nickname ?? "") || bio !== (profile?.bio ?? "");
+
   const saveProfile = async () => {
     if (!userId) return;
     setSaving(true);
@@ -194,7 +196,7 @@ export default function MyPage() {
               onChange={(e) => setBio(e.target.value)}
             />
             <div className="flex items-center gap-2 mt-3">
-              <button onClick={saveProfile} disabled={saving} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2">
+              <button onClick={saveProfile} disabled={saving || !isProfileDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {saving ? "저장 중…" : "저장"}
               </button>
               {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}

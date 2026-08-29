@@ -23,17 +23,23 @@ export default function AdminOrganizationsPage() {
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
   const [addingMember, setAddingMember] = useState(false);
   const [memberForm, setMemberForm] = useState({ ...emptyMember });
 
   const startNew = () => {
-    setForm({ ...empty, order_index: rows.length + 1 });
+    const next = { ...empty, order_index: rows.length + 1 };
+    setForm(next);
+    setInitialForm(next);
     setAddingMember(false);
     setMemberForm({ ...emptyMember });
     setEditing("new");
   };
   const startEdit = (o: Organization) => {
-    setForm({ name: o.name, slug: o.slug, color: o.color, description: o.description || "", role_description: o.role_description || "", order_index: o.order_index });
+    const next = { name: o.name, slug: o.slug, color: o.color, description: o.description || "", role_description: o.role_description || "", order_index: o.order_index };
+    setForm(next);
+    setInitialForm(next);
     setAddingMember(false);
     setMemberForm({ ...emptyMember });
     setEditing(o.id);
@@ -136,7 +142,7 @@ export default function AdminOrganizationsPage() {
           <label className="text-xs font-bold text-muted mt-2">주요 역할</label>
           <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.role_description} onChange={(e) => setForm({ ...form, role_description: e.target.value })} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
 

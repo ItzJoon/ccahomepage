@@ -33,6 +33,12 @@ export default function AdminMaintenancePage() {
     }
   }, [settings]);
 
+  const isDirty = !!settings && (
+    form.maintenance_mode !== settings.maintenance_mode ||
+    form.maintenance_message !== settings.maintenance_message ||
+    form.maintenance_until !== (settings.maintenance_until || "")
+  );
+
   const save = async () => {
     setSaving(true);
     await supabase
@@ -90,7 +96,7 @@ export default function AdminMaintenancePage() {
 
         {iAmAdmin ? (
           <div className="flex items-center gap-2 mt-3.5">
-            <button disabled={saving} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">
+            <button disabled={saving || !isDirty} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
               {saving ? "저장 중…" : "저장"}
             </button>
             {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}

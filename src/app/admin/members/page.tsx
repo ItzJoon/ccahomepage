@@ -20,13 +20,19 @@ export default function AdminMembersPage() {
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const startNew = () => {
-    setForm({ ...empty, org_id: orgs[0]?.id || "" });
+    const next = { ...empty, org_id: orgs[0]?.id || "" };
+    setForm(next);
+    setInitialForm(next);
     setEditing("new");
   };
   const startEdit = (m: MemberRow) => {
-    setForm({ org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index });
+    const next = { org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index };
+    setForm(next);
+    setInitialForm(next);
     setEditing(m.id);
   };
 
@@ -113,7 +119,7 @@ export default function AdminMembersPage() {
           <label className="text-xs font-bold text-muted mt-2">소개</label>
           <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
         </div>

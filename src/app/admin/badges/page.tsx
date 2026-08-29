@@ -36,6 +36,8 @@ export default function AdminBadgesPage() {
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
+  const [initialForm, setInitialForm] = useState({ ...empty });
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const [grantUser, setGrantUser] = useState<Profile | null>(null);
   const [grantUserEarnedIds, setGrantUserEarnedIds] = useState<Set<string>>(new Set());
@@ -58,11 +60,13 @@ export default function AdminBadgesPage() {
   const grantableBadges = [...rows].sort((a, b) => sortKey(a) - sortKey(b)).filter((b) => !grantUserEarnedIds.has(b.id));
 
   const startNew = () => {
-    setForm({ ...empty, order_index: rows.length + 1 });
+    const next = { ...empty, order_index: rows.length + 1 };
+    setForm(next);
+    setInitialForm(next);
     setEditing("new");
   };
   const startEdit = (b: BadgeDef) => {
-    setForm({
+    const next = {
       code: b.code,
       label: b.label,
       description: b.description || "",
@@ -75,7 +79,9 @@ export default function AdminBadgesPage() {
       order_index: b.order_index,
       is_active: b.is_active,
       is_secret: b.is_secret,
-    });
+    };
+    setForm(next);
+    setInitialForm(next);
     setEditing(b.id);
   };
 
@@ -377,7 +383,7 @@ export default function AdminBadgesPage() {
             시크릿 (획득 전까지 학생에게 숨김)
           </label>
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">저장</button>
+            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
             <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
           </div>
         </div>
