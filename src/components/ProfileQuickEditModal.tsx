@@ -54,6 +54,9 @@ export default function ProfileQuickEditModal({
           maxLength={20}
           onChange={(e) => setNickname(e.target.value)}
         />
+        <p className="text-[11px] text-muted m-0">
+          특정인 사칭, 비방 등 부적절한 닉네임은 예고 없이 관리자가 임의로 수정할 수 있습니다.
+        </p>
         <label className="text-xs font-bold text-muted mt-2">자기소개 한 줄</label>
         <input
           className="border border-border rounded-lg px-2.5 py-2 text-sm"
