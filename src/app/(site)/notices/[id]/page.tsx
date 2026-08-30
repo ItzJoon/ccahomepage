@@ -11,7 +11,7 @@ function fmt(d: string) {
 
 export default async function NoticeDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("*").eq("id", params.id).single();
+  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", params.id).single();
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다.</div>;
   }
@@ -37,7 +37,8 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         {post.is_pinned && <Pin />}
         <h1 className="text-2xl my-2">{post.title}</h1>
         <div className="text-muted text-sm mb-[18px]">
-          {fmt(post.publish_at)} · <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} contentType="notice" />
+          {post.author_name || "-"} · {fmt(post.publish_at)} ·{" "}
+          <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} contentType="notice" />
         </div>
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>

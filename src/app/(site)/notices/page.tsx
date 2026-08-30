@@ -7,6 +7,10 @@ import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import type { Post } from "@/lib/types";
 
+interface Row extends Post {
+  author_name: string | null;
+}
+
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
@@ -15,7 +19,10 @@ function fmt(d: string) {
 export default function NoticesPage() {
   // 교과/학급 공지도 같이 조회한다 — RLS가 본인이 대상인 것만 돌려주므로(student_subjects
   // 수강 과목 일치 / homeroom 일치), 여기서 별도로 필터링할 필요는 없다.
-  const { rows } = useRealtimeList<Post>("posts", {
+  // author_name은 profiles를 그대로 조인하면 다른 사람 이름이 RLS에 막혀 비어오므로,
+  // 안전하게 이름만 반환하는 computed column을 대신 쓴다(supabase/schema.sql 51번 참고).
+  const { rows } = useRealtimeList<Row>("posts", {
+    select: "*, author_name",
     filter: (q) => q.in("type", ["notice", "subject_notice", "homeroom_notice"]).eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
@@ -50,6 +57,7 @@ export default function NoticesPage() {
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">분류</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">작성자</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">조회</th>
           </tr>
@@ -71,6 +79,7 @@ export default function NoticesPage() {
                   {n.is_pinned && <Pin />} {n.title}
                 </Link>
               </td>
+              <td className="p-2.5 border-b border-border text-sm text-muted">{n.author_name || "-"}</td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(n.publish_at)}</td>
               <td className="p-2.5 border-b border-border text-sm">{n.view_count}</td>
             </tr>
