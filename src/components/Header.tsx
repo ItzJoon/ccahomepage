@@ -53,6 +53,8 @@ export default function Header({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const signOut = async () => {
@@ -61,6 +63,14 @@ export default function Header({
   };
 
   const closeMobile = () => setMobileOpen(false);
+
+  const submitSearch = () => {
+    if (!searchQuery.trim()) return;
+    router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    setSearchOpen(false);
+    setSearchQuery("");
+    closeMobile();
+  };
 
   useEffect(() => {
     setMobileOpen(false);
@@ -112,6 +122,26 @@ export default function Header({
         </nav>
 
         <div className="hidden md:flex items-center gap-2 shrink-0">
+          {searchOpen ? (
+            <input
+              autoFocus
+              className="w-40 border border-border rounded-md px-2.5 py-1.5 text-sm"
+              placeholder="통합 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+              onBlur={() => !searchQuery && setSearchOpen(false)}
+            />
+          ) : (
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className={`w-9 h-9 flex items-center justify-center rounded-md text-base leading-none ${t.iconBtnHover}`}
+              aria-label="통합 검색 열기"
+            >
+              🔍
+            </button>
+          )}
           {profile ? (
             <>
               {isAdmin && (
@@ -174,6 +204,18 @@ export default function Header({
 
       {mobileOpen && (
         <div className={`md:hidden ${t.mobileBorder} px-5 py-3`}>
+          <div className="flex gap-2 mb-2.5">
+            <input
+              className="flex-1 border border-border rounded-md px-2.5 py-1.5 text-sm"
+              placeholder="통합 검색"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && submitSearch()}
+            />
+            <button type="button" onClick={submitSearch} className={`text-sm px-3 rounded-md ${t.authBtn}`}>
+              검색
+            </button>
+          </div>
           <nav className="flex flex-col gap-0.5">
             {visibleNav.map((n) => (
               <Link
