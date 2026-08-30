@@ -13,6 +13,15 @@ import type { Post, EventItem, MainBlock, MealPlan } from "@/lib/types";
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
+// Tailwind는 클래스 이름을 소스에서 문자열 그대로 찾아야 인식하므로(JIT), `md:col-span-${n}`
+// 처럼 동적으로 이어붙이면 실제 빌드에 포함되지 않는다. 완성된 문자열을 미리 다 적어두고
+// col_span 값으로 골라 쓴다.
+const COL_SPAN_CLASS: Record<number, string> = {
+  1: "md:col-span-1",
+  2: "md:col-span-2",
+  3: "md:col-span-3",
+};
+
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
@@ -119,11 +128,12 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
       <StreakBar userId={userId} initialThemeKey={initialThemeKey} />
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-[18px]">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px]">
         {visibleBlocks.map((b) => {
+          const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[3];
           if (b.id === "notice")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <ul className="list-none m-0 p-0">
                   {notices.slice(0, 5).map((n) => (
@@ -145,7 +155,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "event")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
                 <div className="flex flex-col gap-2.5">
                   {upcoming.map((e) => (
@@ -171,7 +181,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "news")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 md:col-span-2`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {news.slice(0, 3).map((n) => (
@@ -195,7 +205,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "meal")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="MEAL" title="이번 달 급식표" />
                 {thisMonth ? (
                   <img
@@ -210,7 +220,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "quick")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 md:col-span-2`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="QUICK MENU" title="빠른 메뉴" />
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5">
                   {QUICK_MENU.map(([icon, label, href]) => (

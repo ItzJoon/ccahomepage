@@ -46,7 +46,7 @@ council-site/
     │       ├─ rules/                # 규정 관리(첨부파일)
     │       ├─ qna/                  # Q&A 답변 작성
     │       ├─ notify/               # 실시간 알림 발송
-    │       ├─ main-editor/          # 홈 화면 블록 노출/순서 편집
+    │       ├─ main-editor/          # 홈 화면 블록 노출/순서/너비(1~3칸) 편집
     │       ├─ badges/               # 연속 접속 뱃지 관리 (추가/수정/비활성화)
     │       ├─ pages/                # 페이지·메뉴 빌더 (신규 메뉴 추가)
     │       ├─ users/                # 회원 권한(role) 관리
@@ -82,7 +82,7 @@ council-site/
 | `notifications` | 실시간 알림 발송 이력 |
 | `user_attendance` | 사용자별 일일 접속 기록 + 연속 접속일수 |
 | `pages` / `menus` / `blocks` | 관리자가 코딩 없이 추가하는 커스텀 페이지/메뉴 (확장용) |
-| `main_blocks` | 홈 화면 블록(공지/일정/뉴스/빠른메뉴) 노출 여부·순서 |
+| `main_blocks` | 홈 화면 블록(공지/일정/뉴스/빠른메뉴/급식표) 노출 여부·순서·너비(`col_span`, 1~3) |
 | `audit_logs` | 관리자 작업 감사 로그 |
 | `badges` | 연속 접속 뱃지 정의 (코드/조건일수/아이콘, 관리자가 추가) |
 | `user_badges` | 사용자별 뱃지 획득 기록 |

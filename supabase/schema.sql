@@ -2089,3 +2089,11 @@ create trigger audit_user_badges_insert after insert on user_badges
 
 create trigger audit_user_badges_delete after delete on user_badges
   for each row execute function log_audit_event();
+
+-- ------------------------------------------------------------
+-- 56. 메인화면 편집기: 세로 순서뿐 아니라 가로 너비(1/3, 2/3, 전체)도 조정 가능하게 변경
+-- ------------------------------------------------------------
+-- 3칸 그리드 기준 칸 수(1~3)를 저장한다. 기본값은 지금까지의 배치(공지/일정은 좁게,
+-- 나머지는 전체 폭)에 가깝게 맞춰서 마이그레이션 직후 레이아웃이 과하게 깨지지 않게 한다.
+alter table main_blocks add column if not exists col_span int not null default 3 check (col_span between 1 and 3);
+update main_blocks set col_span = 1 where id in ('notice', 'event');

@@ -133,6 +133,7 @@ export interface MainBlock {
   label: string;
   is_visible: boolean;
   order_index: number;
+  col_span: number;
 }
 
 export interface MealPlan {
