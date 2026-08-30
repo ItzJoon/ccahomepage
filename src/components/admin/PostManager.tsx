@@ -201,12 +201,19 @@ export default function PostManager({
           .from("attachments")
           .insert(newFiles.map((f) => ({ post_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
       }
-      if (!error) {
+      if (!error && data) {
         clearDraft(draftKey);
         setHasDraft(false);
+        // 이메일 알림은 자동으로 나가지 않는다 — 저장 직후 이 패널을 그대로 열어둬서,
+        // 바로 아래 나오는 "이메일로 알림 보내기"에서 대상을 골라 직접 보낼 수 있게 한다
+        // (닫아버리면 목록에서 이 글을 다시 눌러야만 그 패널이 보여서 혼란스러웠다).
+        setEditing(data.id);
+        setInitialForm(form);
+        setNewFiles([]);
+        setSaving(false);
+        reload();
+        return;
       }
-      // 이메일 알림은 더 이상 자동으로 나가지 않는다 — 저장 후 목록에서 이 글을 다시 열면
-      // 나오는 "이메일로 알림 보내기" 패널(대상 선택 + 미리보기 + 확인)에서 직접 보낸다.
     } else if (editing) {
       await supabase.from("posts").update(form).eq("id", editing);
       if (newFiles.length > 0) {
@@ -562,6 +569,12 @@ export default function PostManager({
               취소
             </button>
           </div>
+
+          {editing === "new" && (
+            <p className="text-[11px] text-muted mt-2">
+              이메일 알림은 저장한 뒤에 보낼 수 있습니다 — "저장"을 누르면 바로 아래 발송 옵션이 나타납니다.
+            </p>
+          )}
 
           {editing !== "new" && form.status === "published" && (
             <EmailSendPanel
