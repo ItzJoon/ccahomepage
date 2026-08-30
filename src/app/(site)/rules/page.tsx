@@ -84,7 +84,7 @@ export default function RulesPage() {
           {(q === "" ? rows : filtered).map((r, i, arr) => {
             const isNewCategory = i === 0 || arr[i - 1].category !== r.category;
             return (
-              <div key={r.id} id={anchorId(r.id)}>
+              <div key={r.id} id={anchorId(r.id)} className="scroll-mt-24">
                 {isNewCategory && (
                   <h2 className="text-lg font-black text-navy border-b border-border pb-2 mb-3">{r.category}</h2>
                 )}
