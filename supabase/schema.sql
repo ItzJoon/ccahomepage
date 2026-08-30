@@ -2312,3 +2312,12 @@ create policy "reports_select_designer" on reports for select using (is_designer
 create policy "student_subjects_select_designer" on student_subjects for select using (is_designer());
 create policy "user_attendance_select_designer" on user_attendance for select using (is_designer());
 create policy "user_badges_select_designer" on user_badges for select using (is_designer());
+
+-- ------------------------------------------------------------
+-- 62. 학생생활규정을 조(條) 단위로 분리 검색하기 위한 정렬 컬럼
+-- ------------------------------------------------------------
+-- 규정 전문을 하나의 rules 행에 통째로 넣으면 검색 결과를 눌러도 문서 전체가 나와서 원하는
+-- 조항만 바로 보기 어렵다. 조(條)마다 별도 행으로 등록해 검색 결과에서 바로 해당 조문만
+-- 보이게 했다. title(예: "제20조(생활교육의 종류)")은 "제10조"가 "제2조"보다 문자열상
+-- 앞에 오는 등 숫자 순서와 어긋나므로, 화면 표시 순서를 위한 정수 컬럼을 별도로 둔다.
+alter table rules add column if not exists order_index int not null default 0;

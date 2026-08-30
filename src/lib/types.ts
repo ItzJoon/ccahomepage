@@ -115,6 +115,7 @@ export interface RuleDoc {
   category: string;
   content: string;
   updated_at: string;
+  order_index: number;
   attachments?: { id: string; file_url: string; file_name: string }[];
 }
 

@@ -10,7 +10,7 @@ import type { RuleDoc } from "@/lib/types";
 export default function RulesPage() {
   const { rows } = useRealtimeList<RuleDoc>("rules", {
     select: "*, attachments(*)",
-    orderBy: { column: "title" },
+    orderBy: { column: "order_index" },
   });
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);

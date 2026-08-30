@@ -11,13 +11,13 @@ interface RuleWithAttachments extends RuleDoc {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
 }
 
-const empty = { title: "", category: "공통", content: "" };
+const empty = { title: "", category: "공통", content: "", order_index: 0 };
 
 export default function AdminRulesPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<RuleWithAttachments>("rules", {
     select: "*, attachments(*)",
-    orderBy: { column: "title" },
+    orderBy: { column: "order_index" },
   });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
@@ -28,7 +28,7 @@ export default function AdminRulesPage() {
 
   const startNew = () => { setForm({ ...empty }); setInitialForm({ ...empty }); setNewFiles([]); setExistingFiles([]); setEditing("new"); };
   const startEdit = (r: RuleWithAttachments) => {
-    const next = { title: r.title, category: r.category, content: r.content };
+    const next = { title: r.title, category: r.category, content: r.content, order_index: r.order_index };
     setForm(next);
     setInitialForm(next);
     setNewFiles([]);
@@ -76,7 +76,7 @@ export default function AdminRulesPage() {
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">분류</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">분류</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
             </tr>
           </thead>
@@ -86,7 +86,9 @@ export default function AdminRulesPage() {
                 <td className="p-2.5 border-b border-border text-sm">
                   <span {...truncateCellProps(r.title)}>{r.title}</span>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{r.category}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  <span {...truncateCellProps(r.category)}>{r.category}</span>
+                </td>
                 <td className="p-2.5 border-b border-border">
                   <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>삭제</button>
                 </td>
@@ -103,6 +105,13 @@ export default function AdminRulesPage() {
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">분류</label>
           <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <label className="text-xs font-bold text-muted mt-2">표시 순서 (작을수록 위)</label>
+          <input
+            type="number"
+            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            value={form.order_index}
+            onChange={(e) => setForm({ ...form, order_index: Number(e.target.value) })}
+          />
           <label className="text-xs font-bold text-muted mt-2">본문</label>
           <textarea rows={10} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
