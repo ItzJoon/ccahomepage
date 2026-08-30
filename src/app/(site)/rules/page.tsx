@@ -80,7 +80,7 @@ export default function RulesPage() {
             <li className="text-muted text-center py-6 text-sm">검색 결과가 없습니다.</li>
           )}
         </ul>
-        <div className="bg-white border border-border rounded-2xl p-5.5 flex flex-col gap-7">
+        <div className="bg-white border border-border rounded-2xl p-7 flex flex-col gap-7">
           {(q === "" ? rows : filtered).map((r, i, arr) => {
             const isNewCategory = i === 0 || arr[i - 1].category !== r.category;
             return (
