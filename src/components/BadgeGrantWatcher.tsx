@@ -21,6 +21,14 @@ import type { BadgeDef } from "@/lib/types";
 export default function BadgeGrantWatcher({ userId }: { userId: string | null }) {
   const [queue, setQueue] = useState<BadgeDef[]>([]);
   const badgesRef = useRef<BadgeDef[]>([]);
+  // 실시간 구독(INSERT 이벤트)과 폴링(20초 주기 안전망)이 같은 badge_id를 동시에 감지할
+  // 수 있다 — DB에 celebrated=true로 기록하는 mark_badges_celebrated 호출은 fire-and-forget
+  // 이라(응답을 기다리지 않음) 아직 커밋되기 전에 폴링이 같은 행을 celebrated=false로 다시
+  // 읽어갈 여지가 있다. queue 안에 있는지만 확인하면, 팝업을 한 번 띄우고 닫은 뒤(큐에서
+  // 빠진 뒤) 그 커밋 전 폴링이 돌면 "새로 지급된 것"으로 착각해 또 띄운다(중복 팝업 버그의
+  // 원인). 세션 동안 계속 유지되는 이 ref로 "이미 큐에 넣은 적 있는 badge_id"를 기록해서,
+  // 큐에서 빠져나간 뒤에도 다시 넣지 않게 막는다.
+  const notifiedRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!userId) return;
@@ -43,7 +51,9 @@ export default function BadgeGrantWatcher({ userId }: { userId: string | null })
     };
 
     const push = (badge: BadgeDef) => {
-      setQueue((prev) => (prev.some((b) => b.id === badge.id) ? prev : [...prev, badge]));
+      if (notifiedRef.current.has(badge.id)) return;
+      notifiedRef.current.add(badge.id);
+      setQueue((prev) => [...prev, badge]);
       supabase.rpc("mark_badges_celebrated", { target_badge_ids: [badge.id] });
     };
 
