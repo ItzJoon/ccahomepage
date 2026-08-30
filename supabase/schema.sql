@@ -2035,3 +2035,37 @@ create policy "meal_plans_bucket_update_admin" on storage.objects for update
 drop policy if exists "meal_plans_bucket_delete_admin" on storage.objects;
 create policy "meal_plans_bucket_delete_admin" on storage.objects for delete
   using (bucket_id = 'meal-plans' and is_admin());
+
+-- ------------------------------------------------------------
+-- 53. 공지사항 등록 시 이메일 알림 기능
+-- ------------------------------------------------------------
+-- 학생이 마이페이지에서 이메일 알림 수신 여부를 개별적으로 끌 수 있다(기본값 켜짐).
+alter table profiles add column if not exists email_notifications boolean not null default true;
+
+-- 발송 실패(및 발송 이력) 로그. 클라이언트가 직접 쓰지 않고 서버(서비스 롤 키)에서만
+-- 기록하므로 별도 insert 정책이 없다 — RLS가 걸려 있으면 클라이언트/anon의 직접 삽입은
+-- 항상 막힌다. post가 나중에 삭제되더라도 로그가 무슨 공지였는지 알아볼 수 있게
+-- post_title을 스냅샷으로 함께 저장한다.
+create table if not exists email_notification_logs (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid references posts(id) on delete set null,
+  post_title text,
+  recipient_email text not null,
+  status text not null check (status in ('sent','failed')),
+  error_message text,
+  created_at timestamptz not null default now()
+);
+
+alter table email_notification_logs enable row level security;
+
+drop policy if exists "email_notification_logs_read_admin" on email_notification_logs;
+create policy "email_notification_logs_read_admin" on email_notification_logs for select using (is_admin());
+
+create index if not exists email_notification_logs_post_id_idx on email_notification_logs(post_id);
+create index if not exists email_notification_logs_created_at_idx on email_notification_logs(created_at desc);
+
+-- ------------------------------------------------------------
+-- 54. 급식표 원본 파일명 컬럼 추가
+-- ------------------------------------------------------------
+-- 스토리지 키는 안전한 값(safeStorageKey)으로 바꾸고, 원본 파일명은 여기 보관한다.
+alter table meal_plans add column if not exists original_file_name text;

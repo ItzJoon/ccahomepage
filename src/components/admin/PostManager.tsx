@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "./FileUpload";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
+import { safeStorageKey } from "@/lib/storageKey";
 import type { Post, PostType } from "@/lib/types";
 
 interface PostWithAttachments extends Post {
@@ -239,7 +240,8 @@ export default function PostManager({
     if (form.video_path) {
       await supabase.storage.from("news-videos").remove([form.video_path]);
     }
-    const path = `${Date.now()}-${file.name}`;
+    // 원본 파일명(한글/공백 등)을 그대로 키로 쓰면 "Invalid key" 오류가 나므로 안전한 키로 바꿔서 올린다.
+    const path = safeStorageKey(file.name);
     const { error: uploadError } = await supabase.storage.from("news-videos").upload(path, file);
     if (uploadError) {
       setVideoError(uploadError.message);

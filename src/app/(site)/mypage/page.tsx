@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useAttendance } from "@/hooks/useAttendance";
 import { useBadges } from "@/hooks/useBadges";
+import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
 import type { Profile } from "@/lib/types";
 
@@ -65,7 +66,8 @@ export default function MyPage() {
     if (!userId) return;
     setUploading(true);
     setPhotoError(null);
-    const path = `${userId}/${Date.now()}-${file.name}`;
+    // 원본 파일명(한글/공백 등)을 그대로 키에 쓰면 "Invalid key" 오류가 나므로 안전한 키로 바꿔서 올린다.
+    const path = `${userId}/${safeStorageKey(file.name)}`;
     const { error: uploadError } = await supabase.storage.from("profile-photos").upload(path, file);
     if (uploadError) {
       setPhotoError(uploadError.message);

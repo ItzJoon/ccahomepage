@@ -130,6 +130,7 @@ export interface MealPlan {
   month: number;
   image_url: string;
   image_path: string | null;
+  original_file_name: string | null;
   uploaded_by: string | null;
   created_at: string;
 }

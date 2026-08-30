@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { safeStorageKey } from "@/lib/storageKey";
 
 export interface AttachmentRef {
   file_url: string;
@@ -29,7 +30,9 @@ export default function FileUpload({
   const handleFile = async (file: File) => {
     setUploading(true);
     setError(null);
-    const path = `${Date.now()}-${file.name}`;
+    // 원본 파일명(한글/공백 등)을 그대로 키로 쓰면 "Invalid key" 오류가 나므로 안전한 키로
+    // 바꿔서 올리고, 화면에 보여줄 원본 이름은 file_name 컬럼에 그대로 저장한다.
+    const path = safeStorageKey(file.name);
     const { error: uploadError } = await supabase.storage.from("attachments").upload(path, file);
     if (uploadError) {
       setError(uploadError.message);

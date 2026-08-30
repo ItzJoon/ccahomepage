@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { todayKST } from "@/lib/date";
+import { safeStorageKey } from "@/lib/storageKey";
 import type { MealPlan } from "@/lib/types";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -30,7 +31,9 @@ export default function AdminMealPlansPage() {
     if (existing?.image_path) {
       await supabase.storage.from("meal-plans").remove([existing.image_path]);
     }
-    const path = `${year}-${String(month).padStart(2, "0")}-${Date.now()}-${file.name}`;
+    // 원본 파일명(한글/공백 등 포함 가능)을 그대로 스토리지 키로 쓰면 "Invalid key" 오류가
+    // 나므로, 안전한 키로 바꿔서 올리고 원본 이름은 DB(original_file_name)에 따로 저장한다.
+    const path = safeStorageKey(file.name, `${year}-${String(month).padStart(2, "0")}`);
     const { error: uploadError } = await supabase.storage.from("meal-plans").upload(path, file);
     if (uploadError) {
       setError(uploadError.message);
@@ -44,7 +47,14 @@ export default function AdminMealPlansPage() {
     const { error: upsertError } = await supabase
       .from("meal_plans")
       .upsert(
-        { year, month, image_url: pub.publicUrl, image_path: path, uploaded_by: user?.id ?? null },
+        {
+          year,
+          month,
+          image_url: pub.publicUrl,
+          image_path: path,
+          original_file_name: file.name,
+          uploaded_by: user?.id ?? null,
+        },
         { onConflict: "year,month" }
       );
     if (upsertError) setError(upsertError.message);
@@ -81,7 +91,10 @@ export default function AdminMealPlansPage() {
                 <td className="p-2.5 border-b border-border text-sm">{m.year}</td>
                 <td className="p-2.5 border-b border-border text-sm">{m.month}월</td>
                 <td className="p-2.5 border-b border-border">
-                  <img src={m.image_url} alt="" className="h-12 rounded border border-border object-cover" />
+                  <div className="flex items-center gap-2">
+                    <img src={m.image_url} alt="" className="h-12 rounded border border-border object-cover" />
+                    {m.original_file_name && <span className="text-xs text-muted">{m.original_file_name}</span>}
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border">
                   <button className="text-red text-xs font-bold" onClick={() => remove(m)}>
