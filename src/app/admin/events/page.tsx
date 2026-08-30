@@ -69,6 +69,13 @@ export default function AdminEventsPage() {
     reload();
   };
 
+  // 삭제와 달리 학생 화면(/calendar, 홈 다가오는 일정)에서만 안 보이게 하고
+  // 관리자 화면에서는 계속 확인·복구할 수 있다. 공지/뉴스/Q&A/게시판과 동일한 패턴.
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("events").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
   const removeExistingFile = async (attId: string, path: string | null) => {
     if (path) await supabase.storage.from("attachments").remove([path]);
     await supabase.from("attachments").delete().eq("id", attId);
@@ -88,19 +95,32 @@ export default function AdminEventsPage() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">등록자</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
           <tbody>
             {rows.map((e) => (
               <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">{e.title}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  {e.title}
+                  {e.is_hidden && (
+                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
+                </td>
                 <td className="p-2.5 border-b border-border text-sm">{e.start_at}</td>
                 <td className="p-2.5 border-b border-border text-sm text-muted">
                   {e.profiles?.nickname || e.profiles?.name || "등록자 정보 없음"}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      className="text-blue text-xs font-bold"
+                      onClick={(ev) => { ev.stopPropagation(); toggleHidden(e.id, e.is_hidden); }}
+                    >
+                      {e.is_hidden ? "숨김 해제" : "숨김"}
+                    </button>
+                    <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                  </div>
                 </td>
               </tr>
             ))}

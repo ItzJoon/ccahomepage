@@ -74,6 +74,7 @@ export interface EventItem {
   location: string | null;
   category: string;
   created_by: string | null;
+  is_hidden: boolean;
 }
 
 export interface RuleDoc {

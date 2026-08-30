@@ -1894,3 +1894,12 @@ $$ language plpgsql security definer;
 drop trigger if exists notify_on_answer on answers;
 create trigger notify_on_answer after insert on answers
   for each row execute function notify_qna_answered();
+
+-- ------------------------------------------------------------
+-- 47. 일정(events)에도 일시 숨김 토글 추가 (공지/뉴스/Q&A/게시판과 동일한 패턴)
+-- ------------------------------------------------------------
+alter table events add column if not exists is_hidden boolean not null default false;
+
+drop policy if exists "events_read_all" on events;
+create policy "events_read_all" on events for select
+  using (not is_hidden or is_editor_or_above());
