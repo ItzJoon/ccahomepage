@@ -17,7 +17,7 @@ function toDriveEmbedUrl(url: string) {
 
 export default async function NewsDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("*").eq("id", params.id).eq("type", "news").single();
+  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", params.id).eq("type", "news").single();
   if (!post) return <div className="text-muted text-center py-10">기사를 찾을 수 없습니다.</div>;
 
   const { data: attachments } = await supabase.from("attachments").select("*").eq("post_id", params.id);
@@ -29,7 +29,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
       </Link>
       <Badge color="teal">{post.category}</Badge>
       <h1 className="text-2xl my-2">{post.title}</h1>
-      <div className="text-muted text-sm mb-[18px]">{fmt(post.created_at)}</div>
+      <div className="text-muted text-sm mb-[18px]">{post.author_name || "-"} · {fmt(post.created_at)}</div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>
       {post.video_source === "drive" && post.video_url && (
         <div className="mt-5 aspect-video">
