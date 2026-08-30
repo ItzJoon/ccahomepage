@@ -62,6 +62,9 @@ export default function BoardComments({ postId, userId }: { postId: string; user
     // 대댓글에 또 답글을 달면 같은 parent_id(최상위 댓글)로 묶어서, 2단계까지만
     // 시각적으로 들여쓰기한다(무한 중첩 대신 카카오톡/네이버 카페식 평평한 대댓글).
     const children = depth === 0 ? byParent.get(node.id) ?? [] : [];
+    // 대댓글(depth 1)에 다시 답글을 눌러도 새 댓글은 이 노드가 아니라 최상위 댓글에
+    // 붙여서(rootId), 들여쓰기가 더 깊어지지 않고 같은 줄에 나란히 쌓이게 한다.
+    const rootId = depth === 0 ? node.id : node.parent_id!;
     const authorLabel = node.author?.nickname || node.author?.name || "탈퇴한 사용자";
     return (
       <div key={node.id} className={depth > 0 ? "ml-6 mt-2.5 border-l-2 border-border pl-3" : "mt-3.5 pt-3.5 border-t border-border first:border-t-0 first:pt-0"}>
@@ -84,7 +87,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
           <Linkify text={node.content} />
         </p>
         <div className="flex gap-2.5 text-xs">
-          {userId && depth === 0 && (
+          {userId && (
             <button onClick={() => setReplyTo(replyTo === node.id ? null : node.id)} className="text-blue font-bold">
               답글
             </button>
@@ -104,7 +107,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
               placeholder="답글을 입력하세요"
             />
             <button
-              onClick={() => submitComment(node.id, replyContent, () => { setReplyContent(""); setReplyTo(null); })}
+              onClick={() => submitComment(rootId, replyContent, () => { setReplyContent(""); setReplyTo(null); })}
               className="bg-navy text-white text-xs font-bold rounded-lg px-3"
             >
               등록
