@@ -37,6 +37,11 @@ export default function AdminBoardPage() {
     reload();
   };
 
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("board_posts").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
   return (
     <div>
       <h2 className="text-[22px] mb-4">게시판 관리</h2>
@@ -68,11 +73,16 @@ export default function AdminBoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
               <td className="p-2.5 border-b border-border">
-                {iAmAdmin ? (
-                  <button className="text-red text-xs font-bold" onClick={() => remove(p.id)}>삭제</button>
-                ) : (
-                  <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
-                )}
+                <div className="flex items-center gap-2">
+                  <button className="text-blue text-xs font-bold" onClick={() => toggleHidden(p.id, p.is_hidden)}>
+                    {p.is_hidden ? "숨김 해제" : "숨김"}
+                  </button>
+                  {iAmAdmin ? (
+                    <button className="text-red text-xs font-bold" onClick={() => remove(p.id)}>삭제</button>
+                  ) : (
+                    <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+                  )}
+                </div>
               </td>
             </tr>
           ))}

@@ -181,6 +181,13 @@ export default function PostManager({
     reload();
   };
 
+  // 삭제와 달리 학생 화면에서만 안 보이게 하고 관리자 화면에서는 계속 확인할 수 있다.
+  // 삭제(admin 이상)와 달리 editor 이상이면 누구나 누를 수 있다.
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("posts").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
   const uploadVideo = async (file: File) => {
     setVideoError(null);
     if (file.size > MAX_VIDEO_MB * 1024 * 1024) {
@@ -272,24 +279,40 @@ export default function PostManager({
                   >
                     {n.status === "published" ? "발행" : n.status === "scheduled" ? "예약" : "임시저장"}
                   </span>
+                  {n.is_hidden && (
+                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{n.publish_at}</td>
                 <td className="p-2.5 border-b border-border">
-                  {iAmAdmin ? (
-                    <button
-                      className="text-red text-xs font-bold"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        remove(n.id);
-                      }}
-                    >
-                      삭제
-                    </button>
-                  ) : (
-                    <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다. 임시저장으로 바꾸면 공개 화면에서 숨길 수 있습니다.">
-                      🔒
-                    </span>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {!readOnlyForMe && (
+                      <button
+                        className="text-blue text-xs font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleHidden(n.id, n.is_hidden);
+                        }}
+                      >
+                        {n.is_hidden ? "숨김 해제" : "숨김"}
+                      </button>
+                    )}
+                    {iAmAdmin ? (
+                      <button
+                        className="text-red text-xs font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          remove(n.id);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    ) : (
+                      <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다.">
+                        🔒
+                      </span>
+                    )}
+                  </div>
                 </td>
               </tr>
               );

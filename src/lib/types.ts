@@ -55,6 +55,7 @@ export interface Post {
   video_path: string | null;
   target_subject: string | null;
   target_homeroom: number | null;
+  is_hidden: boolean;
 }
 
 export interface StudentSubject {
@@ -91,6 +92,7 @@ export interface Question {
   is_private: boolean;
   author_display_name: string | null;
   status: "pending" | "answered";
+  is_hidden: boolean;
   created_at: string;
 }
 

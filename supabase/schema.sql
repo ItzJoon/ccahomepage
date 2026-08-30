@@ -1687,3 +1687,56 @@ begin
     alter publication supabase_realtime add table public.reports;
   end if;
 end $$;
+
+-- ------------------------------------------------------------
+-- 44. 공지/뉴스/Q&A 공통 "일시 숨김" 토글 (게시판은 [1]에서 이미 구현됨)
+-- ------------------------------------------------------------
+-- 삭제하지 않고 학생 화면에서만 숨기고, 관리자 화면(editor 이상)에서는 계속 보이는
+-- 토글이다. teacher가 쓰는 교과/학급 공지도 is_teacher_or_editor_above()가 관리
+-- 목적 열람을 그대로 허용하므로 함께 적용된다.
+alter table posts add column if not exists is_hidden boolean not null default false;
+alter table questions add column if not exists is_hidden boolean not null default false;
+
+drop policy if exists "posts_read_published" on posts;
+create policy "posts_read_published" on posts for select
+  using (
+    type in ('notice','news')
+    and (is_editor_or_above() or (status = 'published' and not is_hidden))
+  );
+
+drop policy if exists "posts_read_subject_notice" on posts;
+create policy "posts_read_subject_notice" on posts for select
+  using (
+    type = 'subject_notice'
+    and (
+      is_teacher_or_editor_above()
+      or (
+        status = 'published' and not is_hidden
+        and exists (
+          select 1 from student_subjects ss
+          where ss.user_id = auth.uid() and ss.subject = posts.target_subject
+        )
+      )
+    )
+  );
+
+drop policy if exists "posts_read_homeroom_notice" on posts;
+create policy "posts_read_homeroom_notice" on posts for select
+  using (
+    type = 'homeroom_notice'
+    and (
+      is_teacher_or_editor_above()
+      or (
+        status = 'published' and not is_hidden
+        and exists (
+          select 1 from directory_members dm
+          join profiles p on p.email = dm.email
+          where p.id = auth.uid() and dm.homeroom = posts.target_homeroom
+        )
+      )
+    )
+  );
+
+drop policy if exists "questions_read" on questions;
+create policy "questions_read" on questions for select
+  using ((is_private = false and not is_hidden) or auth.uid() = user_id or is_admin());

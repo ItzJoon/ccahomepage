@@ -12,6 +12,7 @@ interface QuestionWithAnswer {
   is_private: boolean;
   author_display_name: string | null;
   status: "pending" | "answered";
+  is_hidden: boolean;
   created_at: string;
   answers: { id: string; content: string }[];
   asker: { name: string | null; nickname: string | null; email: string } | null;
@@ -44,6 +45,11 @@ export default function AdminQnaPage() {
     if (!confirm("이 질문을 삭제하시겠습니까? 등록된 답변도 함께 삭제됩니다.")) return;
     await supabase.from("questions").delete().eq("id", id);
     setOpenId(null);
+    reload();
+  };
+
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("questions").update({ is_hidden: !isHidden }).eq("id", id);
     reload();
   };
 
@@ -90,21 +96,35 @@ export default function AdminQnaPage() {
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
                     {q.status === "answered" ? "답변완료" : "대기"}
                   </span>
+                  {q.is_hidden && (
+                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  {iAmAdmin ? (
+                  <div className="flex items-center gap-2">
                     <button
-                      className="text-red text-xs font-bold"
+                      className="text-blue text-xs font-bold"
                       onClick={(e) => {
                         e.stopPropagation();
-                        removeQuestion(q.id);
+                        toggleHidden(q.id, q.is_hidden);
                       }}
                     >
-                      삭제
+                      {q.is_hidden ? "숨김 해제" : "숨김"}
                     </button>
-                  ) : (
-                    <span className="text-muted text-xs" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
-                  )}
+                    {iAmAdmin ? (
+                      <button
+                        className="text-red text-xs font-bold"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeQuestion(q.id);
+                        }}
+                      >
+                        삭제
+                      </button>
+                    ) : (
+                      <span className="text-muted text-xs" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
