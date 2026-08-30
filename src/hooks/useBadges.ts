@@ -47,27 +47,39 @@ export function useBadges(userId: string | null) {
    */
   useEffect(() => {
     if (!userId) return;
-    const channel = supabase
-      .channel(`user_badges_earned_sync_${userId}_${channelSuffixRef.current}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, (payload) => {
-        const row = payload.new as { user_id: string; badge_id: string };
-        if (row.user_id !== userId) return;
-        setEarnedIds((prev) => (prev.has(row.badge_id) ? prev : new Set([...prev, row.badge_id])));
-      })
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "user_badges" }, (payload) => {
-        const row = payload.old as { user_id?: string; badge_id?: string };
-        if (row.user_id !== userId || !row.badge_id) return;
-        const badgeId = row.badge_id;
-        setEarnedIds((prev) => {
-          if (!prev.has(badgeId)) return prev;
-          const next = new Set(prev);
-          next.delete(badgeId);
-          return next;
-        });
-      })
-      .subscribe();
+    let cancelled = false;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      // BadgeGrantWatcher와 동일한 이유로, 구독 전에 세션 토큰을 realtime에 명시적으로
+      // 반영해야 한다 — 안 그러면 마운트 직후엔 아직 미인증 상태로 구독돼 RLS를 통과 못 하고
+      // 그 뒤로 이 유저의 user_badges 변경을 계속 못 받는다(새로고침 전까지 실시간 반영 안 됨).
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+
+      channel = supabase
+        .channel(`user_badges_earned_sync_${userId}_${channelSuffixRef.current}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, (payload) => {
+          const row = payload.new as { user_id: string; badge_id: string };
+          if (row.user_id !== userId) return;
+          setEarnedIds((prev) => (prev.has(row.badge_id) ? prev : new Set([...prev, row.badge_id])));
+        })
+        .on("postgres_changes", { event: "DELETE", schema: "public", table: "user_badges" }, (payload) => {
+          const row = payload.old as { user_id?: string; badge_id?: string };
+          if (row.user_id !== userId || !row.badge_id) return;
+          const badgeId = row.badge_id;
+          setEarnedIds((prev) => {
+            if (!prev.has(badgeId)) return prev;
+            const next = new Set(prev);
+            next.delete(badgeId);
+            return next;
+          });
+        })
+        .subscribe();
+    })();
     return () => {
-      supabase.removeChannel(channel);
+      cancelled = true;
+      if (channel) supabase.removeChannel(channel);
     };
   }, [userId, supabase]);
 

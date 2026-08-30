@@ -74,15 +74,29 @@ export default function BadgeGrantWatcher({ userId }: { userId: string | null })
       });
     };
 
-    const channel = supabase
-      .channel(`badge_grant_watch_${userId}_${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, async (payload) => {
-        const row = payload.new as { user_id: string; badge_id: string; celebrated: boolean };
-        if (row.user_id !== userId || row.celebrated) return;
-        const badge = await resolveBadge(row.badge_id);
-        if (badge) push(badge);
-      })
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      // 컴포넌트가 마운트되는 시점엔 SSR 쿠키로 이미 로그인된 상태라도, 클라이언트
+      // supabase-js 인스턴스의 realtime 소켓에는 그 인증이 아직 반영되지 않았을 수 있다
+      // (onAuthStateChange를 통해 비동기로 반영됨). 채널을 그보다 먼저 구독하면 realtime이
+      // 이 연결을 "미인증"으로 취급해서 RLS(auth.uid() = user_id) 검사를 통과 못 하고,
+      // 이후 이 유저에게 오는 모든 INSERT 이벤트를 계속 못 받는다 — 새로고침 전까지는
+      // 뱃지가 실시간으로 뜨지 않고 폴링에만 의존하게 되는 버그의 원인. 구독 전에
+      // 세션 토큰을 realtime에 명시적으로 반영해 이 경합을 없앤다.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+
+      channel = supabase
+        .channel(`badge_grant_watch_${userId}_${Math.random().toString(36).slice(2)}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, async (payload) => {
+          const row = payload.new as { user_id: string; badge_id: string; celebrated: boolean };
+          if (row.user_id !== userId || row.celebrated) return;
+          const badge = await resolveBadge(row.badge_id);
+          if (badge) push(badge);
+        })
+        .subscribe();
+    })();
 
     // 접속 중이 아닐 때 지급됐거나 실시간 이벤트를 놓친 경우를 대비한 안전망
     // (접속 시 즉시 1회 + 20초 주기 재확인 — 위 실시간 경로가 정상 동작하면
@@ -104,7 +118,7 @@ export default function BadgeGrantWatcher({ userId }: { userId: string | null })
 
     return () => {
       cancelled = true;
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
       clearInterval(interval);
     };
   }, [userId]);
