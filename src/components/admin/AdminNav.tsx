@@ -22,9 +22,12 @@ const NAV = [
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
 ];
 
-// 신고 내역은 개인정보/민감한 내용을 담고 있어 editor(부장급)에게도 보이면 안 되고
-// admin 이상만 봐야 한다 — teacher는 물론 editor도 제외.
-const ADMIN_ONLY_NAV = [{ href: "/admin/reports", label: "신고 내역" }];
+// 신고 내역/급식표 관리는 editor(부장급)에게도 보이면 안 되고 admin 이상만 봐야 한다
+// — teacher는 물론 editor도 제외.
+const ADMIN_ONLY_NAV = [
+  { href: "/admin/reports", label: "신고 내역" },
+  { href: "/admin/meal-plans", label: "급식표 관리" },
+];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
 // 볼 수 있어야 한다(직접 URL 접근은 middleware.ts에서 별도로 막는다). 다른 메뉴들과

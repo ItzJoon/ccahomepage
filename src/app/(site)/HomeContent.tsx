@@ -9,7 +9,7 @@ import StreakBar from "@/components/StreakBar";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { todayKST } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
-import type { Post, EventItem, MainBlock } from "@/lib/types";
+import type { Post, EventItem, MainBlock, MealPlan } from "@/lib/types";
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
@@ -87,6 +87,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     filter: (q) => q.eq("type", "news").eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
+  const { rows: mealPlans } = useRealtimeList<MealPlan>("meal_plans");
 
   useEffect(() => {
     const supabase = createClient();
@@ -96,6 +97,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   const today = todayKST();
   const upcoming = events.filter((e) => e.start_at >= today).slice(0, 3);
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
+  const thisMonth = mealPlans.find(
+    (m) => m.year === Number(today.slice(0, 4)) && m.month === Number(today.slice(5, 7))
+  );
 
   return (
     <div>
@@ -187,6 +191,21 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                     </div>
                   )}
                 </div>
+              </div>
+            );
+          if (b.id === "meal")
+            return (
+              <div key={b.id} className={`${t.cardShape} p-5`}>
+                <BlockTitle t={t} eyebrow="MEAL" title="이번 달 급식표" />
+                {thisMonth ? (
+                  <img
+                    src={thisMonth.image_url}
+                    alt={`${thisMonth.year}년 ${thisMonth.month}월 급식표`}
+                    className="w-full rounded-lg border border-border object-contain"
+                  />
+                ) : (
+                  <EmptyState icon="🍽️" title="등록된 이번 달 급식표가 없습니다" desc="관리자가 급식표를 업로드하면 이곳에 표시됩니다." t={t} />
+                )}
               </div>
             );
           if (b.id === "quick")

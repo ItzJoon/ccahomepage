@@ -1984,3 +1984,54 @@ create or replace function author_avatar(board_comments) returns text as $$
   select p.profile_image from profiles p where p.id = ($1).author_id;
 $$ language sql stable security definer;
 grant execute on function author_avatar(board_comments) to anon, authenticated;
+
+-- ------------------------------------------------------------
+-- 52. 급식(월별 급식표) 기능
+-- ------------------------------------------------------------
+-- 월별 급식표 이미지를 admin 이상만 업로드/교체할 수 있고, 조회는 공개(홈 화면에 표시).
+create table if not exists meal_plans (
+  id uuid primary key default uuid_generate_v4(),
+  year int not null,
+  month int not null check (month between 1 and 12),
+  image_url text not null,
+  image_path text,
+  uploaded_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now(),
+  unique (year, month)
+);
+
+alter table meal_plans enable row level security;
+
+drop policy if exists "meal_plans_read_all" on meal_plans;
+create policy "meal_plans_read_all" on meal_plans for select using (true);
+
+drop policy if exists "meal_plans_write_admin" on meal_plans;
+create policy "meal_plans_write_admin" on meal_plans for all using (is_admin()) with check (is_admin());
+
+-- 홈 화면 블록 목록에 "급식" 카드를 하나 추가한다. 기존 4개 블록과 동일하게
+-- /admin/main-editor에서 켜고 끄기·순서 변경이 가능하다(전부 label 기준으로 동작하는
+-- 화면이라 새 코드 없이 그대로 작동함).
+insert into main_blocks (id, label, is_visible, order_index) values
+  ('meal', '이번 달 급식표', true, 5)
+on conflict (id) do nothing;
+
+-- 급식표 이미지 전용 Storage 버킷. attachments 버킷은 editor 이상이 쓸 수 있어서
+-- 재사용하지 않고, "admin 이상만"이라는 요구사항에 맞춰 새로 분리했다.
+insert into storage.buckets (id, name, public) values ('meal-plans', 'meal-plans', true)
+on conflict (id) do nothing;
+
+drop policy if exists "meal_plans_bucket_public_read" on storage.objects;
+create policy "meal_plans_bucket_public_read" on storage.objects for select
+  using (bucket_id = 'meal-plans');
+
+drop policy if exists "meal_plans_bucket_insert_admin" on storage.objects;
+create policy "meal_plans_bucket_insert_admin" on storage.objects for insert
+  with check (bucket_id = 'meal-plans' and is_admin());
+
+drop policy if exists "meal_plans_bucket_update_admin" on storage.objects;
+create policy "meal_plans_bucket_update_admin" on storage.objects for update
+  using (bucket_id = 'meal-plans' and is_admin());
+
+drop policy if exists "meal_plans_bucket_delete_admin" on storage.objects;
+create policy "meal_plans_bucket_delete_admin" on storage.objects for delete
+  using (bucket_id = 'meal-plans' and is_admin());

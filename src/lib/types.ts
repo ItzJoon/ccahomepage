@@ -124,6 +124,16 @@ export interface MainBlock {
   order_index: number;
 }
 
+export interface MealPlan {
+  id: string;
+  year: number;
+  month: number;
+  image_url: string;
+  image_path: string | null;
+  uploaded_by: string | null;
+  created_at: string;
+}
+
 export interface BadgeDef {
   id: string;
   code: string;
