@@ -165,13 +165,11 @@ export async function updateSession(request: NextRequest) {
     // (is_council=true)만 볼 수 있다 — role만으로는 부족하고 플래그도 함께 필요하다.
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
-    // teacher는 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로 접근할 수
-    // 있다(일반 공지 작성 권한은 없음 — 실제 작성 가능 범위는 posts RLS가 결정한다).
-    const isNoticesPath = pathname === "/admin/notices" || pathname.startsWith("/admin/notices/");
+    // teacher는 예전엔 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로
+    // 접근할 수 있었는데, teacher 권한을 student와 동일하게 차단하면서 이 예외도 없앴다
+    // (posts RLS에서도 teacher 전용 작성/수정 정책을 제거함).
     const adminAllowedRoles = isOrgActivitiesPath
       ? ["sub_editor", "editor", "admin", "superadmin"]
-      : isNoticesPath
-      ? ["teacher", "editor", "admin", "superadmin"]
       : ["editor", "admin", "superadmin"];
     // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
     // 관리 탭도 항상 볼 수 있어야 한다(관리자가 플래그 설정 실수로 스스로를 포함해

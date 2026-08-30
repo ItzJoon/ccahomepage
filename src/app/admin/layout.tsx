@@ -8,11 +8,11 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // middleware.ts 에서 1차로 걸러지지만, 서버 컴포넌트 레벨에서도 한 번 더 확인합니다.
-  // sub_editor는 /admin/org-activities/*, teacher는 /admin/notices만 middleware가
-  // 통과시키므로, 여기서는 세부 경로를 다시 따지지 않고 "관리 화면에 발 들일 자격이
-  // 있는 역할인지"만 본다.
+  // sub_editor는 /admin/org-activities/*만 middleware가 통과시키므로, 여기서는 세부
+  // 경로를 다시 따지지 않고 "관리 화면에 발 들일 자격이 있는 역할인지"만 본다.
+  // teacher는 관리 화면 접근 권한이 없다(student와 동일하게 차단됨).
   const profile = await getCurrentProfile();
-  if (!profile || !["sub_editor", "teacher", "editor", "admin", "superadmin"].includes(profile.role)) {
+  if (!profile || !["sub_editor", "editor", "admin", "superadmin"].includes(profile.role)) {
     redirect("/login?next=/admin");
   }
 

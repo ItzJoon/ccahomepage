@@ -2240,3 +2240,22 @@ create trigger audit_board_comments_update after update on board_comments
 drop trigger if exists audit_board_comments_delete on board_comments;
 create trigger audit_board_comments_delete after delete on board_comments
   for each row execute function log_audit_event();
+
+-- ------------------------------------------------------------
+-- 59. teacher 권한을 student와 동일하게 차단
+-- ------------------------------------------------------------
+-- 계정의 role='teacher'는 그대로 유지하고(나중에 되돌리기 쉽도록), "teacher만 가능하던
+-- 것"만 제거한다: 교과/학급 공지 작성·수정 권한, 관리 목적 열람 권한(is_teacher_or_editor_above
+-- 에서 teacher 제외 -> editor 이상과 동일). 이메일 발송/관리자 화면 접근 등 앱 레벨 권한은
+-- 별도로 src/app/admin/layout.tsx, src/lib/supabase/middleware.ts, src/app/api/send-notice-email,
+-- src/app/(site)/notices/page.tsx, src/components/admin/AdminNav.tsx에서 "teacher" 제외로 처리.
+drop policy if exists "posts_insert_teacher_notice" on posts;
+drop policy if exists "posts_update_teacher_own" on posts;
+
+create or replace function is_teacher_or_editor_above()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('editor','admin','superadmin')
+  );
+$$ language sql stable security definer;

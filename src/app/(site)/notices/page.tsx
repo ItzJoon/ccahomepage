@@ -11,10 +11,9 @@ import AdminTable, { truncateCellProps, actionCellClass } from "@/components/adm
 import type { Post } from "@/lib/types";
 
 // 관리자 화면(/admin/notices)에 들어가지 않고도, 공지를 쓸 수 있는 역할이면 이 목록
-// 페이지에서 바로 작성할 수 있게 한다. 실제 작성 폼/권한 분기(teacher는 교과·학급
-// 자동 타겟팅, editor 이상은 일반 공지)는 PostManager를 그대로 재사용해서 관리자
-// 화면과 완전히 동일한 로직 하나만 유지한다.
-const WRITABLE_ROLES = ["teacher", "editor", "admin", "superadmin"];
+// 페이지에서 바로 작성할 수 있게 한다. teacher는 student와 동일하게 권한이 차단돼서
+// 더 이상 여기 포함되지 않는다(예전엔 교과·학급 공지 자동 타겟팅으로 작성 가능했음).
+const WRITABLE_ROLES = ["editor", "admin", "superadmin"];
 
 interface Row extends Post {
   author_name: string | null;

@@ -24,8 +24,11 @@ export async function POST(req: NextRequest) {
     dryRun?: boolean;
   };
 
+  // teacher는 student와 동일하게 이메일 발송 권한이 없다(아래 profile.role === "teacher"
+  // 분기는 예전 teacher 전용 검증 로직인데, 이 게이트를 통과 못 하므로 더 이상 실행되지
+  // 않는다 — teacher 권한을 되살릴 일이 생기면 여기 목록에 "teacher"만 다시 추가하면 됨).
   const profile = await getCurrentProfile();
-  if (!profile || !["teacher", "editor", "admin", "superadmin"].includes(profile.role)) {
+  if (!profile || !["editor", "admin", "superadmin"].includes(profile.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
   }
 

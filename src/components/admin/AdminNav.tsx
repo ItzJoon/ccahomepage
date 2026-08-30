@@ -75,17 +75,11 @@ export default function AdminNav({
 }) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
-  // sub_editor는 /admin/org-activities/*, teacher는 /admin/notices 외에는 middleware가
-  // 접근 자체를 막으므로, 눌러도 튕겨나가기만 하는 다른 메뉴들은 아예 보여주지 않는다.
+  // sub_editor는 /admin/org-activities/* 외에는 middleware가 접근 자체를 막으므로, 눌러도
+  // 튕겨나가기만 하는 다른 메뉴들은 아예 보여주지 않는다. teacher는 student와 동일하게
+  // 관리 화면 접근 권한이 없어서(middleware가 /admin 진입 자체를 막음) 이 컴포넌트까지
+  // 오지 않는다.
   const isSubEditor = role === "sub_editor";
-  const isTeacher = role === "teacher";
-  if (isTeacher) {
-    return (
-      <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
-        <NavLink href="/admin/notices" label="공지사항" active={pathname.startsWith("/admin/notices")} t={t} />
-      </aside>
-    );
-  }
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
       {!isSubEditor && (
