@@ -35,15 +35,18 @@ export default function DesignerModeGate({
 
   return (
     <DesignerModeContext.Provider value={isDesigner}>
+      {/* designer는 실제 디자인/화면을 있는 그대로 보는 게 목적이라(조회 전용 이름 그대로),
+          화면을 흐리게 하거나 색을 바꾸지 않는다 — 상호작용 차단은 inert/pointer-events로만
+          하고, 안내 메시지도 콘텐츠를 가리지 않도록 맨 아래에 둔다. */}
+      <div ref={ref} className={isDesigner ? "pointer-events-none select-none" : ""}>
+        {children}
+      </div>
       {isDesigner && (
-        <div className="bg-[#EAF0FB] text-blue text-xs font-bold text-center py-2 px-3 rounded-lg mb-4">
+        <div className="bg-[#EAF0FB] text-blue text-xs font-bold text-center py-2 px-3 rounded-lg mt-4">
           🔒 조회 전용 모드(designer 계정) — 모든 화면을 볼 수 있지만 저장·수정·삭제 등의
           조작은 할 수 없습니다.
         </div>
       )}
-      <div ref={ref} className={isDesigner ? "opacity-70 grayscale-[20%] pointer-events-none select-none" : ""}>
-        {children}
-      </div>
     </DesignerModeContext.Provider>
   );
 }
