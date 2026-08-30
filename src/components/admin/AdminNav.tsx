@@ -22,11 +22,12 @@ const NAV = [
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
 ];
 
-// 신고 내역/급식표 관리는 editor(부장급)에게도 보이면 안 되고 admin 이상만 봐야 한다
-// — teacher는 물론 editor도 제외.
+// 신고 내역/급식표 관리/이메일 발송 로그는 editor(부장급)에게도 보이면 안 되고
+// admin 이상만 봐야 한다 — teacher는 물론 editor도 제외.
 const ADMIN_ONLY_NAV = [
   { href: "/admin/reports", label: "신고 내역" },
   { href: "/admin/meal-plans", label: "급식표 관리" },
+  { href: "/admin/email-logs", label: "이메일 발송 로그" },
 ];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만

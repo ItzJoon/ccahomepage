@@ -11,6 +11,17 @@ export interface Profile {
   freeze_credits: number;
   is_council: boolean;
   is_judiciary: boolean;
+  email_notifications: boolean;
+  created_at: string;
+}
+
+export interface EmailNotificationLog {
+  id: string;
+  post_id: string | null;
+  post_title: string | null;
+  recipient_email: string;
+  status: "sent" | "failed";
+  error_message: string | null;
   created_at: string;
 }
 

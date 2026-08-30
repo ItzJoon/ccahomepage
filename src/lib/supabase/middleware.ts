@@ -203,8 +203,9 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
-    // 신고 내역/급식표 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin 이상만 봐야 한다.
-    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans"];
+    // 신고 내역/급식표 관리/이메일 발송 로그는 teacher는 물론 editor(부장급)도 볼 수 없고
+    // admin 이상만 봐야 한다.
+    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans", "/admin/email-logs"];
     if (adminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "admin" && r !== "superadmin") {
         const url = request.nextUrl.clone();

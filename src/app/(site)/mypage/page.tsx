@@ -62,6 +62,13 @@ export default function MyPage() {
     loadProfile();
   };
 
+  // 닉네임/소개와 달리 체크 즉시 저장한다(별도로 "저장" 버튼을 누를 필요 없는 단순 토글).
+  const toggleEmailNotifications = async (checked: boolean) => {
+    if (!userId) return;
+    setProfile((p) => (p ? { ...p, email_notifications: checked } : p));
+    await supabase.from("profiles").update({ email_notifications: checked }).eq("id", userId);
+  };
+
   const uploadPhoto = async (file: File) => {
     if (!userId) return;
     setUploading(true);
@@ -200,6 +207,14 @@ export default function MyPage() {
               placeholder="한 줄 소개를 입력하세요"
               onChange={(e) => setBio(e.target.value)}
             />
+            <label className="flex items-center gap-2 text-sm mt-3">
+              <input
+                type="checkbox"
+                checked={profile?.email_notifications ?? true}
+                onChange={(e) => toggleEmailNotifications(e.target.checked)}
+              />
+              새 공지사항 이메일 알림 받기
+            </label>
             <div className="flex items-center gap-2 mt-3">
               <button onClick={saveProfile} disabled={saving || !isProfileDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {saving ? "저장 중…" : "저장"}
