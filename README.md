@@ -234,7 +234,8 @@ npm run dev
 접근 가능) < `editor` < `admin` < `superadmin` 입니다. 아래는 실제 RLS 정책과 middleware 경로
 제한 기준으로 각 역할이 **위 단계에 추가로** 할 수 있는 일만 적었습니다(위 단계 권한은 전부
 포함). `role`과 별개로 `is_council`/`is_judiciary` boolean 플래그가 있어(아래 별도 설명)
-role을 바꾸지 않고도 특정 화면 접근을 켜고 끌 수 있습니다.
+role을 바꾸지 않고도 특정 화면 접근을 켜고 끌 수 있습니다. `viewer`는 이 서열과 무관하게
+student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특수 역할입니다(아래 별도 설명).
 
 ### student (기본, 로그인 시)
 - **로그인하려면 학교 명단(`directory_members`)에 `is_allowed=true`로 등록돼 있어야 합니다.**
@@ -264,6 +265,14 @@ role을 바꾸지 않고도 특정 화면 접근을 켜고 끌 수 있습니다.
 - 마이페이지: 닉네임·자기소개·프로필 사진 수정 (`email`/`role`은 트리거로 변경 차단)
 - 접속 시 자동 체크인 → 연속 접속일수 적립, 자동/수동/시크릿 뱃지 획득
 - `/admin` 진입 불가 (middleware 차단)
+
+### viewer (student와 권한 동일 + 잠금 모드 예외)
+- 위 student 권한을 그대로 가지면서, **사이트 잠금(점검) 모드가 켜져 있어도 `/maintenance`로
+  리다이렉트되지 않고 사이트를 정상적으로 계속 볼 수 있습니다**(admin/superadmin과 동일한
+  예외를 받되, 관리자 권한은 전혀 없음).
+- `/admin` 하위 경로는 student와 마찬가지로 **어떤 화면도 접근할 수 없습니다** — 잠금
+  모드 예외 목록에만 들어가 있을 뿐, `/admin` 접근 허용 목록에는 들어있지 않습니다.
+- `/admin/users`에서 superadmin/admin이 계정별로 지정합니다.
 
 ### teacher
 - `/admin/notices` **한 화면만** 접근 가능(그 외 모든 `/admin` 하위 경로는 여전히 막힘).

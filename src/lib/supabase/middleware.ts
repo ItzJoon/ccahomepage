@@ -131,8 +131,10 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (!isMaintenanceExempt && siteSettings?.maintenance_mode) {
-    const isAdmin = !!role && ["admin", "superadmin"].includes(role);
-    if (!isAdmin) {
+    // viewer는 관리자 권한은 전혀 없지만(아래 /admin 체크에서 항상 막힘), 잠금 모드
+    // 중에도 사이트를 볼 수 있어야 하는 전용 역할이라 admin/superadmin과 함께 예외 처리한다.
+    const bypassesMaintenance = !!role && ["admin", "superadmin", "viewer"].includes(role);
+    if (!bypassesMaintenance) {
       const url = request.nextUrl.clone();
       url.pathname = "/maintenance";
       return NextResponse.redirect(url);

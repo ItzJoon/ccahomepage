@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
-const ROLES = ["student", "teacher", "sub_editor", "editor", "admin", "superadmin"];
+const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin"];
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
 export default function AdminUsersPage() {

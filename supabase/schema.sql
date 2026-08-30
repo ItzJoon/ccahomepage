@@ -1903,3 +1903,13 @@ alter table events add column if not exists is_hidden boolean not null default f
 drop policy if exists "events_read_all" on events;
 create policy "events_read_all" on events for select
   using (not is_hidden or is_editor_or_above());
+
+-- ------------------------------------------------------------
+-- 48. viewer 역할 추가
+-- ------------------------------------------------------------
+-- 사이트 잠금(점검) 모드 중에도 사이트는 정상적으로 보여야 하지만, /admin 하위 경로는
+-- 어떤 화면도 접근할 수 없는 전용 역할이다(student와 동일한 권한 + 잠금 모드 예외만
+-- 추가 — middleware.ts에서 처리, RLS 헬퍼 함수들은 전부 student와 동일하게 취급한다).
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('student','teacher','sub_editor','editor','admin','superadmin','viewer'));
