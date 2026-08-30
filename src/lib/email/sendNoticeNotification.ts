@@ -118,7 +118,9 @@ async function resolveAudience(
       .eq("is_allowed", true)
       .or(orFilter);
     const emails = Array.from(new Set((data ?? []).map((m) => m.email)));
-    const labels = audience.classes.map((c) => `${c.grade}학년 ${c.homeroom}반`).join(", ");
+    const labels = audience.classes
+      .map((c) => `${c.grade}학년 ${HOMEROOM_LABEL[c.homeroom] ?? `${c.homeroom}반`}`)
+      .join(", ");
     return { emails: await filterOptOut(emails), description: labels };
   }
 

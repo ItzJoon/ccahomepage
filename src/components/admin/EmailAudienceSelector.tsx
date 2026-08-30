@@ -1,10 +1,12 @@
 "use client";
 
+import { useRealtimeList } from "@/hooks/useRealtimeList";
 import MemberEmailPicker from "./MemberEmailPicker";
 import type { DirectoryMember } from "@/lib/types";
 
 const GRADES = ["10", "11", "12"] as const;
 const HOMEROOMS = [1, 2, 3] as const;
+const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
 export type EmailMode = "all" | "grades" | "homerooms" | "custom";
 
@@ -47,6 +49,13 @@ export default function EmailAudienceSelector({
   isAuto: boolean;
   isAdmin: boolean;
 }) {
+  // 학급 구성이 학년마다 조금씩 달라서(예: 12학년은 2반이 없음) 실제로 존재하는 학년+반
+  // 조합만 선택지로 보여준다 — directory_members에 학생이 없는 조합은 아예 안 보인다.
+  const { rows: members } = useRealtimeList<DirectoryMember>("directory_members");
+  const availableClasses = new Set(
+    members.filter((m) => m.member_type === "student" && m.grade && m.homeroom).map((m) => classKey(m.grade as string, m.homeroom as number))
+  );
+
   return (
     <div className="border-t border-border mt-3.5 pt-3.5">
       <label className="flex items-center gap-2 text-sm font-bold">
@@ -84,21 +93,25 @@ export default function EmailAudienceSelector({
               </label>
               {mode === "homerooms" && (
                 <div className="ml-6 flex flex-col gap-1">
-                  {GRADES.map((g) => (
-                    <div key={g} className="flex items-center gap-2">
-                      <span className="text-xs text-muted w-10">{g}학년</span>
-                      {HOMEROOMS.map((h) => (
-                        <label key={h} className="flex items-center gap-1 text-xs">
-                          <input
-                            type="checkbox"
-                            checked={classes.has(classKey(g, h))}
-                            onChange={() => onToggleClass(classKey(g, h))}
-                          />
-                          {h}반
-                        </label>
-                      ))}
-                    </div>
-                  ))}
+                  {GRADES.map((g) => {
+                    const homeroomsInGrade = HOMEROOMS.filter((h) => availableClasses.has(classKey(g, h)));
+                    if (homeroomsInGrade.length === 0) return null;
+                    return (
+                      <div key={g} className="flex items-center gap-2">
+                        <span className="text-xs text-muted w-10">{g}학년</span>
+                        {homeroomsInGrade.map((h) => (
+                          <label key={h} className="flex items-center gap-1 text-xs">
+                            <input
+                              type="checkbox"
+                              checked={classes.has(classKey(g, h))}
+                              onChange={() => onToggleClass(classKey(g, h))}
+                            />
+                            {HOMEROOM_LABEL[h]}
+                          </label>
+                        ))}
+                      </div>
+                    );
+                  })}
                   <p className="text-[11px] text-muted m-0">학년과 반을 함께 선택해야 정확한 학급이 지정됩니다.</p>
                 </div>
               )}

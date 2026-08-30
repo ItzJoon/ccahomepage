@@ -79,6 +79,9 @@ export default function PostManager({
     filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
     orderBy: { column: "created_at", ascending: false },
   });
+  // 카테고리 입력을 자유 텍스트 대신 이 목록에서 고르게 한다 — 지금까지 실제로 쓰인
+  // 값들을 그대로 보여준다(별도 카테고리 관리 테이블은 없음).
+  const existingCategories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort();
 
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -97,6 +100,10 @@ export default function PostManager({
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  // 카테고리를 자유 입력 대신 기존에 쓰인 값 중에서 고르게 한다("+ 새 카테고리 추가"를
+  // 고르면 그때만 직접 입력할 수 있는 입력창으로 바뀐다). teacher는 교과/학급 선택으로
+  // 이미 분류가 정해지므로 이 필드 자체를 보여주지 않는다.
+  const [categoryCustomMode, setCategoryCustomMode] = useState(false);
   // 공지/뉴스 화면이 이 컴포넌트를 공유하므로(교사의 교과/학급 공지 포함), type별로
   // 임시저장 키를 분리한다. 기존 글 수정 중에는 자동저장하지 않는다(새 글 작성만 대상).
   const draftKey = `${type}_new`;
@@ -112,8 +119,12 @@ export default function PostManager({
   const [emailCustomMembers, setEmailCustomMembers] = useState<DirectoryMember[]>([]);
   const [lastBatch, setLastBatch] = useState<EmailNotificationBatch | null>(null);
 
-  const resetEmailOptions = () => {
-    setEmailEnabled(false);
+  // 새 교과/학급 공지를 처음 쓸 때는 대상이 이미 자동으로 정해져 있어서(수강생/담당 학급)
+  // 체크박스 기본값을 켜둔다 — 필요하면 체크를 풀어서 이번만 이메일을 안 보내도록 선택할
+  // 수 있다. 그 외(일반 공지/뉴스를 새로 쓸 때, 기존 글을 다시 열어서 수정할 때 — 재발송은
+  // 항상 의도적으로 다시 켜야 함)는 꺼둔 상태(opt-in)로 시작한다.
+  const resetEmailOptions = (defaultEnabled: boolean) => {
+    setEmailEnabled(defaultEnabled);
     setEmailMode(iAmAdmin ? "all" : "grades");
     setEmailGrades(new Set());
     setEmailClasses(new Set());
@@ -181,7 +192,10 @@ export default function PostManager({
     setExistingFiles([]);
     setResultMessage(null);
     setSaveError(null);
-    resetEmailOptions();
+    {
+      const chosenType = draft && (draft.title || draft.content) ? draft.type : next.type;
+      resetEmailOptions(chosenType === "subject_notice" || chosenType === "homeroom_notice");
+    }
     setEditing("new");
   };
 
@@ -256,7 +270,9 @@ export default function PostManager({
     setExistingFiles(item.attachments ?? []);
     setResultMessage(null);
     setSaveError(null);
-    resetEmailOptions();
+    // 기존 글을 다시 열 때는(재발송 여부를 매번 새로 판단해야 하므로) 항상 꺼둔 상태로
+    // 시작한다 — 자동 체크는 "처음 쓰는" 교과/학급 공지에만 적용한다.
+    resetEmailOptions(false);
     setEditing(item.id);
   };
 
@@ -385,7 +401,7 @@ export default function PostManager({
     setSaving(false);
     setResultMessage(message);
     setNewFiles([]);
-    resetEmailOptions();
+    resetEmailOptions(false);
     if (savedPostId) {
       setEditing(savedPostId);
       setInitialForm(form);
@@ -536,12 +552,48 @@ export default function PostManager({
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
       />
-      <label className="text-xs font-bold text-muted mt-2">카테고리</label>
-      <input
-        className="border border-border rounded-lg px-2.5 py-2 text-sm"
-        value={form.category}
-        onChange={(e) => setForm({ ...form, category: e.target.value })}
-      />
+      {!isTeacher && (
+        <>
+          <label className="text-xs font-bold text-muted mt-2">카테고리</label>
+          {categoryCustomMode ? (
+            <div className="flex gap-1.5">
+              <input
+                autoFocus
+                className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              />
+              <button
+                type="button"
+                onClick={() => setCategoryCustomMode(false)}
+                className="text-xs font-bold text-muted border border-border rounded-lg px-2.5"
+              >
+                목록에서 선택
+              </button>
+            </div>
+          ) : (
+            <select
+              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              value={form.category}
+              onChange={(e) => {
+                if (e.target.value === "__custom__") {
+                  setCategoryCustomMode(true);
+                  return;
+                }
+                setForm({ ...form, category: e.target.value });
+              }}
+            >
+              {!existingCategories.includes(form.category) && <option value={form.category}>{form.category}</option>}
+              {existingCategories.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+              <option value="__custom__">+ 새 카테고리 추가</option>
+            </select>
+          )}
+        </>
+      )}
       <label className="text-xs font-bold text-muted mt-2">내용</label>
       <textarea
         rows={6}
