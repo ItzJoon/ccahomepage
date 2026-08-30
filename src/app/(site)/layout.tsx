@@ -30,6 +30,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { data: latestPopup },
     { data: settings },
     { data: siteTheme },
+    { data: featureFlags },
   ] = await Promise.all([
     (async () => {
       const profile = await getCurrentProfile();
@@ -68,7 +69,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .eq("id", "default")
         .maybeSingle(),
       supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
+      supabase.from("feature_flags").select("key, enabled"),
     ]);
+
+  const disabledFeatures = new Set((featureFlags ?? []).filter((f) => !f.enabled).map((f) => f.key));
 
   // 헤더/푸터/홈 화면 테마는 원래 클라이언트에서 site_theme을 실시간 구독해서 가져오는데,
   // 그 구독이 처음 값을 받아오기 전까지는 잠깐 기본값(green)으로 렌더링돼서, 페이지를
@@ -100,6 +104,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         customPages={customPages ?? []}
         checkInEligible={checkInEligible}
         initialThemeKey={initialThemeKey}
+        disabledFeatures={disabledFeatures}
       />
       {showNotifications && <NotificationBanner initial={latestBanner as any} />}
       {showNotifications && <NotificationPopup initial={latestPopup as any} />}

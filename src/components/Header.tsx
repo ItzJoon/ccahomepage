@@ -21,7 +21,8 @@ const NAV = [
   { href: "/calendar", label: "일정" },
   { href: "/news", label: "뉴스" },
   { href: "/rules", label: "생활규정" },
-  { href: "/qna", label: "Q&A" },
+  { href: "/qna", label: "Q&A", flagKey: "qna" },
+  { href: "/board", label: "게시판", flagKey: "board" },
 ];
 
 export default function Header({
@@ -29,12 +30,17 @@ export default function Header({
   customPages,
   checkInEligible = true,
   initialThemeKey,
+  disabledFeatures,
 }: {
   profile: Profile | null;
   customPages: PageDoc[];
   checkInEligible?: boolean;
   initialThemeKey?: HomeThemeKey;
+  disabledFeatures?: Set<string>;
 }) {
+  // superadmin이 /admin/feature-flags에서 끈 메뉴는 학생 화면 내비게이션에서도 숨긴다
+  // (URL 직접 접근은 middleware.ts가 별도로 막는다).
+  const visibleNav = NAV.filter((n) => !n.flagKey || !disabledFeatures?.has(n.flagKey));
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -85,7 +91,7 @@ export default function Header({
         </Link>
 
         <nav className="hidden md:flex gap-1 flex-wrap flex-1 min-w-0">
-          {NAV.map((n) => (
+          {visibleNav.map((n) => (
             <Link
               key={n.href}
               href={n.href}
@@ -169,7 +175,7 @@ export default function Header({
       {mobileOpen && (
         <div className={`md:hidden ${t.mobileBorder} px-5 py-3`}>
           <nav className="flex flex-col gap-0.5">
-            {NAV.map((n) => (
+            {visibleNav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}

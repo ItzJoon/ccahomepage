@@ -267,3 +267,10 @@ export interface AuditLog {
   after_data: Record<string, any> | null;
   created_at: string;
 }
+
+export interface FeatureFlag {
+  key: string;
+  enabled: boolean;
+  updated_at: string;
+  updated_by: string | null;
+}

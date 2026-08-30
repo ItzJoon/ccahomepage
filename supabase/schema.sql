@@ -1462,3 +1462,28 @@ create trigger audit_posts_update after update on posts
   execute function log_audit_event();
 create trigger audit_posts_delete after delete on posts
   for each row execute function log_audit_event();
+
+-- ------------------------------------------------------------
+-- 40. 기능 단위 활성화 스위치 (feature flags)
+-- ------------------------------------------------------------
+-- Q&A/게시판처럼 메뉴 전체를 통째로 켜고 끄는 스위치. site_settings에 넣지 않는 이유는
+-- site_theme과 동일하다 — site_settings는 이미 admin 이상 누구나 수정 가능한 정책이
+-- 걸려있어서, 같은 테이블에 넣으면 그 정책 때문에 superadmin 전용으로 좁힐 수 없다
+-- (RLS 정책은 OR로 합쳐지므로 컬럼 단위로 쓰기 권한을 나눌 수 없음).
+create table if not exists feature_flags (
+  key text primary key,
+  enabled boolean not null default true,
+  updated_at timestamptz not null default now(),
+  updated_by uuid references profiles(id)
+);
+
+insert into feature_flags (key) values ('qna') on conflict (key) do nothing;
+insert into feature_flags (key) values ('board') on conflict (key) do nothing;
+
+alter table feature_flags enable row level security;
+
+-- 학생 화면에서 메뉴 노출 여부를 판단해야 하므로 비로그인 포함 전체 공개 열람.
+drop policy if exists "feature_flags_read_all" on feature_flags;
+create policy "feature_flags_read_all" on feature_flags for select using (true);
+drop policy if exists "feature_flags_write_superadmin" on feature_flags;
+create policy "feature_flags_write_superadmin" on feature_flags for update using (is_superadmin());

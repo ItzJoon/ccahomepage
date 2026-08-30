@@ -97,6 +97,26 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // 기능 단위 활성화 스위치(feature_flags) — superadmin이 /admin/feature-flags에서
+  // Q&A/게시판 같은 메뉴 전체를 끌 수 있다. 로그인 여부와 무관하게 적용되어야 하므로
+  // 위의 로그인 사용자 전용 병렬 조회와 별도로, 해당 경로에 들어올 때만 조회한다.
+  const FEATURE_GATED_PREFIXES: Record<string, string> = { "/qna": "qna", "/board": "board" };
+  const gatedFeatureKey = Object.keys(FEATURE_GATED_PREFIXES).find(
+    (p) => pathname === p || pathname.startsWith(`${p}/`)
+  );
+  if (gatedFeatureKey) {
+    const { data: flag } = await supabase
+      .from("feature_flags")
+      .select("enabled")
+      .eq("key", FEATURE_GATED_PREFIXES[gatedFeatureKey])
+      .maybeSingle();
+    if (flag?.enabled === false) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
+  }
+
   if (!isMaintenanceExempt && siteSettings?.maintenance_mode) {
     const isAdmin = !!role && ["admin", "superadmin"].includes(role);
     if (!isAdmin) {
@@ -142,6 +162,7 @@ export async function updateSession(request: NextRequest) {
       "/admin/stats",
       "/admin/maintenance",
       "/admin/activity-logs",
+      "/admin/feature-flags",
     ];
     if (superadminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "superadmin") {
