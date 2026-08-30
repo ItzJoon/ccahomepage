@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -75,7 +76,7 @@ export default function AdminReportsPage() {
         </div>
       )}
 
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">신고자</th>
@@ -95,7 +96,9 @@ export default function AdminReportsPage() {
                 {r.target_type === "profile" ? displayUser(r.target_id) : r.target_id}
                 {r.context && <div className="text-muted text-xs mt-0.5">{r.context}</div>}
               </td>
-              <td className="p-2.5 border-b border-border text-sm">{r.reason || "-"}</td>
+              <td className="p-2.5 border-b border-border text-sm">
+                <span {...truncateCellProps(r.reason || "-")}>{r.reason || "-"}</span>
+              </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">{fmtDateTime(r.created_at)}</td>
               <td className="p-2.5 border-b border-border">
                 <select
@@ -114,7 +117,7 @@ export default function AdminReportsPage() {
             <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">접수된 신고가 없습니다.</td></tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

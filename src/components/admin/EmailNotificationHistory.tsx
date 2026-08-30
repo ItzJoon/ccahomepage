@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "./AdminTable";
 import { Fragment, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -48,7 +49,7 @@ export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean
         공지사항 이메일 알림 발송 이력입니다.{" "}
         {isAdmin ? "관리자는 전체 발송 이력을 볼 수 있습니다." : "본인이 보낸 발송 이력만 표시됩니다."}
       </p>
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">공지 제목</th>
@@ -103,7 +104,7 @@ export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean
             </tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

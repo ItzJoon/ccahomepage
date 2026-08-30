@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "./AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -286,7 +287,7 @@ export default function PostManager({
             명단에 담당 과목/학급 정보가 없어 공지를 등록할 수 없습니다. 관리자에게 문의해 주세요.
           </p>
         )}
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -306,8 +307,11 @@ export default function PostManager({
                 className={`hover:bg-[#F2F4F8] ${editing === n.id ? "bg-[#EAF0FB]" : ""} ${readOnlyForMe ? "cursor-default" : "cursor-pointer"}`}
               >
                 <td className="p-2.5 border-b border-border text-sm">
-                  {kindLabel(n) && <span className="text-[11px] font-bold text-blue mr-1">[{kindLabel(n)}]</span>}
-                  {n.is_pinned && <span className="pin mr-1">고정</span>} {n.title}
+                  <div className="flex items-center gap-1">
+                    {kindLabel(n) && <span className="text-[11px] font-bold text-blue shrink-0">[{kindLabel(n)}]</span>}
+                    {n.is_pinned && <span className="pin shrink-0">고정</span>}
+                    <span {...truncateCellProps(n.title)}>{n.title}</span>
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border text-sm text-muted">
                   {n.author?.nickname || n.author?.name || n.author?.email || "-"}
@@ -370,7 +374,7 @@ export default function PostManager({
               </tr>
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">

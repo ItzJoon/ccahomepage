@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -74,7 +75,7 @@ export default function AdminUsersPage() {
           <option value="12">12학년</option>
         </select>
       </div>
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
@@ -140,7 +141,7 @@ export default function AdminUsersPage() {
           })}
           {list.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

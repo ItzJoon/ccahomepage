@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -76,7 +77,7 @@ export default function AdminMealPlansPage() {
         <p className="text-muted mb-4 text-sm">
           월별 급식표 사진을 업로드하면 홈 화면 "이번 달 급식표" 블록에 이번 달 것이 자동으로 표시됩니다.
         </p>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">연도</th>
@@ -111,7 +112,7 @@ export default function AdminMealPlansPage() {
               </tr>
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
         <h3>급식표 업로드</h3>

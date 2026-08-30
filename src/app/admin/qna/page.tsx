@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -74,7 +75,7 @@ export default function AdminQnaPage() {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">Q&amp;A 관리</h2>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -87,7 +88,9 @@ export default function AdminQnaPage() {
           <tbody>
             {rows.map((q) => (
               <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer hover:bg-[#F2F4F8] ${openId === q.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">{q.title}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  <span {...truncateCellProps(q.title)}>{q.title}</span>
+                </td>
                 <td className="p-2.5 border-b border-border text-sm">
                   {q.asker?.nickname || q.asker?.name || q.asker?.email || "-"}
                 </td>
@@ -130,7 +133,7 @@ export default function AdminQnaPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {current && (
         <div className="bg-white border border-border rounded-xl p-[18px] sticky top-20">

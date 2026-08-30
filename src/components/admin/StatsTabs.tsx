@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import AdminTable from "./AdminTable";
 
 type TopStreak = { user_id: string; streak_count: number; name: string | null; email: string };
 type AttendanceRow = {
@@ -133,7 +134,7 @@ export default function StatsTabs({
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
-          <table className="w-full border-collapse bg-white">
+          <AdminTable>
             <thead>
               <tr>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">체크인 시각</th>
@@ -165,14 +166,14 @@ export default function StatsTabs({
                 </tr>
               )}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
       )}
 
       {tab === "summary" && (
         <div>
           <h3 className="mb-2">연속 접속일수 상위 학생</h3>
-          <table className="w-full border-collapse bg-white">
+          <AdminTable>
             <thead>
               <tr>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
@@ -192,7 +193,7 @@ export default function StatsTabs({
                 <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">아직 접속 기록이 없습니다.</td></tr>
               )}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
       )}
     </div>

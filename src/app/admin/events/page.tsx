@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -89,7 +90,7 @@ export default function AdminEventsPage() {
           <h2 className="text-[22px]">일정 관리</h2>
           <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 새 일정</button>
         </div>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -102,10 +103,12 @@ export default function AdminEventsPage() {
             {rows.map((e) => (
               <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
                 <td className="p-2.5 border-b border-border text-sm">
-                  {e.title}
-                  {e.is_hidden && (
-                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <span {...truncateCellProps(e.title)}>{e.title}</span>
+                    {e.is_hidden && (
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{e.start_at}</td>
                 <td className="p-2.5 border-b border-border text-sm text-muted">
@@ -126,7 +129,7 @@ export default function AdminEventsPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">

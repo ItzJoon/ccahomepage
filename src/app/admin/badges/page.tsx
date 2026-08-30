@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -167,7 +168,7 @@ export default function AdminBadgesPage() {
           (이미 받은 학생의 뱃지는 항상 유지됩니다). "시크릿"으로 설정하면 획득하기 전까지 학생 목록에
           아예 보이지 않다가, 지급받는 순간 드러납니다.
         </p>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-14">아이콘</th>
@@ -212,7 +213,7 @@ export default function AdminBadgesPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
 
         <div className="bg-white border border-border rounded-xl p-[18px] mt-5">
           <h3 className="mb-1">뱃지 직접 부여</h3>

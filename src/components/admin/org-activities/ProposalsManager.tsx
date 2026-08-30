@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "../AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -137,7 +138,7 @@ export default function ProposalsManager() {
             </button>
           </div>
         )}
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -153,7 +154,9 @@ export default function ProposalsManager() {
                 onClick={() => setSelectedId(p.id)}
                 className={`cursor-pointer hover:bg-[#F2F4F8] ${selectedId === p.id ? "bg-[#EAF0FB]" : ""}`}
               >
-                <td className="p-2.5 border-b border-border text-sm">{p.title}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  <span {...truncateCellProps(p.title)}>{p.title}</span>
+                </td>
                 <td className="p-2.5 border-b border-border text-sm">{orgName(p.org_id)}</td>
                 <td className="p-2.5 border-b border-border text-sm">
                   {voteCount(p.id, "yes")} / {voteCount(p.id, "no")}
@@ -169,7 +172,7 @@ export default function ProposalsManager() {
               <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 안건이 없습니다.</td></tr>
             )}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {current && (
         <div className="bg-white border border-border rounded-xl p-[18px] sticky top-20">

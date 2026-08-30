@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import AdminTable from "@/components/admin/AdminTable";
 import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
@@ -133,7 +134,7 @@ export default function AdminAccessRequestsPage() {
       </div>
 
       <h3 className="text-sm font-bold text-muted mb-2">대기 중인 요청 ({pending.length})</h3>
-      <table className="w-full border-collapse bg-white mb-6">
+      <AdminTable className="mb-6">
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
@@ -176,10 +177,10 @@ export default function AdminAccessRequestsPage() {
             </tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
 
       <h3 className="text-sm font-bold text-muted mb-2">처리 이력 ({decided.length})</h3>
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
@@ -224,7 +225,7 @@ export default function AdminAccessRequestsPage() {
             </tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

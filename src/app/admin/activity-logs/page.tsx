@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "@/components/admin/AdminTable";
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { AuditAction, AuditLog } from "@/lib/types";
@@ -195,7 +196,7 @@ export default function AdminActivityLogsPage() {
         />
       </div>
 
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">시각</th>
@@ -249,7 +250,7 @@ export default function AdminActivityLogsPage() {
             <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">불러오는 중…</td></tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
 
       <div className="flex items-center justify-between mt-3.5">
         <span className="text-muted text-xs">전체 {total}건</span>

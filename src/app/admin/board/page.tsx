@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -45,7 +46,7 @@ export default function AdminBoardPage() {
   return (
     <div>
       <h2 className="text-[22px] mb-4">게시판 관리</h2>
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -58,7 +59,9 @@ export default function AdminBoardPage() {
         <tbody>
           {rows.map((p) => (
             <tr key={p.id}>
-              <td className="p-2.5 border-b border-border text-sm">{p.title}</td>
+              <td className="p-2.5 border-b border-border text-sm">
+                <span {...truncateCellProps(p.title)}>{p.title}</span>
+              </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">
                 {p.author?.nickname || p.author?.name || p.author?.email || "-"}
               </td>
@@ -90,7 +93,7 @@ export default function AdminBoardPage() {
             <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
           )}
         </tbody>
-      </table>
+      </AdminTable>
     </div>
   );
 }

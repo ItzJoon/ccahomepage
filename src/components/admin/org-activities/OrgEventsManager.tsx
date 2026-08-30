@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "../AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -114,7 +115,7 @@ export default function OrgEventsManager() {
           <h2 className="text-[22px]">조직 활동 · 조직 일정 관리</h2>
           <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 일정 추가</button>
         </div>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">일정명</th>
@@ -138,7 +139,7 @@ export default function OrgEventsManager() {
             ))}
             {events.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">

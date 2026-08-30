@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -85,7 +86,7 @@ export default function AdminMembersPage() {
           <h2 className="text-[22px]">구성원 관리</h2>
           <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 구성원 추가</button>
         </div>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">순서</th>
@@ -125,7 +126,7 @@ export default function AdminMembersPage() {
             })}
             {sortedMembers.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">구성원이 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">

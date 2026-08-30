@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -49,7 +50,7 @@ export default function AdminPagesPage() {
       </p>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
         <div className="min-w-0">
-          <table className="w-full border-collapse bg-white">
+          <AdminTable>
             <thead>
               <tr>
                 <th className="text-left text-xs text-muted border-b-2 border-border p-2">페이지 제목</th>
@@ -60,7 +61,12 @@ export default function AdminPagesPage() {
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <td className="p-2.5 border-b border-border text-sm">{p.title} <span className="text-muted text-xs">/pages/{p.slug}</span></td>
+                  <td className="p-2.5 border-b border-border text-sm">
+                    <div className="flex items-center gap-1.5">
+                      <span {...truncateCellProps(p.title)}>{p.title}</span>
+                      <span className="text-muted text-xs shrink-0">/pages/{p.slug}</span>
+                    </div>
+                  </td>
                   <td className="p-2.5 border-b border-border">
                     <input type="checkbox" checked={p.menu_visible} onChange={() => toggleMenu(p)} />
                   </td>
@@ -71,7 +77,7 @@ export default function AdminPagesPage() {
               ))}
               {rows.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">추가된 페이지가 없습니다.</td></tr>}
             </tbody>
-          </table>
+          </AdminTable>
         </div>
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5">
           <h3>새 페이지 추가</h3>

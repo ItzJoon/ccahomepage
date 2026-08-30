@@ -1,5 +1,6 @@
 "use client";
 
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -71,7 +72,7 @@ export default function AdminRulesPage() {
           <h2 className="text-[22px]">규정 관리</h2>
           <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 규정 추가</button>
         </div>
-        <table className="w-full border-collapse bg-white">
+        <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -82,7 +83,9 @@ export default function AdminRulesPage() {
           <tbody>
             {rows.map((r) => (
               <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === r.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">{r.title}</td>
+                <td className="p-2.5 border-b border-border text-sm">
+                  <span {...truncateCellProps(r.title)}>{r.title}</span>
+                </td>
                 <td className="p-2.5 border-b border-border text-sm">{r.category}</td>
                 <td className="p-2.5 border-b border-border">
                   <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>삭제</button>
@@ -91,7 +94,7 @@ export default function AdminRulesPage() {
             ))}
             {rows.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">등록된 규정이 없습니다.</td></tr>}
           </tbody>
-        </table>
+        </AdminTable>
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
