@@ -1740,3 +1740,71 @@ create policy "posts_read_homeroom_notice" on posts for select
 drop policy if exists "questions_read" on questions;
 create policy "questions_read" on questions for select
   using ((is_private = false and not is_hidden) or auth.uid() = user_id or is_admin());
+
+-- ------------------------------------------------------------
+-- 45. 조회수 시스템을 배치 집계 방식으로 통일
+-- ------------------------------------------------------------
+-- 공지사항([7]/[8] 이전)과 게시판([1])이 각자 RPC로 view_count를 직접 UPDATE하고
+-- 있었는데(그때마다 audit_logs 트리거 예외 처리도 따로 필요했음), 매 조회마다 실시간
+-- UPDATE하는 대신 조회 "이벤트"만 기록해두고 pg_cron으로 주기적으로 집계하는 방식으로
+-- 통일한다. 이러면 인기 글에 접속이 몰려도 같은 행에 UPDATE 잠금이 반복되지 않고,
+-- 공지사항/게시판 외에 다른 콘텐츠 타입이 추가돼도 content_type만 늘리면 된다.
+create extension if not exists pg_cron with schema extensions;
+
+create table if not exists content_view_events (
+  id uuid primary key default uuid_generate_v4(),
+  content_type text not null check (content_type in ('notice', 'board_post')),
+  content_id uuid not null,
+  -- 로그인 사용자는 auth.uid(), 비로그인 방문자는 브라우저에 저장해둔 임의의 id.
+  viewer_key text not null,
+  view_date date not null default (timezone('Asia/Seoul', now()))::date,
+  created_at timestamptz not null default now(),
+  -- 같은 사용자가 같은 콘텐츠를 같은 날 여러 번 봐도 한 번만 세어지도록 하는 핵심 제약.
+  unique (content_type, content_id, viewer_key, view_date)
+);
+
+create index if not exists content_view_events_lookup_idx on content_view_events(content_type, content_id);
+
+alter table content_view_events enable row level security;
+
+-- 익명 방문자도 조회를 기록해야 하므로 로그인 여부와 무관하게 삽입 허용. 조회/수정/삭제는
+-- 아무 정책도 없어서(기본값) 클라이언트는 할 수 없고, view_count는 아래 집계 함수를 통해서만
+-- 반영된다.
+drop policy if exists "content_view_events_insert_all" on content_view_events;
+create policy "content_view_events_insert_all" on content_view_events for insert with check (true);
+
+create or replace function aggregate_view_counts()
+returns void as $$
+begin
+  update posts p set view_count = sub.cnt
+  from (
+    select content_id, count(*) as cnt
+    from content_view_events
+    where content_type = 'notice'
+    group by content_id
+  ) sub
+  where p.id = sub.content_id and p.view_count is distinct from sub.cnt;
+
+  update board_posts bp set view_count = sub.cnt
+  from (
+    select content_id, count(*) as cnt
+    from content_view_events
+    where content_type = 'board_post'
+    group by content_id
+  ) sub
+  where bp.id = sub.content_id and bp.view_count is distinct from sub.cnt;
+end;
+$$ language plpgsql security definer;
+
+-- 5분마다 집계. pg_cron 작업은 마이그레이션을 다시 실행하면 중복 스케줄될 수 있으니
+-- 이미 있으면 건드리지 않는다.
+do $$
+begin
+  if not exists (select 1 from cron.job where jobname = 'aggregate-view-counts') then
+    perform cron.schedule('aggregate-view-counts', '*/5 * * * *', 'select aggregate_view_counts();');
+  end if;
+end $$;
+
+-- 이전 방식(공지/게시판 각자 RPC로 즉시 UPDATE)은 더 이상 쓰지 않는다.
+drop function if exists increment_post_view_count(uuid);
+drop function if exists increment_board_view_count(uuid);

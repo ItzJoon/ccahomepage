@@ -37,7 +37,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         {post.is_pinned && <Pin />}
         <h1 className="text-2xl my-2">{post.title}</h1>
         <div className="text-muted text-sm mb-[18px]">
-          {fmt(post.publish_at)} · <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} />
+          {fmt(post.publish_at)} · <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} contentType="notice" />
         </div>
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>

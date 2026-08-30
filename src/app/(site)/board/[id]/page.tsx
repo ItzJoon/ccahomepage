@@ -49,7 +49,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
             authorLabel
           )}{" "}
           · {fmt(post.created_at)} ·{" "}
-          <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} rpc="increment_board_view_count" />
+          <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} contentType="board_post" />
         </div>
         <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} />
       </div>
