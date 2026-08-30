@@ -23,10 +23,6 @@ interface QuestionWithAnswer {
   answers: { id: string; content: string; created_at: string }[];
 }
 
-function fmt(d: string) {
-  const dt = new Date(d);
-  return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
-}
 
 export default function QnaPage() {
   const supabase = createClient();

@@ -4,7 +4,7 @@ import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import AccountPicker, { accountDisplayName } from "@/components/admin/AccountPicker";
+import AccountPicker from "@/components/admin/AccountPicker";
 import type { BadgeDef, Profile } from "@/lib/types";
 
 const empty = {

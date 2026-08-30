@@ -1,7 +1,7 @@
 "use client";
 
 import AdminTable from "./AdminTable";
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { EmailNotificationBatch, EmailNotificationLog } from "@/lib/types";
