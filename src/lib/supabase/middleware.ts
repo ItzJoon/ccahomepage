@@ -164,7 +164,11 @@ export async function updateSession(request: NextRequest) {
       : isNoticesPath
       ? ["teacher", "editor", "admin", "superadmin"]
       : ["editor", "admin", "superadmin"];
-    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil)) {
+    // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
+    // 관리 탭도 항상 볼 수 있어야 한다(관리자가 플래그 설정 실수로 스스로를 포함해
+    // 아무도 접근 못 하는 상황을 막기 위한 안전장치 — admin/superadmin이 명단과 무관하게
+    // 항상 로그인 가능한 것과 같은 종류의 예외).
+    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil && r !== "superadmin")) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       url.searchParams.set("denied", "1");

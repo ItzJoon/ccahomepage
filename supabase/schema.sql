@@ -1928,3 +1928,21 @@ returns boolean as $$
     where id = auth.uid() and role in ('sub_editor','editor','admin','superadmin') and is_council = true
   );
 $$ language sql stable security definer;
+
+-- ------------------------------------------------------------
+-- 50. superadmin은 is_council 조건과 무관하게 조직 활동 관리를 항상 쓸 수 있어야 한다
+-- ------------------------------------------------------------
+-- 최상위 권한 안전장치 — 관리자가 플래그 설정 실수로 아무도(본인 포함) 접근 못 하게
+-- 되는 상황을 막는다(admin/superadmin이 명단과 무관하게 항상 로그인 가능한 것과 같은
+-- 종류의 예외). middleware.ts의 /admin/org-activities/* 체크와 AdminNav도 함께 바꿨다.
+create or replace function is_org_activities_manager()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid()
+      and (
+        role = 'superadmin'
+        or (role in ('sub_editor','editor','admin') and is_council = true)
+      )
+  );
+$$ language sql stable security definer;

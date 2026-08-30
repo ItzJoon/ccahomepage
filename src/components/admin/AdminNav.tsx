@@ -91,7 +91,7 @@ export default function AdminNav({
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
         </>
       )}
-      {isCouncil && (
+      {(isCouncil || role === "superadmin") && (
         <>
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
           {ORG_ACTIVITIES_NAV.map((n) => (
