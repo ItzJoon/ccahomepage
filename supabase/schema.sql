@@ -2097,3 +2097,45 @@ create trigger audit_user_badges_delete after delete on user_badges
 -- 나머지는 전체 폭)에 가깝게 맞춰서 마이그레이션 직후 레이아웃이 과하게 깨지지 않게 한다.
 alter table main_blocks add column if not exists col_span int not null default 3 check (col_span between 1 and 3);
 update main_blocks set col_span = 1 where id in ('notice', 'event');
+
+-- ------------------------------------------------------------
+-- 57. 공지사항 이메일 발송: 대상 선택 + 미리보기 + 발송 이력
+-- ------------------------------------------------------------
+-- "자동 전체 발송" 방식에서, 발송 1건(batch) 단위 요약 기록을 남기는 방식으로 재구성.
+-- 기존 email_notification_logs(수신자별 성공/실패 기록)를 그 batch에 연결한다.
+create table if not exists email_notification_batches (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid references posts(id) on delete set null,
+  post_title text,
+  sent_by uuid references profiles(id) on delete set null,
+  audience_description text not null,
+  recipient_count int not null default 0,
+  success_count int not null default 0,
+  failure_count int not null default 0,
+  created_at timestamptz not null default now()
+);
+
+alter table email_notification_batches enable row level security;
+
+-- 본인이 보낸 발송 이력은 본인도 볼 수 있어야 teacher/editor가 자기 발송 결과를 확인할 수
+-- 있다(전체 이력은 admin 이상만).
+drop policy if exists "email_notification_batches_read_own_or_admin" on email_notification_batches;
+create policy "email_notification_batches_read_own_or_admin" on email_notification_batches for select
+  using (sent_by = auth.uid() or is_admin());
+
+alter table email_notification_logs add column if not exists batch_id uuid references email_notification_batches(id) on delete cascade;
+
+-- 기존 email_notification_logs는 is_admin()만 볼 수 있었는데, 본인이 보낸 batch에 속한
+-- 로그(수신자별 상세)는 본인도 볼 수 있게 정책을 하나 더 추가한다(permissive라 OR로 합쳐짐).
+drop policy if exists "email_notification_logs_read_own_batch" on email_notification_logs;
+create policy "email_notification_logs_read_own_batch" on email_notification_logs for select
+  using (
+    exists (
+      select 1 from email_notification_batches b
+      where b.id = email_notification_logs.batch_id and b.sent_by = auth.uid()
+    )
+  );
+
+create index if not exists email_notification_batches_post_id_idx on email_notification_batches(post_id);
+create index if not exists email_notification_batches_created_at_idx on email_notification_batches(created_at desc);
+create index if not exists email_notification_logs_batch_id_idx on email_notification_logs(batch_id);

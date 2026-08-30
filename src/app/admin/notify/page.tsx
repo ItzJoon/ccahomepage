@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
+import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import type { NotificationItem } from "@/lib/types";
 
 interface NotificationWithSender extends NotificationItem {
@@ -12,6 +13,7 @@ interface NotificationWithSender extends NotificationItem {
 
 export default function AdminNotifyPage() {
   const supabase = createClient();
+  const [tab, setTab] = useState<"popup" | "email">("popup");
   const { rows, reload } = useRealtimeList<NotificationWithSender>("notifications", {
     select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
@@ -74,7 +76,26 @@ export default function AdminNotifyPage() {
 
   return (
     <div>
-      <h2 className="text-[22px] mb-4">실시간 알림 발송</h2>
+      <h2 className="text-[22px] mb-4">알림 발송</h2>
+      <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-4">
+        <button
+          className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "popup" ? "bg-navy text-white" : "bg-white"}`}
+          onClick={() => setTab("popup")}
+        >
+          배너·팝업
+        </button>
+        <button
+          className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "email" ? "bg-navy text-white" : "bg-white"}`}
+          onClick={() => setTab("email")}
+        >
+          이메일 발송 이력
+        </button>
+      </div>
+
+      {tab === "email" ? (
+        <EmailNotificationHistory isAdmin={iAmAdmin} />
+      ) : (
+        <>
       <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 max-w-lg">
         <label className="text-xs font-bold text-muted mt-2">알림 제목</label>
         <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 긴급 하교 안내" />
@@ -142,6 +163,8 @@ export default function AdminNotifyPage() {
         ))}
         {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">발송한 알림이 없습니다.</div>}
       </ul>
+        </>
+      )}
     </div>
   );
 }

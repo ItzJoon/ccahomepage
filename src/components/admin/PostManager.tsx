@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "./FileUpload";
+import EmailSendPanel from "./EmailSendPanel";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import { safeStorageKey } from "@/lib/storageKey";
 import type { Post, PostType } from "@/lib/types";
@@ -202,18 +203,9 @@ export default function PostManager({
       if (!error) {
         clearDraft(draftKey);
         setHasDraft(false);
-        // 새 글이 발행 상태로 등록되면 대상자에게 이메일 알림을 보낸다. 대상 전체에게
-        // 순차 발송하느라 시간이 걸릴 수 있어 응답을 기다리지 않고 백그라운드로 흘려보낸다
-        // (실패는 화면에 안 뜨고 email_notification_logs에만 남는다 — 관리자 활동 로그와
-        // 별개로 발송 실패만 따로 확인할 수 있게 한 이유).
-        if (data.status === "published") {
-          fetch("/api/send-notice-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ postId: data.id }),
-          }).catch(() => {});
-        }
       }
+      // 이메일 알림은 더 이상 자동으로 나가지 않는다 — 저장 후 목록에서 이 글을 다시 열면
+      // 나오는 "이메일로 알림 보내기" 패널(대상 선택 + 미리보기 + 확인)에서 직접 보낸다.
     } else if (editing) {
       await supabase.from("posts").update(form).eq("id", editing);
       if (newFiles.length > 0) {
@@ -566,6 +558,15 @@ export default function PostManager({
               취소
             </button>
           </div>
+
+          {editing !== "new" && form.status === "published" && (
+            <EmailSendPanel
+              postId={editing as string}
+              postType={form.type}
+              isAdmin={iAmAdmin}
+              isEditor={!isTeacher && !iAmAdmin}
+            />
+          )}
         </div>
       )}
     </div>

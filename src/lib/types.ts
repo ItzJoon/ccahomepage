@@ -19,11 +19,31 @@ export interface EmailNotificationLog {
   id: string;
   post_id: string | null;
   post_title: string | null;
+  batch_id: string | null;
   recipient_email: string;
   status: "sent" | "failed";
   error_message: string | null;
   created_at: string;
 }
+
+export interface EmailNotificationBatch {
+  id: string;
+  post_id: string | null;
+  post_title: string | null;
+  sent_by: string | null;
+  audience_description: string;
+  recipient_count: number;
+  success_count: number;
+  failure_count: number;
+  created_at: string;
+}
+
+export type EmailAudience =
+  | { mode: "auto" }
+  | { mode: "all" }
+  | { mode: "grades"; grades: string[] }
+  | { mode: "homerooms"; homerooms: number[] }
+  | { mode: "custom"; emails: string[] };
 
 export interface Organization {
   id: string;
