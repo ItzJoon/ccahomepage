@@ -1592,3 +1592,58 @@ create trigger audit_board_posts_update after update on board_posts
 drop trigger if exists audit_board_posts_delete on board_posts;
 create trigger audit_board_posts_delete after delete on board_posts
   for each row execute function log_audit_event();
+
+-- ------------------------------------------------------------
+-- 42. 게시글/댓글 도배 방지
+-- ------------------------------------------------------------
+-- 시간당 최대 작성 수 + 연속 작성 쿨다운을 트리거로 강제한다(클라이언트 검증만으로는
+-- API를 직접 호출해 우회할 수 있어서 서버 단에서 막는다). 제한값은 트리거를 붙일 때
+-- 인자로 넘겨서(TG_ARGV) 테이블마다 다르게 두고, 나중에 값만 바꾸고 싶으면 아래
+-- create trigger 문의 숫자만 고쳐서 다시 실행하면 된다 — 함수 자체는 건드릴 필요 없음.
+-- 작성자 컬럼명이 테이블마다 다르므로(board는 author_id, questions는 user_id) 세 번째
+-- 인자로 받아 동적으로 처리한다.
+create or replace function enforce_rate_limit()
+returns trigger as $$
+declare
+  v_cooldown_seconds int := TG_ARGV[0]::int;
+  v_max_per_hour int := TG_ARGV[1]::int;
+  v_author_col text := TG_ARGV[2];
+  v_last_at timestamptz;
+  v_count_last_hour int;
+  v_author uuid;
+begin
+  execute format('select ($1).%I', v_author_col) using NEW into v_author;
+  if v_author is null then
+    return NEW;
+  end if;
+
+  execute format('select max(created_at) from %I where %I = $1', TG_TABLE_NAME, v_author_col)
+    using v_author into v_last_at;
+  if v_last_at is not null and now() - v_last_at < make_interval(secs => v_cooldown_seconds) then
+    raise exception '너무 빠르게 연속으로 작성하고 있습니다. 잠시 후 다시 시도해 주세요.' using errcode = 'P0001';
+  end if;
+
+  execute format(
+    'select count(*) from %I where %I = $1 and created_at > now() - interval ''1 hour''',
+    TG_TABLE_NAME, v_author_col
+  ) using v_author into v_count_last_hour;
+  if v_count_last_hour >= v_max_per_hour then
+    raise exception '시간당 작성 가능한 글/댓글 수를 초과했습니다. 잠시 후 다시 시도해 주세요.' using errcode = 'P0001';
+  end if;
+
+  return NEW;
+end;
+$$ language plpgsql security definer;
+
+-- (쿨다운 초, 시간당 최대 개수, 작성자 컬럼명)
+drop trigger if exists rate_limit_board_posts on board_posts;
+create trigger rate_limit_board_posts before insert on board_posts
+  for each row execute function enforce_rate_limit(10, 10, 'author_id');
+
+drop trigger if exists rate_limit_board_comments on board_comments;
+create trigger rate_limit_board_comments before insert on board_comments
+  for each row execute function enforce_rate_limit(5, 30, 'author_id');
+
+drop trigger if exists rate_limit_questions on questions;
+create trigger rate_limit_questions before insert on questions
+  for each row execute function enforce_rate_limit(10, 10, 'user_id');
