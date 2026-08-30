@@ -4,6 +4,7 @@ import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
 const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
@@ -11,6 +12,7 @@ const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3:
 
 export default function AdminUsersPage() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows, reload } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const { rows: directory } = useRealtimeList<DirectoryMember>("directory_members");
   const [q, setQ] = useState("");
@@ -62,13 +64,13 @@ export default function AdminUsersPage() {
       </p>
       <div className="flex gap-2 mb-3.5">
         <input
-          className="border border-border rounded-lg px-3 py-2 text-sm w-full max-w-sm"
+          className={`${t.adminInput} w-full max-w-sm`}
           placeholder="이름 또는 이메일 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
         <select
-          className="border border-border rounded-lg px-3 py-2 text-sm"
+          className={t.adminInput}
           value={gradeFilter}
           onChange={(e) => setGradeFilter(e.target.value)}
         >
@@ -81,12 +83,12 @@ export default function AdminUsersPage() {
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">명단 정보</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">권한</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">임원회</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">사법위원회</th>
+            <th className={t.adminTableHeaderCell}>이름</th>
+            <th className={t.adminTableHeaderCell}>이메일</th>
+            <th className={t.adminTableHeaderCell}>명단 정보</th>
+            <th className={`${t.adminTableHeaderCell} w-40`}>권한</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>임원회</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>사법위원회</th>
           </tr>
         </thead>
         <tbody>
@@ -99,22 +101,22 @@ export default function AdminUsersPage() {
             const dm = directoryByEmail[p.email];
             return (
               <tr key={p.id}>
-                <td className="p-2.5 border-b border-border text-sm">{p.name || "-"}</td>
-                <td className="p-2.5 border-b border-border text-sm">{p.email}</td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">
+                <td className={t.adminTableCell}>{p.name || "-"}</td>
+                <td className={t.adminTableCell}>{p.email}</td>
+                <td className={`${t.adminTableCell} text-muted`}>
                   {!dm && "-"}
                   {dm?.member_type === "student" &&
                     `학생 · ${dm.grade}학년 ${dm.homeroom ? HOMEROOM_LABEL[dm.homeroom] : ""}`}
                   {dm?.member_type === "teacher" && `교사 · ${dm.subject || "-"}`}
                   {dm?.member_type === "other" && "외부 승인 계정"}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   {canEdit || iAmDesigner ? (
                     // designer는 어차피 아무것도 바꿀 수 없지만(DesignerModeGate + RLS가
                     // 이중으로 막음), 요건상 입력 요소 자체는 감추지 않고 disabled로만
                     // 보여준다 — 편집 가능한 다른 계정과 화면 구조가 동일하게 보인다.
                     <select
-                      className="border border-border rounded-lg px-2 py-1 text-sm"
+                      className={t.adminInput}
                       value={p.role}
                       disabled={!canEdit}
                       onChange={(e) => changeRole(p.id, e.target.value)}
@@ -130,7 +132,7 @@ export default function AdminUsersPage() {
                     </span>
                   )}
                 </td>
-                <td className="p-2.5 border-b border-border text-center">
+                <td className={`${t.adminTableCell} text-center`}>
                   <input
                     type="checkbox"
                     disabled={!canEdit}
@@ -138,7 +140,7 @@ export default function AdminUsersPage() {
                     onChange={(e) => toggleFlag(p.id, "is_council", e.target.checked)}
                   />
                 </td>
-                <td className="p-2.5 border-b border-border text-center">
+                <td className={`${t.adminTableCell} text-center`}>
                   <input
                     type="checkbox"
                     disabled={!canEdit}

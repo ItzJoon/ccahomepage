@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 
 interface QuestionWithAnswer {
@@ -29,6 +30,7 @@ export default function AdminQnaPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
   const { isAdmin: iAmAdmin } = useMyRole();
+  const { t } = useHomeTheme();
 
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
@@ -71,24 +73,24 @@ export default function AdminQnaPage() {
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">질문자</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">공개</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">상태</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-32`}>질문자</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>공개</th>
+              <th className={`${t.adminTableHeaderCell} w-32`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
           <tbody>
             {rows.map((q) => (
-              <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer hover:bg-[#F2F4F8] ${openId === q.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer ${t.adminTableRowHover} ${openId === q.id ? t.adminTableRowActive : ""}`}>
+                <td className={t.adminTableCell}>
                   <span {...truncateCellProps(q.title)}>{q.title}</span>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>
                   {q.asker?.nickname || q.asker?.name || q.asker?.email || "-"}
                 </td>
-                <td className="p-2.5 border-b border-border">{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
                       {q.status === "answered" ? "답변완료" : "대기"}
@@ -98,7 +100,7 @@ export default function AdminQnaPage() {
                     )}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     <button
                       className="text-blue text-xs font-bold shrink-0"
@@ -111,7 +113,7 @@ export default function AdminQnaPage() {
                     </button>
                     {iAmAdmin ? (
                       <button
-                        className="text-red text-xs font-bold shrink-0"
+                        className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => {
                           e.stopPropagation();
                           removeQuestion(q.id);
@@ -131,7 +133,7 @@ export default function AdminQnaPage() {
         </AdminTable>
       </div>
       {current && (
-        <div className="bg-white border border-border rounded-xl p-[18px] sticky top-20">
+        <div className={`${t.adminEditPanel} sticky top-20`}>
           <h3>{current.title}</h3>
           <p className="text-xs text-muted mb-1">
             질문자: {current.asker?.nickname || current.asker?.name || current.asker?.email || "알 수 없음"}
@@ -140,10 +142,10 @@ export default function AdminQnaPage() {
           </p>
           <p className="text-sm">{current.content}</p>
           <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
-          <textarea rows={5} className="border border-border rounded-lg px-2.5 py-2 text-sm w-full mt-1" value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
+          <textarea rows={5} className={`${t.adminInput} w-full mt-1`} value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={() => submitAnswer(current)} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2">답변 등록</button>
-            <button onClick={() => setOpenId(null)} className="border border-border text-sm rounded-lg px-4 py-2">닫기</button>
+            <button onClick={() => submitAnswer(current)} className={t.adminBtnPrimary}>답변 등록</button>
+            <button onClick={() => setOpenId(null)} className={t.adminBtnSecondary}>닫기</button>
             {iAmAdmin && (
               <button onClick={() => removeQuestion(current.id)} className="text-red text-sm font-bold ml-auto">질문 삭제</button>
             )}

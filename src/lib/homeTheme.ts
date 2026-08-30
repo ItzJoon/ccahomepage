@@ -87,6 +87,20 @@ export const homeThemeStyles = {
     dashActivityTagNotice: "bg-[#EAF0FB] text-blue",
     dashActivityTagNews: "bg-[#E6F5F0] text-teal",
     dashActivityViewAllBtn: "border border-navy text-navy text-sm font-bold rounded-lg px-3 py-1.5 bg-white",
+
+    /** 목록형 관리자 화면(공지/뉴스/일정/게시판/Q&A/구성원 등) 공용 토큰 — 원래 있던 값 그대로라
+     * classic을 고르면 시각적으로 전혀 달라지지 않는다. */
+    adminBtnPrimary: "bg-gold text-white font-bold text-sm rounded-lg px-4 py-2",
+    adminBtnSecondary: "border border-border text-sm rounded-lg px-4 py-2 bg-white",
+    adminBtnDanger: "text-red text-xs font-bold",
+    adminToggleActive: "bg-navy text-white border-navy",
+    adminToggleIdle: "border-border",
+    adminInput: "border border-border rounded-lg px-2.5 py-2 text-sm",
+    adminTableHeaderCell: "text-left text-xs text-muted border-b-2 border-border p-2",
+    adminTableRowHover: "hover:bg-[#F2F4F8]",
+    adminTableRowActive: "bg-[#EAF0FB]",
+    adminTableCell: "p-2.5 border-b border-border text-sm",
+    adminEditPanel: "bg-white border border-border rounded-xl p-[18px]",
   },
   /** Figma "Sneaker Product Page"(실제로는 학교 포털 목업) 참고 — 검정+초록 브루탈리즘 */
   green: {
@@ -162,6 +176,18 @@ export const homeThemeStyles = {
     dashActivityTagNotice: "bg-ccahGreenLight text-ccahGreen",
     dashActivityTagNews: "bg-ink text-white",
     dashActivityViewAllBtn: "border-2 border-ink text-ink text-sm font-bold px-3 py-1.5 bg-white",
+
+    adminBtnPrimary: "bg-ccahGreen text-white font-bold text-sm px-4 py-2",
+    adminBtnSecondary: "border-2 border-ink text-ink font-bold text-sm px-4 py-2 bg-white",
+    adminBtnDanger: "text-red text-xs font-bold",
+    adminToggleActive: "bg-ink text-white border-ink",
+    adminToggleIdle: "border-ink",
+    adminInput: "border-2 border-ink rounded-none px-2.5 py-2 text-sm",
+    adminTableHeaderCell: "text-left text-xs text-ink/60 font-bold border-b-2 border-ink p-2",
+    adminTableRowHover: "hover:bg-ccahGreenLight",
+    adminTableRowActive: "bg-ccahGreenLight",
+    adminTableCell: "p-2.5 border-b border-ink text-sm",
+    adminEditPanel: "bg-white border-2 border-ink rounded-none p-[18px]",
   },
   /** Figma "CCA-Hompage"(https://figma.com/design/pFbmBXTCxTyhTBLFZ9VCUe) 재현 — Apple 느낌의
    * 미니멀한 화이트/블루 톤. 색상·도형·타이포를 실제 디자인 값 그대로 옮겼다(단, 존재하지
@@ -245,6 +271,18 @@ export const homeThemeStyles = {
     dashActivityTagNotice: "bg-appleBlue/[0.07] text-appleBlue",
     dashActivityTagNews: "bg-[#ecfdf5] text-appleGreen",
     dashActivityViewAllBtn: "border border-appleBlue text-appleInk text-sm font-bold rounded-full px-3 py-1.5 bg-[#f9fafb]",
+
+    adminBtnPrimary: "bg-appleBlue text-white font-bold text-sm rounded-lg px-4 py-2 hover:opacity-90",
+    adminBtnSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-lg px-4 py-2 bg-white hover:bg-appleBg",
+    adminBtnDanger: "text-red text-xs font-bold hover:opacity-70",
+    adminToggleActive: "bg-appleBlue text-white border-appleBlue",
+    adminToggleIdle: "border-appleBorder text-appleInk",
+    adminInput: "border border-appleBorder rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-appleBlue/20",
+    adminTableHeaderCell: "text-left text-xs text-appleMuted font-bold uppercase tracking-wide border-b border-appleBorder p-2",
+    adminTableRowHover: "hover:bg-appleBg",
+    adminTableRowActive: "bg-appleBlue/[0.07]",
+    adminTableCell: "p-2.5 border-b border-appleBorder text-sm",
+    adminEditPanel: "bg-white border border-appleBorder rounded-2xl p-[18px] shadow-[0_2px_5px_rgba(0,0,0,0.04)]",
   },
 } as const;
 

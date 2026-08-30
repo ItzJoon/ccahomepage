@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps, actionCellClass } from "@/components/adm
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
 import type { EventItem } from "@/lib/types";
 
@@ -16,6 +17,7 @@ const empty = { title: "", description: "", start_at: new Date().toISOString().s
 
 export default function AdminEventsPage() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const [myId, setMyId] = useState<string | null>(null);
   const { rows, reload } = useRealtimeList<EventWithAttachments>("events", {
     select: "*, attachments(*), profiles(name, nickname)",
@@ -88,21 +90,21 @@ export default function AdminEventsPage() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">일정 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 새 일정</button>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 새 일정</button>
         </div>
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">등록자</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>날짜</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>등록자</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
           <tbody>
             {rows.map((e) => (
-              <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === e.id ? t.adminTableRowActive : ""}`}>
+                <td className={t.adminTableCell}>
                   <div className="flex items-center gap-1">
                     <span {...truncateCellProps(e.title)}>{e.title}</span>
                     {e.is_hidden && (
@@ -110,11 +112,11 @@ export default function AdminEventsPage() {
                     )}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{e.start_at}</td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">
+                <td className={t.adminTableCell}>{e.start_at}</td>
+                <td className={`${t.adminTableCell} text-muted`}>
                   {e.profiles?.nickname || e.profiles?.name || "등록자 정보 없음"}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     <button
                       className="text-blue text-xs font-bold shrink-0"
@@ -122,7 +124,7 @@ export default function AdminEventsPage() {
                     >
                       {e.is_hidden ? "숨김 해제" : "숨김"}
                     </button>
-                    <button className="text-red text-xs font-bold shrink-0" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                    <button className={`${t.adminBtnDanger} shrink-0`} onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
                   </div>
                 </td>
               </tr>
@@ -132,20 +134,20 @@ export default function AdminEventsPage() {
         </AdminTable>
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "새 일정" : "일정 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">제목</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">카테고리</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <input className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">시작일</label>
-          <input type="date" className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+          <input type="date" className={t.adminInput} value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">종료일 (선택)</label>
-          <input type="date" className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+          <input type="date" className={t.adminInput} value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">장소</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          <input className={t.adminInput} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">설명</label>
-          <textarea rows={4} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <textarea rows={4} className={t.adminInput} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
           <div className="flex flex-wrap gap-1.5 mb-1">
             {existingFiles.map((f) => (
@@ -157,8 +159,8 @@ export default function AdminEventsPage() {
           </div>
           <FileUpload files={newFiles} onChange={setNewFiles} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}

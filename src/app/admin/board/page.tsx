@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps, actionCellClass } from "@/components/adm
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { BoardPost } from "@/lib/types";
 
 interface Row extends BoardPost {
@@ -23,6 +24,7 @@ export default function AdminBoardPage() {
     orderBy: { column: "created_at", ascending: false },
   });
   const { isAdmin: iAmAdmin } = useMyRole();
+  const { t } = useHomeTheme();
 
   const remove = async (id: string) => {
     if (!confirm("이 글을 삭제하시겠습니까? 댓글도 함께 삭제됩니다.")) return;
@@ -41,23 +43,23 @@ export default function AdminBoardPage() {
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">날짜</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+            <th className={t.adminTableHeaderCell}>제목</th>
+            <th className={`${t.adminTableHeaderCell} w-28`}>작성자</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
+            <th className={`${t.adminTableHeaderCell} w-24`}>날짜</th>
+            <th className={`${t.adminTableHeaderCell} w-32`} />
           </tr>
         </thead>
         <tbody>
           {rows.map((p) => (
             <tr key={p.id}>
-              <td className="p-2.5 border-b border-border text-sm">
+              <td className={t.adminTableCell}>
                 <span {...truncateCellProps(p.title)}>{p.title}</span>
               </td>
-              <td className="p-2.5 border-b border-border text-sm text-muted">
+              <td className={`${t.adminTableCell} text-muted`}>
                 {p.author?.nickname || p.author?.name || p.author?.email || "-"}
               </td>
-              <td className="p-2.5 border-b border-border">
+              <td className={t.adminTableCell}>
                 <span
                   className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                     p.is_hidden ? "bg-[#EEF1F6] text-muted" : "bg-[#E4F5EE] text-teal"
@@ -66,14 +68,14 @@ export default function AdminBoardPage() {
                   {p.is_hidden ? "숨김" : "공개"}
                 </span>
               </td>
-              <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
-              <td className="p-2.5 border-b border-border">
+              <td className={t.adminTableCell}>{fmt(p.created_at)}</td>
+              <td className={t.adminTableCell}>
                 <div className={actionCellClass}>
                   <button className="text-blue text-xs font-bold shrink-0" onClick={() => toggleHidden(p.id, p.is_hidden)}>
                     {p.is_hidden ? "숨김 해제" : "숨김"}
                   </button>
                   {iAmAdmin ? (
-                    <button className="text-red text-xs font-bold shrink-0" onClick={() => remove(p.id)}>삭제</button>
+                    <button className={`${t.adminBtnDanger} shrink-0`} onClick={() => remove(p.id)}>삭제</button>
                   ) : (
                     <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다">🔒</span>
                   )}

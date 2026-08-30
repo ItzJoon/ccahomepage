@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "./FileUpload";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
@@ -37,6 +38,7 @@ export default function PostManager({
   onClose?: () => void;
 }) {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
   // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
   const { rows, reload } = useRealtimeList<PostWithAttachments>("posts", {
@@ -444,7 +446,7 @@ export default function PostManager({
     });
 
   const formPanel = (
-    <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+    <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
       <div className="flex items-center justify-between">
         <h3 className="m-0">{editing === "new" ? "새 글 작성" : "글 수정"}</h3>
         {hideList && (
@@ -474,7 +476,7 @@ export default function PostManager({
                 setForm({ ...form, type: "subject_notice", target_subject: teacherInfo?.subjects[0] ?? null, target_homeroom: null })
               }
               className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border disabled:opacity-40 disabled:cursor-not-allowed ${
-                form.type === "subject_notice" ? "bg-navy text-white border-navy" : "border-border"
+                form.type === "subject_notice" ? t.adminToggleActive : t.adminToggleIdle
               }`}
             >
               교과 공지
@@ -486,7 +488,7 @@ export default function PostManager({
                 setForm({ ...form, type: "homeroom_notice", target_homeroom: teacherInfo?.homeroom ?? null, target_subject: null })
               }
               className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border disabled:opacity-40 disabled:cursor-not-allowed ${
-                form.type === "homeroom_notice" ? "bg-navy text-white border-navy" : "border-border"
+                form.type === "homeroom_notice" ? t.adminToggleActive : t.adminToggleIdle
               }`}
             >
               학급 공지
@@ -494,7 +496,7 @@ export default function PostManager({
           </div>
           {form.type === "subject_notice" && (
             <select
-              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              className={t.adminInput}
               value={form.target_subject ?? ""}
               onChange={(e) => setForm({ ...form, target_subject: e.target.value })}
             >
@@ -513,7 +515,7 @@ export default function PostManager({
 
       <label className="text-xs font-bold text-muted mt-2">제목</label>
       <input
-        className="border border-border rounded-lg px-2.5 py-2 text-sm"
+        className={t.adminInput}
         value={form.title}
         onChange={(e) => setForm({ ...form, title: e.target.value })}
       />
@@ -524,7 +526,7 @@ export default function PostManager({
             <div className="flex gap-1.5">
               <input
                 autoFocus
-                className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                className={`${t.adminInput} flex-1`}
                 value={form.category}
                 onChange={(e) => setForm({ ...form, category: e.target.value })}
               />
@@ -538,7 +540,7 @@ export default function PostManager({
             </div>
           ) : (
             <select
-              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              className={t.adminInput}
               value={form.category}
               onChange={(e) => {
                 if (e.target.value === "__custom__") {
@@ -562,7 +564,7 @@ export default function PostManager({
       <label className="text-xs font-bold text-muted mt-2">내용</label>
       <textarea
         rows={6}
-        className="border border-border rounded-lg px-2.5 py-2 text-sm"
+        className={t.adminInput}
         value={form.content}
         onChange={(e) => setForm({ ...form, content: e.target.value })}
       />
@@ -578,7 +580,7 @@ export default function PostManager({
           </label>
           <label className="text-xs font-bold text-muted mt-2">발행 상태</label>
           <select
-            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            className={t.adminInput}
             value={form.status}
             onChange={(e) => setForm({ ...form, status: e.target.value as any })}
           >
@@ -589,7 +591,7 @@ export default function PostManager({
           <label className="text-xs font-bold text-muted mt-2">발행일</label>
           <input
             type="date"
-            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            className={t.adminInput}
             value={form.publish_at}
             onChange={(e) => setForm({ ...form, publish_at: e.target.value })}
           />
@@ -616,14 +618,14 @@ export default function PostManager({
               type="button"
               onClick={() => setForm({ ...form, video_source: "drive", video_url: "" })}
               className={`flex-1 text-xs font-bold rounded-lg px-2 py-1.5 border ${
-                form.video_source === "drive" ? "bg-navy text-white border-navy" : "border-border"
+                form.video_source === "drive" ? t.adminToggleActive : t.adminToggleIdle
               }`}
             >
               구글 드라이브 링크
             </button>
             <label
               className={`flex-1 text-center text-xs font-bold rounded-lg px-2 py-1.5 border cursor-pointer ${
-                form.video_source === "upload" ? "bg-navy text-white border-navy" : "border-border"
+                form.video_source === "upload" ? t.adminToggleActive : t.adminToggleIdle
               }`}
             >
               {videoUploading ? "업로드 중…" : "파일 업로드"}
@@ -647,7 +649,7 @@ export default function PostManager({
           </div>
           {form.video_source === "drive" && (
             <input
-              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              className={t.adminInput}
               placeholder="https://drive.google.com/file/d/.../view?usp=sharing"
               value={form.video_url ?? ""}
               onChange={(e) => setForm({ ...form, video_url: e.target.value })}
@@ -691,10 +693,10 @@ export default function PostManager({
       {resultMessage && <div className="text-sm bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{resultMessage}</div>}
 
       <div className="flex gap-2 mt-3.5">
-        <button disabled={saving || (!isDirty && !emailEnabled)} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+        <button disabled={saving || (!isDirty && !emailEnabled)} onClick={save} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>
           {saving ? "처리 중…" : editing === "new" ? "게시하기" : "저장"}
         </button>
-        <button onClick={closePanel} className="border border-border text-sm rounded-lg px-4 py-2">
+        <button onClick={closePanel} className={t.adminBtnSecondary}>
           {hideList ? "닫기" : "취소"}
         </button>
       </div>
@@ -711,7 +713,7 @@ export default function PostManager({
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">{label} 관리</h2>
           {!(type === "notice" && isTeacher && !teacherInfo?.subjects.length && !teacherInfo?.homeroom) && (
-            <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">
+            <button onClick={startNew} className={t.adminBtnPrimary}>
               + 새 글
             </button>
           )}
@@ -724,11 +726,11 @@ export default function PostManager({
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">상태</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">발행일</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>작성자</th>
+              <th className={`${t.adminTableHeaderCell} w-32`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>발행일</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
           <tbody>
@@ -738,19 +740,19 @@ export default function PostManager({
               <tr
                 key={n.id}
                 onClick={() => startEdit(n)}
-                className={`hover:bg-[#F2F4F8] ${editing === n.id ? "bg-[#EAF0FB]" : ""} ${readOnlyForMe ? "cursor-default" : "cursor-pointer"}`}
+                className={`${t.adminTableRowHover} ${editing === n.id ? t.adminTableRowActive : ""} ${readOnlyForMe ? "cursor-default" : "cursor-pointer"}`}
               >
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>
                   <div className="flex items-center gap-1">
                     {kindLabel(n) && <span className="text-[11px] font-bold text-blue shrink-0">[{kindLabel(n)}]</span>}
                     {n.is_pinned && <span className="pin shrink-0">고정</span>}
                     <span {...truncateCellProps(n.title)}>{n.title}</span>
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">
+                <td className={`${t.adminTableCell} text-muted`}>
                   {n.author?.nickname || n.author?.name || n.author?.email || "-"}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     <span
                       className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
@@ -768,8 +770,8 @@ export default function PostManager({
                     )}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{n.publish_at}</td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>{n.publish_at}</td>
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     {!readOnlyForMe && (
                       <button
@@ -784,7 +786,7 @@ export default function PostManager({
                     )}
                     {iAmAdmin ? (
                       <button
-                        className="text-red text-xs font-bold shrink-0"
+                        className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => {
                           e.stopPropagation();
                           remove(n.id);

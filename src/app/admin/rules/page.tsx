@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
 import type { RuleDoc } from "@/lib/types";
 
@@ -15,6 +16,7 @@ const empty = { title: "", category: "공통", content: "", order_index: 0 };
 
 export default function AdminRulesPage() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows, reload } = useRealtimeList<RuleWithAttachments>("rules", {
     select: "*, attachments(*)",
     orderBy: { column: "order_index" },
@@ -70,27 +72,27 @@ export default function AdminRulesPage() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">규정 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 규정 추가</button>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 규정 추가</button>
         </div>
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">분류</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-40`}>분류</th>
+              <th className={`${t.adminTableHeaderCell} w-16`} />
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === r.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === r.id ? t.adminTableRowActive : ""}`}>
+                <td className={t.adminTableCell}>
                   <span {...truncateCellProps(r.title)}>{r.title}</span>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>
                   <span {...truncateCellProps(r.category)}>{r.category}</span>
                 </td>
-                <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>삭제</button>
+                <td className={t.adminTableCell}>
+                  <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(r.id); }}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -99,21 +101,21 @@ export default function AdminRulesPage() {
         </AdminTable>
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "규정 추가" : "규정 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">제목</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">분류</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+          <input className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">표시 순서 (작을수록 위)</label>
           <input
             type="number"
-            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            className={t.adminInput}
             value={form.order_index}
             onChange={(e) => setForm({ ...form, order_index: Number(e.target.value) })}
           />
           <label className="text-xs font-bold text-muted mt-2">본문</label>
-          <textarea rows={10} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+          <textarea rows={10} className={t.adminInput} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
           <div className="flex flex-wrap gap-1.5 mb-1">
             {existingFiles.map((f) => (
@@ -125,8 +127,8 @@ export default function AdminRulesPage() {
           </div>
           <FileUpload files={newFiles} onChange={setNewFiles} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}
