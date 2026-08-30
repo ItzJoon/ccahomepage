@@ -17,7 +17,6 @@ export function useBadges(userId: string | null) {
   const [externalGrant, setExternalGrant] = useState<BadgeDef | null>(null);
   const [pendingCelebrations, setPendingCelebrations] = useState<BadgeDef[]>([]);
   const earnedIdsRef = useRef(earnedIds);
-  const pendingCheckedRef = useRef(false);
   // Header(useAutoCheckIn)와 마이페이지가 동시에 useBadges를 호출하면 같은 사용자에 대해
   // 채널이 두 번 생기는데, 이름이 겹치면 realtime 구독끼리 충돌한다(useRealtimeList와 동일 문제).
   // 인스턴스마다 고유한 채널 이름을 쓰도록 랜덤값을 섞는다.
@@ -96,26 +95,49 @@ export function useBadges(userId: string | null) {
   }, [userId, supabase]);
 
   /**
-   * 접속 중이 아닐 때 관리자가 부여한 뱃지는 위 실시간 구독으로 못 받으므로, 접속할 때마다
-   * "아직 축하 못 받은(celebrated=false)" 뱃지가 있는지 한 번 확인해서 놓친 축하를 몰아서 띄운다.
+   * 접속 중이 아닐 때 관리자가 부여한 뱃지는 위 실시간 구독으로 못 받으므로, "아직 축하
+   * 못 받은(celebrated=false)" 뱃지가 있는지 확인해서 놓친 축하를 몰아서 띄운다.
+   *
+   * 원래는 접속 시 한 번만 확인했는데, 그것만으로는 "접속 중인데도 실시간 알림이 안 뜨는"
+   * 경우를 못 잡는다 — Supabase Realtime은 동시 접속자가 없으면 프로젝트의 realtime
+   * tenant 자체가 유휴 상태로 내려갔다가(약 60초 후) 다음 접속 때 다시 콜드스타트되는데,
+   * 이 재시작 구간과 겹치면 postgres_changes 이벤트가 조용히 누락될 수 있다(채널 이름
+   * 충돌 문제를 다 고친 뒤에도 실시간 알림이 여전히 안 됐던 원인 — 실시간 로그에서 24시간
+   * 동안 tenant가 30번 넘게 종료/재시작된 것을 확인함). 코드에서 그 재시작 타이밍을 직접
+   * 제어할 수는 없으니, 대신 이 확인을 주기적으로 반복해서 실시간 이벤트를 놓쳐도 최대
+   * POLL_INTERVAL_MS 안에는 축하 팝업이 뜨도록 보강한다(실시간이 정상 동작하면 그보다
+   * 먼저 위 구독으로 즉시 뜬다 — 폴링은 어디까지나 안전망).
    */
   useEffect(() => {
-    if (!userId || pendingCheckedRef.current) return;
-    pendingCheckedRef.current = true;
-    (async () => {
+    if (!userId) return;
+    const POLL_INTERVAL_MS = 20000;
+    let cancelled = false;
+    const checkPending = async () => {
       const { data: rows } = await supabase
         .from("user_badges")
         .select("badge_id")
         .eq("user_id", userId)
         .eq("celebrated", false);
-      if (!rows || rows.length === 0) return;
+      if (cancelled || !rows || rows.length === 0) return;
       const badgeIds = rows.map((r) => r.badge_id);
       const { data: badgeRows } = await supabase.from("badges").select("*").in("id", badgeIds);
+      if (cancelled) return;
       if (badgeRows && badgeRows.length > 0) {
-        setPendingCelebrations(badgeRows as BadgeDef[]);
+        setPendingCelebrations((prev) => {
+          const known = new Set(prev.map((b) => b.id));
+          const fresh = (badgeRows as BadgeDef[]).filter((b) => !known.has(b.id));
+          return fresh.length > 0 ? [...prev, ...fresh] : prev;
+        });
+        setEarnedIds((prev) => new Set([...prev, ...badgeIds]));
       }
       await supabase.rpc("mark_badges_celebrated", { target_badge_ids: badgeIds });
-    })();
+    };
+    checkPending();
+    const interval = setInterval(checkPending, POLL_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [userId, supabase]);
 
   const clearExternalGrant = useCallback(() => setExternalGrant(null), []);
