@@ -1,6 +1,6 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -53,7 +53,7 @@ export default function AdminBoardPage() {
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">날짜</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
           </tr>
         </thead>
         <tbody>
@@ -76,14 +76,14 @@ export default function AdminBoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
               <td className="p-2.5 border-b border-border">
-                <div className="flex items-center gap-2">
-                  <button className="text-blue text-xs font-bold" onClick={() => toggleHidden(p.id, p.is_hidden)}>
+                <div className={actionCellClass}>
+                  <button className="text-blue text-xs font-bold shrink-0" onClick={() => toggleHidden(p.id, p.is_hidden)}>
                     {p.is_hidden ? "숨김 해제" : "숨김"}
                   </button>
                   {iAmAdmin ? (
-                    <button className="text-red text-xs font-bold" onClick={() => remove(p.id)}>삭제</button>
+                    <button className="text-red text-xs font-bold shrink-0" onClick={() => remove(p.id)}>삭제</button>
                   ) : (
-                    <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+                    <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다">🔒</span>
                   )}
                 </div>
               </td>

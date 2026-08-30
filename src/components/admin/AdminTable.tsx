@@ -34,3 +34,12 @@ export function truncateCellProps(text: string, maxWidthPx = 260) {
     style: { maxWidth: maxWidthPx },
   } as const;
 }
+
+/**
+ * 상태 배지/숨김·삭제 버튼처럼 짧은 요소 여러 개를 한 줄에 나란히 두는 셀에 쓴다.
+ * 액션 열에 좁은 w-* 폭을 줘도(table-layout:auto라 폭은 힌트일 뿐이라), whitespace-nowrap이
+ * 없으면 flex 자식이 기본 flex-shrink로 눌리면서 한글이 음절 단위로 줄바꿈될 수 있다
+ * (예: "숨김"이 "숨"/"김"으로 분리). nowrap을 주면 그 대신 테이블 전체가 넓어지고
+ * AdminTable의 overflow-x-auto가 가로 스크롤을 만들어 처리한다.
+ */
+export const actionCellClass = "flex items-center gap-2 whitespace-nowrap";

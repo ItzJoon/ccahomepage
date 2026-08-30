@@ -1,6 +1,6 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -115,14 +115,14 @@ export default function AdminEventsPage() {
                   {e.profiles?.nickname || e.profiles?.name || "등록자 정보 없음"}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  <div className="flex items-center gap-2">
+                  <div className={actionCellClass}>
                     <button
-                      className="text-blue text-xs font-bold"
+                      className="text-blue text-xs font-bold shrink-0"
                       onClick={(ev) => { ev.stopPropagation(); toggleHidden(e.id, e.is_hidden); }}
                     >
                       {e.is_hidden ? "숨김 해제" : "숨김"}
                     </button>
-                    <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                    <button className="text-red text-xs font-bold shrink-0" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
                   </div>
                 </td>
               </tr>

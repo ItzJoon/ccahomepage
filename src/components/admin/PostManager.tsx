@@ -1,6 +1,6 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "./AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -763,7 +763,7 @@ export default function PostManager({
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">발행일</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
           <tbody>
@@ -803,10 +803,10 @@ export default function PostManager({
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{n.publish_at}</td>
                 <td className="p-2.5 border-b border-border">
-                  <div className="flex items-center gap-2">
+                  <div className={actionCellClass}>
                     {!readOnlyForMe && (
                       <button
-                        className="text-blue text-xs font-bold"
+                        className="text-blue text-xs font-bold shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleHidden(n.id, n.is_hidden);
@@ -817,7 +817,7 @@ export default function PostManager({
                     )}
                     {iAmAdmin ? (
                       <button
-                        className="text-red text-xs font-bold"
+                        className="text-red text-xs font-bold shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           remove(n.id);
@@ -826,7 +826,7 @@ export default function PostManager({
                         삭제
                       </button>
                     ) : (
-                      <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다.">
+                      <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다.">
                         🔒
                       </span>
                     )}

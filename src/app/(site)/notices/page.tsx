@@ -7,7 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import PostManager from "@/components/admin/PostManager";
-import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import type { Post } from "@/lib/types";
 
 // 관리자 화면(/admin/notices)에 들어가지 않고도, 공지를 쓸 수 있는 역할이면 이 목록
@@ -151,21 +151,21 @@ export default function NoticesPage() {
               <td className="p-2.5 border-b border-border text-sm">{n.view_count}</td>
               {canWrite && (
                 <td className="p-2.5 border-b border-border">
-                  <div className="flex items-center gap-2">
+                  <div className={actionCellClass}>
                     {canHide(n) && (
                       <button
-                        className="text-blue text-xs font-bold"
+                        className="text-blue text-xs font-bold shrink-0"
                         onClick={() => toggleHidden(n.id, n.is_hidden)}
                       >
                         {n.is_hidden ? "숨김 해제" : "숨김"}
                       </button>
                     )}
                     {iAmAdmin ? (
-                      <button className="text-red text-xs font-bold" onClick={() => remove(n.id)}>
+                      <button className="text-red text-xs font-bold shrink-0" onClick={() => remove(n.id)}>
                         삭제
                       </button>
                     ) : (
-                      <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다.">
+                      <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다.">
                         🔒
                       </span>
                     )}

@@ -1,6 +1,6 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -82,7 +82,7 @@ export default function AdminQnaPage() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">질문자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">공개</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
           <tbody>
@@ -104,9 +104,9 @@ export default function AdminQnaPage() {
                   )}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  <div className="flex items-center gap-2">
+                  <div className={actionCellClass}>
                     <button
-                      className="text-blue text-xs font-bold"
+                      className="text-blue text-xs font-bold shrink-0"
                       onClick={(e) => {
                         e.stopPropagation();
                         toggleHidden(q.id, q.is_hidden);
@@ -116,7 +116,7 @@ export default function AdminQnaPage() {
                     </button>
                     {iAmAdmin ? (
                       <button
-                        className="text-red text-xs font-bold"
+                        className="text-red text-xs font-bold shrink-0"
                         onClick={(e) => {
                           e.stopPropagation();
                           removeQuestion(q.id);
@@ -125,7 +125,7 @@ export default function AdminQnaPage() {
                         삭제
                       </button>
                     ) : (
-                      <span className="text-muted text-xs" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
+                      <span className="text-muted text-xs shrink-0" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
                     )}
                   </div>
                 </td>
