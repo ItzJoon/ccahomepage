@@ -85,9 +85,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const rawThemeValue = siteTheme?.theme ?? "";
   const initialThemeKey = isHomeThemeKey(rawThemeValue) ? rawThemeValue : DEFAULT_HOME_THEME;
 
-  // 사이트 잠금 모드 중에는 admin/superadmin만 우회하므로(middleware.ts와 동일 기준), 그 외
-  // 사용자에게는 아직 정식 운영 전이라 배너/팝업 알림 같은 상호작용도 함께 보류한다.
-  const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
+  // 사이트 잠금 모드 중에는 admin/superadmin/viewer/designer만 우회하므로(middleware.ts와
+  // 동일 기준), 그 외 사용자에게는 아직 정식 운영 전이라 배너/팝업/뱃지 알림 같은 상호작용도
+  // 함께 보류한다. viewer/designer는 잠금 중에도 페이지 접근 자체는 허용되므로(미들웨어 기준),
+  // 여기서도 같은 역할 목록을 써야 알림까지 정상적으로 보인다.
+  const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
   const showNotifications = !settings?.maintenance_mode || isLockdownExempt;
   // 연속 접속 체크인/뱃지 시스템은 실제 학교 구성원(학생/교사)을 위한 기능이라, "외부 계정
   // 관리"에서 개별 승인된 계정(member_type='other')에게는 기본적으로 막아둔다("접속 1일째"

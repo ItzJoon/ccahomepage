@@ -48,9 +48,9 @@ export default function Header({
   // 이름은 isAdmin이지만 실제로는 "관리자 메뉴 버튼을 보여줄지"를 뜻한다 — designer(조회
   // 전용)도 관리 화면에 들어갈 수 있어야 하므로 함께 포함한다.
   const isAdmin = profile && ["editor", "admin", "superadmin", "designer"].includes(profile.role);
-  // 사이트 잠금 모드는 admin/superadmin만 우회하므로(editor는 예외 아님), 연속 접속 체크인도
-  // 같은 기준으로 잠금 중 보류 여부를 판단한다.
-  const isLockdownExempt = !!profile && ["admin", "superadmin"].includes(profile.role);
+  // 사이트 잠금 모드는 admin/superadmin/viewer/designer가 우회하므로(middleware.ts와 동일
+  // 기준, editor는 예외 아님), 연속 접속 체크인도 같은 기준으로 잠금 중 보류 여부를 판단한다.
+  const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
   const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt, checkInEligible);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
