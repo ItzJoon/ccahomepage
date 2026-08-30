@@ -95,11 +95,11 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   }, [toast]);
 
   // 관리자가 "뱃지 직접 부여"로 지급한 뱃지의 축하 팝업은 더 이상 여기서 처리하지 않는다
-  // — BadgeGrantWatcher(NotificationBanner와 동일한 구조의 독립 컴포넌트, Header에 별도로
-  // 마운트됨)가 전담한다. 이 훅을 거치던 중계 단계(useBadges -> 여기 -> Header)가 알림
-  // 배너보다 체감이 느린 원인이었어서, 그 경로를 아예 없앴다. 여기 celebrateQueue는 이제
-  // "내가 직접 달성한" 연속 접속/날짜 조건 뱃지 축하만 담당한다(realtime과 무관하게 로컬
-  // 즉시 처리).
+  // — BadgeGrantWatcher(NotificationBanner와 동일한 구조의 독립 컴포넌트, (site)/layout.tsx에
+  // Header와 형제로 마운트됨)가 전담한다. 이 훅을 거치던 중계 단계(useBadges -> 여기 ->
+  // Header)가 알림 배너보다 체감이 느린 원인이었어서, 그 경로를 아예 없앴다. 여기
+  // celebrateQueue는 이제 "내가 직접 달성한" 연속 접속/날짜 조건 뱃지 축하만 담당한다
+  // (realtime과 무관하게 로컬 즉시 처리).
 
   return {
     streak: attendance.streak,
