@@ -22,6 +22,10 @@ const NAV = [
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
 ];
 
+// 신고 내역은 개인정보/민감한 내용을 담고 있어 editor(부장급)에게도 보이면 안 되고
+// admin 이상만 봐야 한다 — teacher는 물론 editor도 제외.
+const ADMIN_ONLY_NAV = [{ href: "/admin/reports", label: "신고 내역" }];
+
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
 // 볼 수 있어야 한다(직접 URL 접근은 middleware.ts에서 별도로 막는다). 다른 메뉴들과
 // 섞이지 않도록 탭 목록 제일 아래에 별도 그룹으로 모아서 보여준다.
@@ -82,6 +86,14 @@ export default function AdminNav({ role, initialThemeKey }: { role?: string; ini
       {ORG_ACTIVITIES_NAV.map((n) => (
         <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
       ))}
+      {(role === "admin" || role === "superadmin") && (
+        <>
+          <div className={`border-t ${t.adminAsideBorder} my-2`} />
+          {ADMIN_ONLY_NAV.map((n) => (
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+          ))}
+        </>
+      )}
       {role === "superadmin" && (
         <>
           <div className={`border-t ${t.adminAsideBorder} my-2`} />

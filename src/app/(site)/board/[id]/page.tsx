@@ -4,6 +4,7 @@ import ViewCounter from "@/components/ViewCounter";
 import Linkify from "@/components/Linkify";
 import BoardComments from "@/components/BoardComments";
 import BoardPostActions from "@/components/BoardPostActions";
+import ReportableName from "@/components/ReportableName";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -37,7 +38,17 @@ export default async function BoardDetailPage({ params }: { params: { id: string
               {authorLabel[0]}
             </span>
           )}
-          {authorLabel} · {fmt(post.created_at)} ·{" "}
+          {post.author_id ? (
+            <ReportableName
+              targetUserId={post.author_id}
+              name={authorLabel}
+              myId={profile?.id ?? null}
+              context={`게시판 글: ${post.title}`}
+            />
+          ) : (
+            authorLabel
+          )}{" "}
+          · {fmt(post.created_at)} ·{" "}
           <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} rpc="increment_board_view_count" />
         </div>
         <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} />

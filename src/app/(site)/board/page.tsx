@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
+import ReportableName from "@/components/ReportableName";
 import type { BoardPost } from "@/lib/types";
 
 interface Row extends BoardPost {
@@ -132,7 +133,16 @@ export default function BoardPage() {
                       {(p.author?.nickname || p.author?.name || "?")[0]}
                     </span>
                   )}
-                  {p.author?.nickname || p.author?.name || "탈퇴한 사용자"}
+                  {p.author_id ? (
+                    <ReportableName
+                      targetUserId={p.author_id}
+                      name={p.author?.nickname || p.author?.name || "이름 없음"}
+                      myId={userId ?? null}
+                      context={`게시판 글: ${p.title}`}
+                    />
+                  ) : (
+                    "탈퇴한 사용자"
+                  )}
                 </div>
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>

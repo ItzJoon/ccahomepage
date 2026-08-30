@@ -294,3 +294,17 @@ export interface BoardComment {
   content: string;
   created_at: string;
 }
+
+export type ReportTargetType = "profile" | "board_post" | "board_comment";
+export type ReportStatus = "pending" | "reviewed" | "dismissed";
+
+export interface Report {
+  id: string;
+  reporter_id: string | null;
+  target_type: ReportTargetType;
+  target_id: string;
+  context: string | null;
+  reason: string | null;
+  status: ReportStatus;
+  created_at: string;
+}

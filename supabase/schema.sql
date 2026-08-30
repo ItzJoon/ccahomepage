@@ -1647,3 +1647,43 @@ create trigger rate_limit_board_comments before insert on board_comments
 drop trigger if exists rate_limit_questions on questions;
 create trigger rate_limit_questions before insert on questions
   for each row execute function enforce_rate_limit(10, 10, 'user_id');
+
+-- ------------------------------------------------------------
+-- 43. 신고 기능
+-- ------------------------------------------------------------
+-- 닉네임을 클릭하면 뜨는 메뉴에서 "이 사람"을 신고하는 형태라 target_type='profile'이
+-- 기본이다(게시글/댓글 자체를 신고하는 것도 나중에 확장할 수 있게 타입을 열어둠).
+-- context에는 어느 글/댓글에서 신고했는지 참고용 텍스트를 같이 남긴다.
+create table if not exists reports (
+  id uuid primary key default uuid_generate_v4(),
+  reporter_id uuid references profiles(id) on delete set null,
+  target_type text not null check (target_type in ('profile','board_post','board_comment')),
+  target_id uuid not null,
+  context text,
+  reason text,
+  status text not null default 'pending' check (status in ('pending','reviewed','dismissed')),
+  created_at timestamptz not null default now()
+);
+
+alter table reports enable row level security;
+
+drop policy if exists "reports_insert_own" on reports;
+create policy "reports_insert_own" on reports for insert with check (auth.uid() = reporter_id);
+
+-- 신고 내역은 teacher는 물론 editor도 볼 수 없고 admin 이상만 봐야 한다는 요구사항이라
+-- is_editor_or_above()가 아니라 is_admin()을 쓴다(editor를 제외하는 게 핵심).
+drop policy if exists "reports_read_admin" on reports;
+create policy "reports_read_admin" on reports for select using (is_admin());
+
+drop policy if exists "reports_update_admin" on reports;
+create policy "reports_update_admin" on reports for update using (is_admin());
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'reports'
+  ) then
+    alter publication supabase_realtime add table public.reports;
+  end if;
+end $$;

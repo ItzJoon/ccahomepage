@@ -172,6 +172,17 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
+    // 신고 내역은 민감한 내용을 담고 있어 teacher는 물론 editor(부장급)도 볼 수 없고
+    // admin 이상만 봐야 한다.
+    const adminOnlyPrefixes = ["/admin/reports"];
+    if (adminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
+      if (r !== "admin" && r !== "superadmin") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/admin";
+        url.searchParams.set("denied", "1");
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return response;

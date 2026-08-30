@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Linkify from "@/components/Linkify";
+import ReportableName from "@/components/ReportableName";
 import type { BoardComment } from "@/lib/types";
 
 interface Row extends BoardComment {
@@ -72,7 +73,11 @@ export default function BoardComments({ postId, userId }: { postId: string; user
               {authorLabel[0]}
             </span>
           )}
-          <strong>{authorLabel}</strong>
+          {node.author_id ? (
+            <ReportableName targetUserId={node.author_id} name={authorLabel} myId={userId} context="게시판 댓글" className="font-bold" />
+          ) : (
+            <strong>{authorLabel}</strong>
+          )}
           <span className="text-muted text-xs">{fmtDateTime(node.created_at)}</span>
         </div>
         <p className="text-sm mt-1 mb-1">
