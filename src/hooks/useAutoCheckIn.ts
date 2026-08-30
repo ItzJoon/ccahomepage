@@ -28,8 +28,6 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     loading: badgesLoading,
     checkMilestones,
     checkDateBadges,
-    externalGrant,
-    clearExternalGrant,
     pendingCelebrations,
     clearPendingCelebrations,
   } = useBadges(userId);
@@ -99,15 +97,11 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   }, [toast]);
 
   // 관리자가 "뱃지 직접 부여"로 지급한 뱃지는 관리자 화면이 아니라 학생 본인 화면에서
-  // 축하 팝업이 떠야 하므로, useBadges의 실시간 구독이 감지한 지급을 그대로 큐에 넣는다.
-  useEffect(() => {
-    if (!externalGrant) return;
-    pushCelebrations([externalGrant]);
-    clearExternalGrant();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [externalGrant, clearExternalGrant]);
-
-  // 접속 중이 아닐 때 관리자가 부여해서 놓쳤던 축하도 접속하는 순간 몰아서 큐에 넣는다.
+  // 축하 팝업이 떠야 한다. useBadges가 실시간 구독(즉시)이든 폴백 폴링(최대 수십 초
+  // 지연)이든 방금 지급됐거나 접속 중이 아닐 때 놓친 축하를 모두 pendingCelebrations
+  // 하나로 합쳐서 알려주므로, 여기서는 그 큐를 받아 그대로 celebrateQueue에 옮기기만
+  // 하면 된다(예전엔 "방금 지급"과 "놓친 지급"을 externalGrant/pendingCelebrations로
+  // 따로 나눠 처리했는데, useBadges 쪽에서 이미 하나로 통일해서 더 이상 구분할 필요가 없음).
   useEffect(() => {
     if (pendingCelebrations.length === 0) return;
     pushCelebrations(pendingCelebrations);

@@ -14,17 +14,11 @@ export function useBadges(userId: string | null) {
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [externalGrant, setExternalGrant] = useState<BadgeDef | null>(null);
   const [pendingCelebrations, setPendingCelebrations] = useState<BadgeDef[]>([]);
-  const earnedIdsRef = useRef(earnedIds);
   // Header(useAutoCheckIn)와 마이페이지가 동시에 useBadges를 호출하면 같은 사용자에 대해
   // 채널이 두 번 생기는데, 이름이 겹치면 realtime 구독끼리 충돌한다(useRealtimeList와 동일 문제).
   // 인스턴스마다 고유한 채널 이름을 쓰도록 랜덤값을 섞는다.
   const channelSuffixRef = useRef(Math.random().toString(36).slice(2));
-
-  useEffect(() => {
-    earnedIdsRef.current = earnedIds;
-  }, [earnedIds]);
 
   const load = useCallback(async () => {
     const { data: badgeRows } = await supabase
@@ -47,100 +41,55 @@ export function useBadges(userId: string | null) {
 
   /**
    * 관리자가 "뱃지 직접 부여"로 다른 화면에서 뱃지를 줬을 때 학생 화면에도 실시간으로 반영되도록
-   * user_badges의 insert/delete를 구독한다. postgres_changes의 서버 필터(filter: user_id=eq...)
-   * 대신, 이 프로젝트의 다른 realtime 구독(useRealtimeList)과 동일하게 필터 없이 전체를 구독한
-   * 뒤 콜백 안에서 내 user_id인지 직접 확인한다(검증된 패턴을 그대로 따름).
-   * 내가 스스로 지급받은 경우(자동/날짜 조건)는 그 즉시 로컬 상태에 이미 반영돼 있어서,
-   * 여기서는 "아직 모르는" 지급만 골라내 externalGrant로 알린다. 지금 접속 중이라 바로
-   * 보여줄 수 있으므로, 이 경로로 받은 지급은 mark_badges_celebrated로 확인 처리한다.
+   * user_badges 변경을 구독한다. 알림 센터(NotificationCenter/useRealtimeList)와 동일한 방식으로
+   * 통일했다 — payload.new/old를 직접 읽어 상태를 조립하는 대신, 변경이 있었다는 신호만 받고
+   * 실제 데이터는 항상 REST로 다시 조회한다(checkPending). 이렇게 하면 이전처럼 INSERT/DELETE를
+   * 각각 다른 방식으로 처리할 필요가 없고, replica identity 설정에도 의존하지 않는다.
+   *
+   * "아직 축하 못 받은(celebrated=false)" 뱃지 확인은 실시간 이벤트 콜백뿐 아니라 접속 시
+   * 즉시 + 주기적으로도 반복한다 — Supabase Realtime은 동시 접속자가 없으면 프로젝트의
+   * realtime tenant 자체가 유휴 상태로 내려갔다가(약 60초 후) 다음 접속 때 콜드스타트되는데,
+   * 이 재시작 구간과 겹치면 postgres_changes 이벤트가 조용히 누락될 수 있다(실시간 로그에서
+   * 24시간 동안 tenant가 30번 넘게 종료/재시작된 것을 확인함). 코드에서 그 재시작 타이밍을
+   * 직접 제어할 수는 없으니, 실시간이 정상 동작하면 즉시 뜨고 혹시 놓쳐도 POLL_INTERVAL_MS
+   * 안에는 폴링이 잡아내도록 이중 안전망을 둔다.
    */
-  useEffect(() => {
+  const checkPending = useCallback(async () => {
     if (!userId) return;
-    const channel = supabase
-      .channel(`user_badges_watch_${userId}_${channelSuffixRef.current}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "user_badges" },
-        async (payload) => {
-          const row = payload.new as { user_id: string; badge_id: string; celebrated: boolean };
-          if (row.user_id !== userId || earnedIdsRef.current.has(row.badge_id)) return;
-          const { data: badge } = await supabase.from("badges").select("*").eq("id", row.badge_id).single();
-          if (!badge) return;
-          setEarnedIds((prev) => new Set([...prev, row.badge_id]));
-          setExternalGrant(badge as BadgeDef);
-          if (!row.celebrated) {
-            await supabase.rpc("mark_badges_celebrated", { target_badge_ids: [row.badge_id] });
-          }
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "DELETE", schema: "public", table: "user_badges" },
-        (payload) => {
-          const row = payload.old as { user_id?: string; badge_id?: string };
-          if (row.user_id !== userId || !row.badge_id) return;
-          const badgeId = row.badge_id;
-          setEarnedIds((prev) => {
-            if (!prev.has(badgeId)) return prev;
-            const next = new Set(prev);
-            next.delete(badgeId);
-            return next;
-          });
-        }
-      )
-      .subscribe();
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    const { data: rows } = await supabase.from("user_badges").select("badge_id, celebrated").eq("user_id", userId);
+    const all = rows ?? [];
+    // 지급/회수를 모두 반영해 earnedIds를 항상 DB와 동기화한다(관리자가 뱃지를 회수한
+    // 경우도 이 재조회 한 번으로 자연히 처리됨 — 예전처럼 DELETE 페이로드를 따로 다룰
+    // 필요가 없다).
+    setEarnedIds(new Set(all.map((r) => r.badge_id)));
+    const uncelebratedIds = all.filter((r) => !r.celebrated).map((r) => r.badge_id);
+    if (uncelebratedIds.length === 0) return;
+    const { data: badgeRows } = await supabase.from("badges").select("*").in("id", uncelebratedIds);
+    if (badgeRows && badgeRows.length > 0) {
+      setPendingCelebrations((prev) => {
+        const known = new Set(prev.map((b) => b.id));
+        const fresh = (badgeRows as BadgeDef[]).filter((b) => !known.has(b.id));
+        return fresh.length > 0 ? [...prev, ...fresh] : prev;
+      });
+    }
+    await supabase.rpc("mark_badges_celebrated", { target_badge_ids: uncelebratedIds });
   }, [userId, supabase]);
 
-  /**
-   * 접속 중이 아닐 때 관리자가 부여한 뱃지는 위 실시간 구독으로 못 받으므로, "아직 축하
-   * 못 받은(celebrated=false)" 뱃지가 있는지 확인해서 놓친 축하를 몰아서 띄운다.
-   *
-   * 원래는 접속 시 한 번만 확인했는데, 그것만으로는 "접속 중인데도 실시간 알림이 안 뜨는"
-   * 경우를 못 잡는다 — Supabase Realtime은 동시 접속자가 없으면 프로젝트의 realtime
-   * tenant 자체가 유휴 상태로 내려갔다가(약 60초 후) 다음 접속 때 다시 콜드스타트되는데,
-   * 이 재시작 구간과 겹치면 postgres_changes 이벤트가 조용히 누락될 수 있다(채널 이름
-   * 충돌 문제를 다 고친 뒤에도 실시간 알림이 여전히 안 됐던 원인 — 실시간 로그에서 24시간
-   * 동안 tenant가 30번 넘게 종료/재시작된 것을 확인함). 코드에서 그 재시작 타이밍을 직접
-   * 제어할 수는 없으니, 대신 이 확인을 주기적으로 반복해서 실시간 이벤트를 놓쳐도 최대
-   * POLL_INTERVAL_MS 안에는 축하 팝업이 뜨도록 보강한다(실시간이 정상 동작하면 그보다
-   * 먼저 위 구독으로 즉시 뜬다 — 폴링은 어디까지나 안전망).
-   */
   useEffect(() => {
     if (!userId) return;
     const POLL_INTERVAL_MS = 20000;
-    let cancelled = false;
-    const checkPending = async () => {
-      const { data: rows } = await supabase
-        .from("user_badges")
-        .select("badge_id")
-        .eq("user_id", userId)
-        .eq("celebrated", false);
-      if (cancelled || !rows || rows.length === 0) return;
-      const badgeIds = rows.map((r) => r.badge_id);
-      const { data: badgeRows } = await supabase.from("badges").select("*").in("id", badgeIds);
-      if (cancelled) return;
-      if (badgeRows && badgeRows.length > 0) {
-        setPendingCelebrations((prev) => {
-          const known = new Set(prev.map((b) => b.id));
-          const fresh = (badgeRows as BadgeDef[]).filter((b) => !known.has(b.id));
-          return fresh.length > 0 ? [...prev, ...fresh] : prev;
-        });
-        setEarnedIds((prev) => new Set([...prev, ...badgeIds]));
-      }
-      await supabase.rpc("mark_badges_celebrated", { target_badge_ids: badgeIds });
-    };
     checkPending();
+    const channel = supabase
+      .channel(`user_badges_watch_${userId}_${channelSuffixRef.current}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "user_badges" }, () => checkPending())
+      .subscribe();
     const interval = setInterval(checkPending, POLL_INTERVAL_MS);
     return () => {
-      cancelled = true;
+      supabase.removeChannel(channel);
       clearInterval(interval);
     };
-  }, [userId, supabase]);
+  }, [userId, supabase, checkPending]);
 
-  const clearExternalGrant = useCallback(() => setExternalGrant(null), []);
   const clearPendingCelebrations = useCallback(() => setPendingCelebrations([]), []);
 
   /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일/기간)을 만족하는지 확인합니다. */
@@ -218,8 +167,6 @@ export function useBadges(userId: string | null) {
     loading,
     checkMilestones,
     checkDateBadges,
-    externalGrant,
-    clearExternalGrant,
     pendingCelebrations,
     clearPendingCelebrations,
     reload: load,
