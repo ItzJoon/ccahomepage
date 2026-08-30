@@ -28,8 +28,6 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     loading: badgesLoading,
     checkMilestones,
     checkDateBadges,
-    pendingCelebrations,
-    clearPendingCelebrations,
   } = useBadges(userId);
   const [toast, setToast] = useState<number | null>(null);
   // 축하할 뱃지가 여러 개 겹칠 수 있어(연속 접속 여러 단계 동시 달성, 접속 안 한 사이 관리자가
@@ -96,18 +94,12 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     return () => clearTimeout(timer);
   }, [toast]);
 
-  // 관리자가 "뱃지 직접 부여"로 지급한 뱃지는 관리자 화면이 아니라 학생 본인 화면에서
-  // 축하 팝업이 떠야 한다. useBadges가 실시간 구독(즉시)이든 폴백 폴링(최대 수십 초
-  // 지연)이든 방금 지급됐거나 접속 중이 아닐 때 놓친 축하를 모두 pendingCelebrations
-  // 하나로 합쳐서 알려주므로, 여기서는 그 큐를 받아 그대로 celebrateQueue에 옮기기만
-  // 하면 된다(예전엔 "방금 지급"과 "놓친 지급"을 externalGrant/pendingCelebrations로
-  // 따로 나눠 처리했는데, useBadges 쪽에서 이미 하나로 통일해서 더 이상 구분할 필요가 없음).
-  useEffect(() => {
-    if (pendingCelebrations.length === 0) return;
-    pushCelebrations(pendingCelebrations);
-    clearPendingCelebrations();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pendingCelebrations, clearPendingCelebrations]);
+  // 관리자가 "뱃지 직접 부여"로 지급한 뱃지의 축하 팝업은 더 이상 여기서 처리하지 않는다
+  // — BadgeGrantWatcher(NotificationBanner와 동일한 구조의 독립 컴포넌트, Header에 별도로
+  // 마운트됨)가 전담한다. 이 훅을 거치던 중계 단계(useBadges -> 여기 -> Header)가 알림
+  // 배너보다 체감이 느린 원인이었어서, 그 경로를 아예 없앴다. 여기 celebrateQueue는 이제
+  // "내가 직접 달성한" 연속 접속/날짜 조건 뱃지 축하만 담당한다(realtime과 무관하게 로컬
+  // 즉시 처리).
 
   return {
     streak: attendance.streak,

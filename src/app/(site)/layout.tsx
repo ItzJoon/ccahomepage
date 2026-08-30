@@ -1,6 +1,7 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
+import BadgeGrantWatcher from "@/components/BadgeGrantWatcher";
 import NotificationPopup from "@/components/NotificationPopup";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
@@ -108,6 +109,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       />
       {showNotifications && <NotificationBanner initial={latestBanner as any} />}
       {showNotifications && <NotificationPopup initial={latestPopup as any} />}
+      {showNotifications && <BadgeGrantWatcher userId={profile?.id ?? null} />}
       <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
       <Footer initialThemeKey={initialThemeKey} />
     </div>
