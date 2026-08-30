@@ -31,7 +31,9 @@ council-site/
     │   ├─ news/                    # 뉴스 목록/상세
     │   ├─ rules/                   # 학생생활규정
     │   ├─ qna/                     # Q&A (질문 등록/열람)
-    │   ├─ org-activities/          # 부서 활동 (안건함/부서 일정/활동기록 탭)
+    │   ├─ org-activities/          # 부서 활동 (안건함/부서 일정/활동기록 탭 — 탭마다
+    │   │                            # ProposalsTab/EventsTab/ExecutiveCalendarTab/
+    │   │                            # RecordsTab.tsx + helpers.ts로 파일 분리)
     │   ├─ mypage/                  # 연속 접속·방문 기록
     │   ├─ pages/[slug]/            # 관리자가 추가한 커스텀 페이지
     │   ├─ login/                   # 로그인 (Google / 이메일)
@@ -52,14 +54,20 @@ council-site/
     │       ├─ users/                # 회원 권한(role) 관리
     │       ├─ stats/                # 접속 통계
     │       └─ org-activities/       # 부서 활동 관리(안건함/부서 일정/활동기록, 독립 섹션)
-    ├─ components/                 # Header, Badge, NotificationBanner, StreakBar, BadgeCelebration 등
-    │   └─ admin/                  # FileUpload, AdminNav, PostManager
+    ├─ components/                 # Header, Badge, NotificationBanner, StreakBar,
+    │                               # BadgeCelebration, BadgeGrantWatcher(관리자 지급 뱃지
+    │                               # 실시간 축하 — NotificationBanner와 동일 구조) 등
+    │   └─ admin/                  # FileUpload, AdminNav, PostManager(+ PostManager.helpers.ts),
+    │       │                      # DesignerModeGate(designer 조회 전용 UI 일괄 차단)
     │       └─ org-activities/     # ProposalsManager, OrgEventsManager, OrgRecordsManager
     ├─ hooks/
     │   ├─ useRealtimeList.ts      # 테이블 실시간 구독 공용 훅
     │   ├─ useAttendance.ts        # 연속 접속 체크 훅 (스트릭 프리즈 포함)
-    │   ├─ useAutoCheckIn.ts       # 접속 시 버튼 없이 자동 체크인 + 토스트/뱃지 축하 훅
-    │   └─ useBadges.ts            # 뱃지 정의/획득 조회 + 마일스톤 자동 지급 훅
+    │   ├─ useAutoCheckIn.ts       # 접속 시 버튼 없이 자동 체크인 + 토스트/자기 자신이
+    │   │                          # 달성한 뱃지 축하 훅(관리자 지급 뱃지는 BadgeGrantWatcher가 담당)
+    │   ├─ useBadges.ts            # 뱃지 정의/획득 조회 + 마일스톤 자동 지급 훅
+    │   └─ useMyRole.ts            # 관리자 화면에서 반복되던 "내 role 조회" 공용 훅
+    │                              # (myId/role/isAdmin/isSuperadmin/isEditorUp/isTeacher)
     └─ lib/
         ├─ types.ts                 # 공용 타입
         └─ supabase/                # client.ts / server.ts / middleware.ts
@@ -230,12 +238,14 @@ npm run dev
 
 ## 7. 역할별 권한 정리
 
-`role`은 낮은 순서대로 `student` < `teacher`/`sub_editor`(각자 별도의 좁은 관리 화면 하나씩만
-접근 가능) < `editor` < `admin` < `superadmin` 입니다. 아래는 실제 RLS 정책과 middleware 경로
-제한 기준으로 각 역할이 **위 단계에 추가로** 할 수 있는 일만 적었습니다(위 단계 권한은 전부
-포함). `role`과 별개로 `is_council`/`is_judiciary` boolean 플래그가 있어(아래 별도 설명)
-role을 바꾸지 않고도 특정 화면 접근을 켜고 끌 수 있습니다. `viewer`는 이 서열과 무관하게
-student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특수 역할입니다(아래 별도 설명).
+`role`은 낮은 순서대로 `student`/`teacher`(둘은 완전히 동일한 권한 — 아래 teacher 항목
+참고) < `sub_editor`(별도의 좁은 관리 화면 하나만 접근 가능) < `editor` < `admin` < `superadmin`
+입니다. 아래는 실제 RLS 정책과 middleware 경로 제한 기준으로 각 역할이 **위 단계에 추가로**
+할 수 있는 일만 적었습니다(위 단계 권한은 전부 포함). `role`과 별개로 `is_council`/
+`is_judiciary` boolean 플래그가 있어(아래 별도 설명) role을 바꾸지 않고도 특정 화면 접근을
+켜고 끌 수 있습니다. `viewer`는 이 서열과 무관하게 student와 동일한 권한에 사이트 잠금 모드
+예외만 추가한 특수 역할이고, `designer`는 이 서열과 무관하게 **모든 관리자 화면을 열람만**
+할 수 있는 특수 역할입니다(둘 다 아래 별도 설명).
 
 ### student (기본, 로그인 시)
 - **로그인하려면 학교 명단(`directory_members`)에 `is_allowed=true`로 등록돼 있어야 합니다.**
@@ -280,18 +290,15 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 - `/admin/users`에서 superadmin/admin이 계정별로 지정합니다.
 
 ### teacher
-- `/admin/notices` **한 화면만** 접근 가능(그 외 모든 `/admin` 하위 경로는 여전히 막힘).
-  AdminNav에도 "공지사항" 메뉴 하나만 보입니다. 학생이 보는 `/notices` 목록 페이지에도
-  "+ 새 공지 작성" 버튼이 보여서, 관리자 화면에 들어가지 않고도 같은 폼으로 작성할 수
-  있습니다(17절 참고) — 접근 경로만 다를 뿐 권한 범위는 동일합니다.
-- 이 화면에서 **"교과 공지"/"학급 공지"만** 작성 가능(일반 공지 옵션 자체가 안 보임).
-  본인이 `directory_members`에 등록된 담당 과목/담당 학급(`homeroom`)으로만 대상을 지정할 수
-  있고, 위조 방지를 위해 RLS(`teacher_owns_subject`/`teacher_owns_homeroom`)에서도 서버 측
-  검증을 합니다. 담당 과목이 여러 개면(콤마로 저장) 그중 하나를 골라 등록합니다.
-- 본인이 작성한 교과/학급 공지만 수정 가능, 삭제는 여전히 admin 이상만 가능.
-- 관리 목적으로 **모든** 교과/학급 공지(다른 선생님 것 포함)를 열람은 할 수 있지만, 목록에서
-  본인 것이 아니면 클릭해도 수정 화면이 열리지 않습니다.
-- 일반 공지·뉴스는 작성 불가(editor 이상 전용) — 두 권한은 서로 완전히 분리되어 있습니다.
+- **student와 완전히 동일한 권한입니다.** 원래는 `/admin/notices`에서 "교과 공지"/"학급
+  공지"를 작성할 수 있는 별도 권한이었는데, 헤더의 "구성원"(학교 전체 명단)과 관리자 메뉴
+  구분이 헷갈린다는 이유 등으로 **teacher 전용 특수 권한을 전부 제거**했습니다 — `/admin`
+  진입 자체가 막히고(student와 동일), 교과/학급 공지 작성 RLS 정책(`posts_insert_teacher_notice`
+  / `posts_update_teacher_own`)도 삭제했습니다. `directory_members`의 계정 role은
+  `role='teacher'`로 그대로 남겨두되(나중에 되돌리기 쉽도록) 권한만 없앤 상태입니다.
+  다시 활성화하려면 `supabase/schema.sql` "59. teacher 권한을 student와 동일하게 차단"
+  섹션에서 제거한 정책들과, `admin/layout.tsx`/`middleware.ts`/`(site)/notices/page.tsx`/
+  `api/send-notice-email`에서 뺀 "teacher" 항목을 되돌리면 됩니다.
 
 ### sub_editor
 - `/admin/org-activities/*` **한 영역만** 접근 가능(안건함·부서 일정·활동기록 — 그 외 모든
@@ -305,23 +312,30 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 ### editor (일반 관리 화면이 열리는 최소 등급, 부장급)
 - 콘텐츠 생성·수정: 부서·구성원·일정·규정·공지/뉴스·커스텀 페이지·메뉴·메인화면 블록
 - 부서·구성원은 **삭제까지 가능**
-- 공지·뉴스는 작성·수정만 가능(교과/학급 공지는 작성 불가 — teacher 전용), **삭제는 불가**
-  (임시저장으로 바꿔 숨기는 것은 가능). 공지는 `/admin/notices` 외에 학생용 `/notices`
-  목록 페이지의 "+ 새 공지 작성" 버튼으로도 작성할 수 있습니다(뉴스는 관리자 화면에서만).
-  이메일 전체 발송(`{mode: "all"}`)만은 admin 이상 전용이고, editor는 학년별/학급별/
-  직접 입력으로만 보낼 수 있습니다(17절 참고).
-- 공지·뉴스·Q&A 질문·게시판 글·**일정**을 **일시 숨김/숨김 해제**할 수 있습니다(삭제와 달리
-  되돌릴 수 있고, 숨긴 항목도 관리자 화면에서는 계속 보입니다). "게시판 관리"(`/admin/board`)
-  에서 게시판 글도, "일정 관리"(`/admin/events`)에서 일정도 같은 방식으로 숨김 처리할 수
-  있습니다(삭제는 여전히 admin 이상 전용). 숨긴 일정은 `/calendar`와 홈 화면 "다가오는 일정"
-  에서 학생에게는 보이지 않습니다.
+- 공지·뉴스는 작성·수정만 가능(교과/학급 공지는 현재 아무도 작성할 수 없음 — teacher 권한이
+  차단되면서 이 두 타입의 작성 UI/RLS 자체가 막혔습니다), **삭제는 불가**(임시저장으로 바꿔
+  숨기는 것은 가능). 공지는 `/admin/notices` 외에 학생용 `/notices` 목록 페이지의
+  "+ 새 공지 작성" 버튼으로도 작성할 수 있습니다(뉴스는 관리자 화면에서만). 이메일 전체
+  발송(`{mode: "all"}`)만은 admin 이상 전용이고, editor는 학년별/학급별/직접 입력으로만
+  보낼 수 있습니다(17절 참고).
+- 공지·뉴스·Q&A 질문·게시판 글(및 댓글)·**일정**·안건함·부서 활동기록을 **일시 숨김/숨김
+  해제**할 수 있습니다(삭제와 달리 되돌릴 수 있고, 숨긴 항목도 관리자 화면에서는 계속
+  보입니다). "게시판 관리"(`/admin/board`)에서 게시판 글도, "일정 관리"(`/admin/events`)
+  에서 일정도 같은 방식으로 숨김 처리할 수 있습니다. 게시판 댓글은 게시판 글 상세 화면에서
+  직접 숨김 처리합니다(별도 관리자 목록 화면 없음). 숨긴 일정은 `/calendar`와 홈 화면
+  "다가오는 일정"에서 학생에게는 보이지 않습니다.
+- **삭제 권한은 콘텐츠마다 다릅니다**: 공지·뉴스·Q&A 질문·게시판 글은 여전히 admin 이상
+  전용(또는 게시판 글/댓글은 작성자 본인도 가능)이지만, **안건함/부서 활동기록은 작성자
+  본인 또는 admin 이상**으로 통일했습니다(원래 안건함은 admin 전용, 활동기록은 editor
+  누구나 삭제 가능이었던 것을 다른 콘텐츠 타입과 같은 기준으로 맞춤).
 - 알림 발송·수정("팝업 중지" 포함)은 가능, **발송 기록 삭제는 불가**
 - 학생 계정을 검색해 구성원에 연결
 - **Q&A 답변 작성/수정 가능**(공개 질문만 — 비공개 질문은 애초에 안 보임), **질문 삭제는 불가**
 - **신고 내역(`/admin/reports`)은 editor에게는 안 보입니다** — admin 이상 전용입니다.
-- 부서 활동: is_council이 있어야 부서 일정·활동기록 작성/수정/삭제, 안건 상태 변경 가능
-  — sub_editor와 동일한 조건(role + is_council)이지만, editor는 이 화면 외에 위에 적힌
-  다른 관리 화면들도 함께 접근 가능
+- 부서 활동: is_council이 있어야 부서 일정 작성/수정/삭제, 활동기록 작성/수정, 안건 상태
+  변경 가능(활동기록 삭제는 위에 적었듯 작성자 본인 또는 admin 이상) — sub_editor와 동일한
+  조건(role + is_council)이지만, editor는 이 화면 외에 위에 적힌 다른 관리 화면들도 함께
+  접근 가능
 - 첨부파일 업로드/삭제
 - **뱃지 관리(`/admin/badges`), 회원·권한 관리(`/admin/users`), 외부 계정 관리
   (`/admin/access-requests`), 접속 통계(`/admin/stats`), 사이트 잠금(`/admin/maintenance`),
@@ -332,9 +346,9 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 - 위 6개 superadmin 전용 화면(뱃지/회원 권한/외부 계정/접속 통계/사이트 잠금/활동 로그)에
   **admin도 접근 불가** — editor와 동일하게 막혀 있습니다. (RLS 자체는 일부 테이블에서
   `is_admin()`을 여전히 허용하는 경우가 있지만, 화면 자체가 없어 실질적으로 이용할 수 없습니다.)
-- 공지·뉴스, 알림 발송 기록, **게시판 글/댓글 삭제 가능**
-- Q&A **질문 삭제 가능**
-- 부서 활동 **안건 삭제 가능**
+- 공지·뉴스, 알림 발송 기록, **게시판 글/댓글 삭제 가능**(다른 사람 글도)
+- Q&A **질문 삭제 가능**(다른 사람 질문도)
+- 부서 활동 **안건함/활동기록 삭제 가능**(다른 사람 것도 — editor는 본인 것만)
 - **신고 내역(`/admin/reports`) 열람·처리 가능**(editor는 메뉴 자체가 안 보임, RLS도
   `is_admin()`으로 editor를 제외)
 - **급식표 관리(`/admin/meal-plans`) 업로드·삭제 가능**(editor는 메뉴 자체가 안 보이고
@@ -363,17 +377,39 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 - **헤더/푸터/홈 화면 디자인 테마 전환(`/admin/theme`)** — 선택하면 모든 방문자 화면에
   실시간 반영됩니다. DB(`site_theme`)에도 superadmin만 쓸 수 있는 정책이 걸려 있어 admin이
   API를 직접 호출해도 바꿀 수 없습니다.
-- **기능 스위치(`/admin/feature-flags`)**: Q&A/게시판처럼 기능 단위로 사이트 전체에서
-  켜고 끌 수 있는 스위치. 꺼면 학생 화면 메뉴에서도 숨겨지고, URL로 직접 들어가도
-  middleware가 막습니다. `feature_flags` 테이블은 `site_settings`와 별개 테이블이라
-  admin 권한으로는 값을 바꿀 수 없습니다(같은 테이블이면 admin의 다른 update 정책과
-  OR로 합쳐져 우회될 수 있어 의도적으로 분리).
+- **기능 스위치(`/admin/feature-flags`)**: 헤더 메뉴 8개(홈 제외 — 공지사항/학생자치회
+  소개/구성원/일정/뉴스/생활규정/Q&A/게시판) 전부를 기능 단위로 사이트 전체에서 켜고 끌 수
+  있는 스위치(원래는 Q&A/게시판 두 개뿐이었다가 나머지도 확장). 꺼면 학생 화면 메뉴에서도
+  숨겨지고, URL로 직접 들어가도 middleware가 막습니다(`/calendar`를 끄면 `/events/[id]`
+  상세 페이지도 같은 키로 함께 막힘). `feature_flags` 테이블은 `site_settings`와 별개
+  테이블이라 admin 권한으로는 값을 바꿀 수 없습니다(같은 테이블이면 admin의 다른 update
+  정책과 OR로 합쳐져 우회될 수 있어 의도적으로 분리).
 - **명단(`directory_members`)에 없어도 항상 로그인/이용 가능**(admin과 공통) — 관리자가
   실수로 스스로를 잠그는 사고를 막기 위한 안전장치입니다.
 - **부서 활동(안건함/부서 일정/활동기록)은 `is_council` 여부와 무관하게 항상 접근
   가능**합니다 — is_council 조건이 걸린 다른 모든 화면도 마찬가지로 superadmin은
   항상 예외입니다(관리자가 플래그 설정 실수로 스스로를 포함해 아무도 접근 못 하게
   되는 사고를 막기 위한 안전장치, 명단 예외와 같은 종류).
+
+### designer (조회 전용, role 서열과 무관한 특수 역할)
+- **admin/superadmin 전용 화면을 포함한 모든 `/admin` 탭에 접근할 수 있지만, 어떤 데이터도
+  추가/수정/삭제할 수 없습니다.** `AdminNav`의 모든 그룹(임원회 전용/admin 전용/superadmin
+  전용)이 숨김 없이 그대로 보입니다 — "탭 자체를 숨기지 않는다"는 설계 의도입니다.
+- **실제 차단은 RLS가 담당합니다**: `is_admin()`/`is_superadmin()`/`is_editor_or_above()`
+  등 기존 write 게이트 함수 어디에도 designer가 포함되지 않으므로, 모든 테이블의
+  insert/update/delete가 자동으로 막힙니다. 대신 admin 화면이 읽어야 하는 17개 테이블에
+  "select만 허용"하는 designer 전용 정책을 추가해서 admin/superadmin과 동등한 읽기 범위를
+  확보했습니다.
+- **화면상으로도 아무것도 조작할 수 없습니다**: `admin/layout.tsx`가 관리자 화면 콘텐츠
+  전체를 `DesignerModeGate` 컴포넌트로 감싸서, `inert` HTML 속성(클릭·포커스·키보드 입력을
+  한 번에 차단 — 텍스트 입력도 포함)과 흐림 효과를 한 번에 적용합니다. 개별 관리자 화면을
+  일일이 고칠 필요가 없어서 새 관리자 UI를 추가해도 자동으로 적용됩니다.
+- **회원·권한 관리(`/admin/users`)의 role 선택 옵션에 "designer"는 superadmin 계정에게만
+  보이고 admin 계정에게는 보이지 않습니다.**
+- `directory_members` 명단 등록 요건은 다른 일반 role과 동일하게 적용됩니다(admin/superadmin
+  처럼 명단과 무관하게 항상 로그인 가능한 예외는 없음).
+- **사이트 잠금(점검) 모드와 무관하게 항상 사이트를 볼 수 있습니다**(admin/superadmin/viewer와
+  동일한 예외) — 관리자 화면을 항상 봐야 하는 역할이라 잠금 여부와 상관없어야 하기 때문입니다.
 
 ### is_council / is_judiciary (role과 독립적인 플래그)
 - "학생회 임원회"·"사법위원회"는 아직 role/부서 체계에 정식으로 없어서(이슈 #21, 회의로
@@ -443,13 +479,27 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
     선생님과 진로 상담 완료하기"), `/admin/badges` 하단의 "뱃지 직접 부여"에서 학생을 검색해 원하는
     뱃지를 즉시 지급합니다(자동/날짜 조건 뱃지도 예외적으로 직접 줄 수 있음). 이미 지급된 뱃지를
     다시 주려 하면 안내 메시지만 뜨고 중복 지급되지 않습니다.
-- **관리자가 부여한 뱃지도 학생 화면에 실시간 축하 팝업**이 뜹니다(`useBadges`가 `user_badges` insert를
-  실시간 구독). 학생이 스스로 자동/날짜 조건으로 획득한 경우와 똑같이 `BadgeCelebration` 모달이 뜹니다.
+- **관리자가 부여한 뱃지도 학생 화면에 실시간 축하 팝업**이 뜹니다. 이 부분은 별도
+  `BadgeGrantWatcher` 컴포넌트(`(site)/layout.tsx`에 `Header`와 형제로 마운트)가 전담합니다
+  — 관리자 알림 배너(`NotificationBanner`)와 완전히 같은 구조로, `user_badges` INSERT
+  payload를 그대로 읽어 그 자리에서 바로 렌더링합니다(추가 네트워크 왕복 없음). 원래는
+  `useBadges` → `useAutoCheckIn` → `Header`로 이어지는 훅 체인을 거쳐서 렌더링됐는데, 중계
+  단계마다 렌더/이펙트 사이클이 하나씩 더 끼면서 알림 배너보다 체감이 느렸던 것을 이 구조로
+  바꿔서 해결했습니다. `useBadges`는 이제 뱃지 목록/보유 현황(`earnedIds`)과 자기 자신이
+  달성한 연속접속·날짜 조건 뱃지 지급만 담당합니다.
 - **접속 중이 아닐 때 놓친 축하도 다음 접속 때 몰아서 표시**됩니다(`user_badges.celebrated`). 관리자가
-  뱃지를 줄 때 학생이 사이트를 안 보고 있었으면 실시간으로 못 받으니, 그 뱃지는 `celebrated=false`로
-  남아있다가 학생이 다음에 접속하는 순간 발견돼 축하 팝업이 뜨고 `true`로 바뀝니다. 여러 개가 쌓여
-  있으면 큐에 담겨 하나씩 순서대로 뜹니다. 학생이 스스로 즉시 획득한 경우(자동/날짜 조건)는 그 자리에서
-  바로 보여주므로 처음부터 `celebrated=true`로 기록됩니다.
+  뱃지를 줄 때 학생이 사이트를 안 보고 있었거나, Supabase Realtime tenant가 유휴 상태로
+  내려갔다 콜드스타트되는 구간과 겹쳐 실시간 이벤트를 놓친 경우를 대비해, `BadgeGrantWatcher`가
+  접속 시 즉시 + 20초 주기로 `celebrated=false` 뱃지를 재조회해서 몰아서 띄웁니다(실시간이
+  정상 동작하면 이 폴링이 돌기 전에 이미 떠 있음 — 어디까지나 안전망). 그 뱃지는
+  `celebrated=false`로 남아있다가 발견되는 순간 `true`로 바뀝니다. 여러 개가 쌓여 있으면
+  큐에 담겨 하나씩 순서대로 뜹니다. 학생이 스스로 즉시 획득한 경우(자동/날짜 조건)는 그
+  자리에서 바로 보여주므로 처음부터 `celebrated=true`로 기록됩니다.
+  - **중복 팝업 방지**: `celebrated=true`로 기록하는 호출은 응답을 기다리지 않고 보내서
+    (fire-and-forget), 그게 DB에 실제로 커밋되기 전에 실시간 이벤트와 폴링이 같은 뱃지를
+    동시에 감지할 수 있습니다. `BadgeGrantWatcher`는 "큐에 넣은 적 있는 badge_id"를 세션
+    동안 별도로 기억해서(단순히 "지금 큐에 있는지"만 보면 팝업을 닫은 뒤 재감지될 때 다시
+    떠버림), 한 번 띄운 뱃지는 같은 세션에서 다시 띄우지 않습니다.
 - **시크릿 뱃지는 축하 팝업이 더 화려합니다**: 금색 그라데이션 배경 + 테두리 glow, 아이콘 바운스
   애니메이션, "NEW BADGE" 대신 "✨ SECRET BADGE ✨" 라벨로 일반 뱃지와 다르게 강조됩니다.
 - **뱃지 회수**: "뱃지 직접 부여"에서 학생을 선택하면 그 학생이 보유한 뱃지 목록과 "회수" 버튼이 함께
@@ -498,14 +548,18 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 - **안건함**: 로그인한 학생 누구나 부서를 골라 안건을 등록할 수 있고, 역시 로그인한 학생
   누구나 찬성/반대에 투표할 수 있습니다. `proposal_votes`가 `(proposal_id, user_id)` 유니크
   제약이라 같은 안건에 중복 투표가 DB 단에서 막힙니다. 이미 투표한 버튼을 다시 누르면 투표
-  취소, 반대쪽 버튼을 누르면 투표가 바뀝니다. 상태(검토중/승인/반려/완료)는 관리자만
-  `/admin/org-activities/proposals`에서 바꿀 수 있고, 안건 삭제는 `admin` 이상만 가능합니다.
+  취소, 반대쪽 버튼을 누르면 투표가 바뀝니다. 상태(검토중/승인/반려/완료)와 숨김 처리는
+  editor 이상이 `/admin/org-activities/proposals`에서 바꿀 수 있고, **삭제는 작성자 본인
+  또는 admin 이상**만 가능합니다(원래는 admin 전용이었다가 다른 콘텐츠 타입과 동일한 기준으로
+  완화).
 - **부서 일정**: 기존 학사일정(`events`, `/calendar`)과는 별개로, 부서 내부 회의·행사용
   일정(`org_events`)입니다. 학생 화면에서는 부서를 필터링해 열람만 하고, 작성/수정/삭제는
   `editor` 이상만 `/admin/org-activities/events`에서 할 수 있습니다.
 - **활동기록**: 기존 공지/뉴스(`posts`)와는 별개로, 부서 단위 기록(`org_records`)을
-  공지/활동/회의록 세 분류로 남깁니다. 마찬가지로 작성/수정/삭제는 `editor` 이상만
-  `/admin/org-activities/records`에서 할 수 있습니다.
+  공지/활동/회의록 세 분류로 남깁니다. 작성/수정과 숨김 처리는 `editor` 이상 누구나
+  `/admin/org-activities/records`에서 할 수 있지만, **삭제는 작성자 본인 또는 admin
+  이상**만 가능합니다(원래는 editor 누구나 삭제 가능했던 것을 다른 콘텐츠 타입과 동일한
+  기준으로 좁힘).
 
 관리자 화면은 기존 공지/뉴스/일정 관리 메뉴와 섞이지 않도록 `/admin/org-activities/*`
 독립 경로로 분리했고, `AdminNav`에서도 구분선 아래 "부서 활동 관리" 그룹으로 따로 묶었습니다.
@@ -636,6 +690,14 @@ student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특�
 해당 기능만 별도 테이블 + 컴포넌트로 확장하면 됩니다.
 
 ## 17. 공지사항 이메일 알림
+
+> **업데이트**: 아래 설명에 나오는 "teacher가 쓰는 교과/학급 공지" 경로는 teacher 권한이
+> student와 동일하게 차단되면서(7절 teacher 항목 참고) 현재는 아무도 쓸 수 없습니다 —
+> RLS 정책(`posts_insert_teacher_notice`)이 삭제되어 있어서 그 타입의 글 자체를 아무도
+> 새로 만들 수 없습니다. 코드(`PostManager`의 교과/학급 선택 UI, `EmailAudienceSelector`의
+> 자동 대상 로직 등)는 지우지 않고 그대로 남겨뒀으므로, teacher 권한을 되살리면(7절 참고)
+> 아래 설명대로 다시 동작합니다. 일반 공지/뉴스 + editor/admin 이상의 이메일 발송 흐름은
+> 이 변경과 무관하게 그대로 유효합니다.
 
 공지/뉴스 작성 화면에서 "이메일로 알림 보내기"를 켜면, 저장(게시)과 이메일 발송이
 **"게시하기" 버튼 한 번**으로 함께 처리됩니다(체크하지 않으면 평소처럼 글만 저장되고
