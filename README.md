@@ -781,3 +781,23 @@ GMAIL_APP_PASSWORD=          # 아래 "Gmail 앱 비밀번호 발급" 참고
   발송 대상을 나눠야 합니다.
 - `student_subjects`가 아직 비어 있는 동안은(다른 절 참고) 교과 공지 이메일 대상자가
   0명으로 계산됩니다 — 데이터가 채워지면 자동으로 정상 동작합니다.
+
+## 18. 링크 미리보기(Open Graph) / 검색엔진 노출
+
+카카오톡·문자·디스코드 등에 사이트 링크를 공유하거나 구글 검색 결과에 뜰 때 사이트
+이름이 "Vercel"로 나오던 문제를 고쳤습니다 — `openGraph`/`siteName` 등을 따로 설정하지
+않아서 각 플랫폼이 배포 플랫폼 이름으로 대체 표시한 것이었습니다.
+
+- `src/app/layout.tsx`의 `metadata.openGraph`에 `title`/`description`/`siteName`/
+  `url`/`locale`/`type`/`images`를 설정했습니다. `title`/`description`은 기존 `metadata`
+  값과 같은 상수(`SITE_NAME`/`SITE_DESCRIPTION`)를 재사용해서 두 곳에 다른 문구가
+  따로 남지 않게 했습니다.
+- **링크 미리보기 이미지(`og:image`)는 임시로 `public/logo.png`를 씁니다.** 정사각형
+  로고라 카카오톡 등에서 잘려 보일 수 있어서, 나중에 1200×630 등 링크 미리보기 전용
+  썸네일이 생기면 `layout.tsx`의 `openGraph.images` 경로만 바꾸면 됩니다.
+- 구글이 이 사이트를 "중앙기독고등학교 학생자치회"라는 조직/웹사이트로 명확히 인식하도록
+  `Organization`/`WebSite` 타입의 JSON-LD 구조화 데이터를 `<script type="application/ld+json">`
+  으로 `RootLayout`의 `<body>`에 삽입했습니다. `NEXT_PUBLIC_SITE_URL`이 설정돼 있어야
+  실제 도메인으로 채워집니다(로컬처럼 없는 환경에서는 빈 문자열로 안전하게 처리).
+- 검색 결과 반영은 구글이 이 페이지를 다시 크롤링해야 나타나므로 즉시 바뀌지 않을 수
+  있습니다(Search Console에서 재크롤링을 요청하면 더 빨리 반영됩니다).
