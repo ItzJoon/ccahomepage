@@ -40,6 +40,7 @@ const SUPERADMIN_NAV = [
 ];
 
 // 기존 메뉴들과 섞이지 않도록 구분선 아래에 별도 그룹으로 묶어서 보여준다.
+// role(sub_editor 이상)과 무관하게 is_council(임원회) 플래그가 있는 사람에게만 보인다.
 const ORG_ACTIVITIES_NAV = [
   { href: "/admin/org-activities/proposals", label: "안건함" },
   { href: "/admin/org-activities/events", label: "조직 일정" },
@@ -58,7 +59,15 @@ function NavLink({ href, label, active, t }: { href: string; label: string; acti
   );
 }
 
-export default function AdminNav({ role, initialThemeKey }: { role?: string; initialThemeKey?: HomeThemeKey }) {
+export default function AdminNav({
+  role,
+  isCouncil,
+  initialThemeKey,
+}: {
+  role?: string;
+  isCouncil?: boolean;
+  initialThemeKey?: HomeThemeKey;
+}) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
   // sub_editor는 /admin/org-activities/*, teacher는 /admin/notices 외에는 middleware가
@@ -82,10 +91,14 @@ export default function AdminNav({ role, initialThemeKey }: { role?: string; ini
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
         </>
       )}
-      <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">조직 활동 관리</div>
-      {ORG_ACTIVITIES_NAV.map((n) => (
-        <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
-      ))}
+      {isCouncil && (
+        <>
+          <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
+          {ORG_ACTIVITIES_NAV.map((n) => (
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+          ))}
+        </>
+      )}
       {(role === "admin" || role === "superadmin") && (
         <>
           <div className={`border-t ${t.adminAsideBorder} my-2`} />

@@ -1913,3 +1913,18 @@ create policy "events_read_all" on events for select
 alter table profiles drop constraint if exists profiles_role_check;
 alter table profiles add constraint profiles_role_check
   check (role in ('student','teacher','sub_editor','editor','admin','superadmin','viewer'));
+
+-- ------------------------------------------------------------
+-- 49. 조직 활동 관리(안건함/조직 일정/활동기록)를 임원회(is_council) 전용으로 변경
+-- ------------------------------------------------------------
+-- 지금까지는 sub_editor 이상이면 누구나 쓸 수 있었지만, 이제 role과 무관하게
+-- is_council=true인 사람만 쓸 수 있다(sub_editor/editor/admin/superadmin이어도
+-- is_council이 없으면 더 이상 접근할 수 없다). middleware.ts의 /admin/org-activities/*
+-- 경로 체크도 같은 기준으로 함께 바꿨다.
+create or replace function is_org_activities_manager()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role in ('sub_editor','editor','admin','superadmin') and is_council = true
+  );
+$$ language sql stable security definer;

@@ -64,18 +64,20 @@ export async function updateSession(request: NextRequest) {
   // 병렬로 가져와서 왕복 횟수를 줄인다. 예외 페이지(로그인/점검/명단차단 안내 등)는
   // 어차피 이 값들이 필요 없으므로 조회 자체를 건너뛴다.
   let role: string | null = null;
+  let isCouncil = false;
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
   let directoryAllowed = false;
   if (!isSpecialPageExempt) {
     if (user) {
       const [roleResult, settingsResult, directoryResult] = await Promise.all([
-        supabase.from("profiles").select("role").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, is_council").eq("id", user.id).single(),
         supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
         user.email
           ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
       role = roleResult.data?.role ?? null;
+      isCouncil = !!roleResult.data?.is_council;
       siteSettings = settingsResult.data;
       directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
     } else {
@@ -150,7 +152,8 @@ export async function updateSession(request: NextRequest) {
     }
     const r = role;
     // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "조직 활동
-    // 관리"(안건함/조직 일정/활동기록) 화면만 예외적으로 sub_editor 이상에게 열어주고,
+    // 관리"(안건함/조직 일정/활동기록) 화면은 sub_editor 이상 중에서도 임원회
+    // (is_council=true)만 볼 수 있다 — role만으로는 부족하고 플래그도 함께 필요하다.
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
     // teacher는 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로 접근할 수
@@ -161,7 +164,7 @@ export async function updateSession(request: NextRequest) {
       : isNoticesPath
       ? ["teacher", "editor", "admin", "superadmin"]
       : ["editor", "admin", "superadmin"];
-    if (!r || !adminAllowedRoles.includes(r)) {
+    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil)) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       url.searchParams.set("denied", "1");

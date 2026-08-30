@@ -29,7 +29,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <div className="min-h-screen bg-[#F2F4F8]">
       <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
       <div className="max-w-[1280px] mx-auto flex">
-        <AdminNav role={profile.role} initialThemeKey={initialThemeKey} />
+        <AdminNav role={profile.role} isCouncil={profile.is_council} initialThemeKey={initialThemeKey} />
         <main className="flex-1 p-6 min-w-0">{children}</main>
       </div>
     </div>
