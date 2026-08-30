@@ -115,6 +115,7 @@ export interface RuleDoc {
   category: string;
   content: string;
   updated_at: string;
+  attachments?: { id: string; file_url: string; file_name: string }[];
 }
 
 export interface Question {

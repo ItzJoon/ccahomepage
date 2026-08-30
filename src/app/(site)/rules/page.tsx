@@ -8,7 +8,10 @@ import Linkify from "@/components/Linkify";
 import type { RuleDoc } from "@/lib/types";
 
 export default function RulesPage() {
-  const { rows } = useRealtimeList<RuleDoc>("rules", { orderBy: { column: "title" } });
+  const { rows } = useRealtimeList<RuleDoc>("rules", {
+    select: "*, attachments(*)",
+    orderBy: { column: "title" },
+  });
   const [q, setQ] = useState("");
   const [active, setActive] = useState<string | null>(null);
 
@@ -46,6 +49,16 @@ export default function RulesPage() {
             <>
               <h2>{rule.title}</h2>
               <pre className="whitespace-pre-wrap font-sans leading-8 text-sm"><Linkify text={rule.content} /></pre>
+              {rule.attachments && rule.attachments.length > 0 && (
+                <div className="mt-5 p-3.5 bg-bg rounded-xl">
+                  <div className="font-bold text-xs mb-1.5">첨부파일</div>
+                  {rule.attachments.map((a) => (
+                    <a key={a.id} href={a.file_url} className="block text-sm py-1 text-blue">
+                      📎 {a.file_name}
+                    </a>
+                  ))}
+                </div>
+              )}
             </>
           ) : (
             <div className="text-muted text-center py-8 text-sm">규정을 선택해주세요.</div>
