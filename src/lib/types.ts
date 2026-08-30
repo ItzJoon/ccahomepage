@@ -42,7 +42,7 @@ export type EmailAudience =
   | { mode: "auto" }
   | { mode: "all" }
   | { mode: "grades"; grades: string[] }
-  | { mode: "homerooms"; homerooms: number[] }
+  | { mode: "homerooms"; classes: { grade: string; homeroom: number }[] }
   | { mode: "custom"; emails: string[] };
 
 export interface Organization {

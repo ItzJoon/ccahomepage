@@ -1,15 +1,18 @@
 "use client";
 
-import type { EmailAudience } from "@/lib/types";
+import MemberEmailPicker from "./MemberEmailPicker";
+import type { DirectoryMember } from "@/lib/types";
 
-const GRADES = ["10", "11", "12"];
-const HOMEROOMS = [
-  { value: 1, label: "샬롬" },
-  { value: 2, label: "헤세드" },
-  { value: 3, label: "토브" },
-];
+const GRADES = ["10", "11", "12"] as const;
+const HOMEROOMS = [1, 2, 3] as const;
 
 export type EmailMode = "all" | "grades" | "homerooms" | "custom";
+
+// "grade-homeroom" 문자열 키로 다룬다(예: "10-2") — Set에 넣고 빼기 편하고, 실제 대상
+// 계산 시 다시 { grade, homeroom }으로 풀어서 서버에 보낸다.
+export function classKey(grade: string, homeroom: number) {
+  return `${grade}-${homeroom}`;
+}
 
 /**
  * "이메일로 알림 보내기" 체크박스 + 대상 선택 UI. 네트워크 호출이나 발송 로직은 전혀
@@ -24,10 +27,10 @@ export default function EmailAudienceSelector({
   onModeChange,
   grades,
   onToggleGrade,
-  homerooms,
-  onToggleHomeroom,
-  customEmails,
-  onCustomEmailsChange,
+  classes,
+  onToggleClass,
+  customMembers,
+  onCustomMembersChange,
   isAuto,
   isAdmin,
 }: {
@@ -37,10 +40,10 @@ export default function EmailAudienceSelector({
   onModeChange: (m: EmailMode) => void;
   grades: Set<string>;
   onToggleGrade: (g: string) => void;
-  homerooms: Set<number>;
-  onToggleHomeroom: (h: number) => void;
-  customEmails: string;
-  onCustomEmailsChange: (v: string) => void;
+  classes: Set<string>;
+  onToggleClass: (key: string) => void;
+  customMembers: DirectoryMember[];
+  onCustomMembersChange: (members: DirectoryMember[]) => void;
   isAuto: boolean;
   isAdmin: boolean;
 }) {
@@ -80,26 +83,33 @@ export default function EmailAudienceSelector({
                 특정 학급만
               </label>
               {mode === "homerooms" && (
-                <div className="flex gap-2 ml-6">
-                  {HOMEROOMS.map((h) => (
-                    <label key={h.value} className="flex items-center gap-1 text-xs">
-                      <input type="checkbox" checked={homerooms.has(h.value)} onChange={() => onToggleHomeroom(h.value)} /> {h.label}
-                    </label>
+                <div className="ml-6 flex flex-col gap-1">
+                  {GRADES.map((g) => (
+                    <div key={g} className="flex items-center gap-2">
+                      <span className="text-xs text-muted w-10">{g}학년</span>
+                      {HOMEROOMS.map((h) => (
+                        <label key={h} className="flex items-center gap-1 text-xs">
+                          <input
+                            type="checkbox"
+                            checked={classes.has(classKey(g, h))}
+                            onChange={() => onToggleClass(classKey(g, h))}
+                          />
+                          {h}반
+                        </label>
+                      ))}
+                    </div>
                   ))}
+                  <p className="text-[11px] text-muted m-0">학년과 반을 함께 선택해야 정확한 학급이 지정됩니다.</p>
                 </div>
               )}
               <label className="flex items-center gap-2">
                 <input type="radio" name="audience-mode" checked={mode === "custom"} onChange={() => onModeChange("custom")} />
-                직접 입력
+                직접 지정
               </label>
               {mode === "custom" && (
-                <textarea
-                  rows={3}
-                  className="border border-border rounded-lg px-2.5 py-2 text-xs ml-6"
-                  placeholder="이메일 주소를 쉼표 또는 줄바꿈으로 구분해서 입력하세요"
-                  value={customEmails}
-                  onChange={(e) => onCustomEmailsChange(e.target.value)}
-                />
+                <div className="ml-6">
+                  <MemberEmailPicker selected={customMembers} onChange={onCustomMembersChange} />
+                </div>
               )}
             </div>
           )}

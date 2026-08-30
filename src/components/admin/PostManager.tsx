@@ -8,7 +8,7 @@ import FileUpload, { AttachmentRef } from "./FileUpload";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import { safeStorageKey } from "@/lib/storageKey";
-import type { EmailAudience, EmailNotificationBatch, Post, PostType } from "@/lib/types";
+import type { DirectoryMember, EmailAudience, EmailNotificationBatch, Post, PostType } from "@/lib/types";
 
 interface PostWithAttachments extends Post {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
@@ -106,16 +106,18 @@ export default function PostManager({
   const [emailEnabled, setEmailEnabled] = useState(false);
   const [emailMode, setEmailMode] = useState<EmailMode>("grades");
   const [emailGrades, setEmailGrades] = useState<Set<string>>(new Set());
-  const [emailHomerooms, setEmailHomerooms] = useState<Set<number>>(new Set());
-  const [emailCustomEmails, setEmailCustomEmails] = useState("");
+  // "grade-homeroom" 키 집합(예: "10-2") — 반 번호만으로는 학년이 겹쳐서(10/11/12학년 모두
+  // 1~3반이 있음) 특정 학급을 가리킬 수 없어 학년+반을 함께 고르게 한다.
+  const [emailClasses, setEmailClasses] = useState<Set<string>>(new Set());
+  const [emailCustomMembers, setEmailCustomMembers] = useState<DirectoryMember[]>([]);
   const [lastBatch, setLastBatch] = useState<EmailNotificationBatch | null>(null);
 
   const resetEmailOptions = () => {
     setEmailEnabled(false);
     setEmailMode(iAmAdmin ? "all" : "grades");
     setEmailGrades(new Set());
-    setEmailHomerooms(new Set());
-    setEmailCustomEmails("");
+    setEmailClasses(new Set());
+    setEmailCustomMembers([]);
   };
 
   useEffect(() => {
@@ -264,14 +266,14 @@ export default function PostManager({
     if (isAutoTarget) return { mode: "auto" };
     if (emailMode === "all") return { mode: "all" };
     if (emailMode === "grades") return { mode: "grades", grades: Array.from(emailGrades) };
-    if (emailMode === "homerooms") return { mode: "homerooms", homerooms: Array.from(emailHomerooms) };
-    return {
-      mode: "custom",
-      emails: emailCustomEmails
-        .split(/[\n,]/)
-        .map((e) => e.trim())
-        .filter(Boolean),
-    };
+    if (emailMode === "homerooms") {
+      const classes = Array.from(emailClasses).map((key) => {
+        const [grade, homeroom] = key.split("-");
+        return { grade, homeroom: Number(homeroom) };
+      });
+      return { mode: "homerooms", classes };
+    }
+    return { mode: "custom", emails: emailCustomMembers.map((m) => m.email) };
   };
 
   const save = async () => {
@@ -453,10 +455,10 @@ export default function PostManager({
       next.has(g) ? next.delete(g) : next.add(g);
       return next;
     });
-  const toggleHomeroom = (h: number) =>
-    setEmailHomerooms((prev) => {
+  const toggleClass = (key: string) =>
+    setEmailClasses((prev) => {
       const next = new Set(prev);
-      next.has(h) ? next.delete(h) : next.add(h);
+      next.has(key) ? next.delete(key) : next.add(key);
       return next;
     });
 
@@ -653,10 +655,10 @@ export default function PostManager({
           onModeChange={setEmailMode}
           grades={emailGrades}
           onToggleGrade={toggleGrade}
-          homerooms={emailHomerooms}
-          onToggleHomeroom={toggleHomeroom}
-          customEmails={emailCustomEmails}
-          onCustomEmailsChange={setEmailCustomEmails}
+          classes={emailClasses}
+          onToggleClass={toggleClass}
+          customMembers={emailCustomMembers}
+          onCustomMembersChange={setEmailCustomMembers}
           isAuto={isAutoTarget}
           isAdmin={iAmAdmin}
         />

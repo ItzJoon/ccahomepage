@@ -107,15 +107,19 @@ async function resolveAudience(
   }
 
   if (audience.mode === "homerooms") {
+    if (audience.classes.length === 0) return { emails: [], description: "선택된 학급 없음" };
+    // homeroom(반 번호)만으로는 학년이 겹쳐서(10/11/12학년 모두 1~3반이 있음) 특정 학급을
+    // 가리킬 수 없다 — 반드시 학년+반을 함께 매칭해야 한다(예: 10학년 2반).
+    const orFilter = audience.classes.map((c) => `and(grade.eq.${c.grade},homeroom.eq.${c.homeroom})`).join(",");
     const { data } = await supabase
       .from("directory_members")
       .select("email")
       .eq("member_type", "student")
       .eq("is_allowed", true)
-      .in("homeroom", audience.homerooms);
+      .or(orFilter);
     const emails = Array.from(new Set((data ?? []).map((m) => m.email)));
-    const labels = audience.homerooms.map((h) => HOMEROOM_LABEL[h] ?? `${h}`).join(", ");
-    return { emails: await filterOptOut(emails), description: `${labels}반` };
+    const labels = audience.classes.map((c) => `${c.grade}학년 ${c.homeroom}반`).join(", ");
+    return { emails: await filterOptOut(emails), description: labels };
   }
 
   if (audience.mode === "custom") {
