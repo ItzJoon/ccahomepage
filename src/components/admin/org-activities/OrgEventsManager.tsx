@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
+import OrgEventsCalendarGrid from "@/components/OrgEventsCalendarGrid";
 import type { Organization, OrgEvent } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<OrgEvent["category"], string> = {
@@ -43,6 +44,7 @@ export default function OrgEventsManager() {
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<"month" | "list">("list");
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
@@ -113,33 +115,55 @@ export default function OrgEventsManager() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">부서 활동 · 부서 일정 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 일정 추가</button>
+          <div className="flex items-center gap-2">
+            <div className="flex border border-border rounded-lg overflow-hidden">
+              <button
+                type="button"
+                className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "month" ? "bg-navy text-white" : "bg-white"}`}
+                onClick={() => setMode("month")}
+              >
+                월간
+              </button>
+              <button
+                type="button"
+                className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "list" ? "bg-navy text-white" : "bg-white"}`}
+                onClick={() => setMode("list")}
+              >
+                목록
+              </button>
+            </div>
+            <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 일정 추가</button>
+          </div>
         </div>
-        <AdminTable>
-          <thead>
-            <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">일정명</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-36">시작</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
-            </tr>
-          </thead>
-          <tbody>
-            {events.map((e) => (
-              <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">{e.title}</td>
-                <td className="p-2.5 border-b border-border text-sm">{orgName(e.org_id)}</td>
-                <td className="p-2.5 border-b border-border"><Badge color="navy">{CATEGORY_LABEL[e.category]}</Badge></td>
-                <td className="p-2.5 border-b border-border text-sm">{fmtDateTime(e.start_at)}</td>
-                <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
-                </td>
+        {mode === "month" ? (
+          <OrgEventsCalendarGrid events={events} categoryLabel={CATEGORY_LABEL} onEventClick={startEdit} />
+        ) : (
+          <AdminTable>
+            <thead>
+              <tr>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2">일정명</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-36">시작</th>
+                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
               </tr>
-            ))}
-            {events.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
-          </tbody>
-        </AdminTable>
+            </thead>
+            <tbody>
+              {events.map((e) => (
+                <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
+                  <td className="p-2.5 border-b border-border text-sm">{e.title}</td>
+                  <td className="p-2.5 border-b border-border text-sm">{orgName(e.org_id)}</td>
+                  <td className="p-2.5 border-b border-border"><Badge color="navy">{CATEGORY_LABEL[e.category]}</Badge></td>
+                  <td className="p-2.5 border-b border-border text-sm">{fmtDateTime(e.start_at)}</td>
+                  <td className="p-2.5 border-b border-border">
+                    <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                  </td>
+                </tr>
+              ))}
+              {events.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
+            </tbody>
+          </AdminTable>
+        )}
       </div>
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">

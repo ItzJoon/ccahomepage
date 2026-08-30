@@ -5,12 +5,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import Badge from "@/components/Badge";
+import OrgEventsCalendarGrid from "@/components/OrgEventsCalendarGrid";
 import { EVENT_CATEGORY_LABEL, fmtDateTime } from "./helpers";
 import type { Organization, OrgEvent } from "@/lib/types";
 
 export default function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: string }) {
   const supabase = createClient();
   const { myId: userId, isEditorUp: iAmEditor } = useMyRole();
+  const [mode, setMode] = useState<"month" | "list">("month");
   const [writing, setWriting] = useState(false);
   const [form, setForm] = useState({
     org_id: "",
@@ -60,16 +62,32 @@ export default function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; o
 
   return (
     <div>
-      {iAmEditor && (
-        <div className="flex justify-end mb-3">
+      <div className="flex items-center justify-end gap-3 mb-3">
+        <div className="flex border border-border rounded-lg overflow-hidden">
+          <button
+            type="button"
+            className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "month" ? "bg-navy text-white" : "bg-white"}`}
+            onClick={() => setMode("month")}
+          >
+            월간
+          </button>
+          <button
+            type="button"
+            className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "list" ? "bg-navy text-white" : "bg-white"}`}
+            onClick={() => setMode("list")}
+          >
+            목록
+          </button>
+        </div>
+        {iAmEditor && (
           <button
             onClick={() => setWriting((v) => !v)}
             className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5"
           >
             {writing ? "닫기" : "+ 일정 등록"}
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {writing && iAmEditor && (
         <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
@@ -140,23 +158,27 @@ export default function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; o
         </div>
       )}
 
-      <ul className="list-none m-0 p-0">
-        {list.map((e) => (
-          <li key={e.id} className="border-b border-border py-2.5">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Badge color="navy">{EVENT_CATEGORY_LABEL[e.category]}</Badge>
-              <span className="flex-1 text-sm font-bold">{e.title}</span>
-              <span className="text-xs text-muted">{orgName(e.org_id)}</span>
-            </div>
-            <div className="text-xs text-muted mt-1">
-              {fmtDateTime(e.start_at)} ~ {fmtDateTime(e.end_at)}
-              {e.location ? ` · ${e.location}` : ""}
-            </div>
-            {e.description && <p className="text-sm mt-1">{e.description}</p>}
-          </li>
-        ))}
-        {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</div>}
-      </ul>
+      {mode === "month" ? (
+        <OrgEventsCalendarGrid events={list} categoryLabel={EVENT_CATEGORY_LABEL} />
+      ) : (
+        <ul className="list-none m-0 p-0">
+          {list.map((e) => (
+            <li key={e.id} className="border-b border-border py-2.5">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge color="navy">{EVENT_CATEGORY_LABEL[e.category]}</Badge>
+                <span className="flex-1 text-sm font-bold">{e.title}</span>
+                <span className="text-xs text-muted">{orgName(e.org_id)}</span>
+              </div>
+              <div className="text-xs text-muted mt-1">
+                {fmtDateTime(e.start_at)} ~ {fmtDateTime(e.end_at)}
+                {e.location ? ` · ${e.location}` : ""}
+              </div>
+              {e.description && <p className="text-sm mt-1">{e.description}</p>}
+            </li>
+          ))}
+          {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</div>}
+        </ul>
+      )}
     </div>
   );
 }

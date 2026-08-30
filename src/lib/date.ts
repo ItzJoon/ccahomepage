@@ -8,6 +8,15 @@ export function todayKST(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
 
+/**
+ * timestamptz(예: org_events.start_at)를 한국 시간(Asia/Seoul) 기준 YYYY-MM-DD로 변환한다.
+ * 브라우저 로컬 타임존에 의존하면 방문자 기기 설정에 따라 날짜가 하루 밀릴 수 있어(위
+ * todayKST 주석과 같은 문제), 달력에 날짜별로 묶어 보여줘야 하는 곳에서는 이걸 쓴다.
+ */
+export function toKSTDateString(iso: string): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date(iso));
+}
+
 // 한국은 서머타임이 없어 UTC+9 고정이라, locale 문자열을 왕복 파싱하는 것보다
 // 오프셋을 직접 더하고 빼는 편이 더 정확하고 서버/브라우저의 로컬 타임존과도 무관하다.
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
