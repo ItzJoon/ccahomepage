@@ -54,7 +54,24 @@ export default function BadgeGrantWatcher({ userId }: { userId: string | null })
       if (notifiedRef.current.has(badge.id)) return;
       notifiedRef.current.add(badge.id);
       setQueue((prev) => [...prev, badge]);
-      supabase.rpc("mark_badges_celebrated", { target_badge_ids: [badge.id] });
+      // supabase.rpc(...)는 내부적으로 일반 fetch라 새로고침/페이지 이동이 일어나면 응답을
+      // 받기 전에 요청 자체가 취소된다 — 팝업이 뜨자마자(닫기 전에) 사용자가 곧바로
+      // 새로고침해서 확인하는 흔한 테스트 패턴에서 celebrated=true 반영이 매번 씹혀서
+      // "새로고침할 때마다 계속 뜨는" 버그로 이어졌다. keepalive: true를 준 fetch는 페이지가
+      // 언로드되는 도중에도 브라우저가 전송을 이어서 시도해주므로 이 경합을 없앤다.
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (!session) return;
+        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/mark_badges_celebrated`, {
+          method: "POST",
+          keepalive: true,
+          headers: {
+            "Content-Type": "application/json",
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({ target_badge_ids: [badge.id] }),
+        });
+      });
     };
 
     const channel = supabase
