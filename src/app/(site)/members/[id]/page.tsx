@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
+import DetailBackLink from "@/components/DetailBackLink";
 import type { BadgeDef, DirectoryProfileView } from "@/lib/types";
 
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
@@ -71,9 +72,7 @@ export default function MemberProfilePage() {
   return (
     <div>
       <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
-      <button onClick={() => router.back()} className="text-blue font-bold text-sm mb-3.5 inline-block">
-        ← 구성원 조회로
-      </button>
+      <DetailBackLink href="/members" label="구성원 조회로" />
 
       <div className="bg-white border border-border rounded-2xl p-5 mb-4">
         <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-4 items-center">

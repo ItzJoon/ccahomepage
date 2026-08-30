@@ -1,7 +1,7 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
+import DetailBackLink from "@/components/DetailBackLink";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -17,11 +17,11 @@ export default async function EventDetailPage({ params }: { params: { id: string
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
-      <Link href="/calendar" className="text-blue font-bold text-sm mb-3.5 inline-block">
-        ← 일정으로
-      </Link>
-      <Badge color="navy">{event.category}</Badge>
-      <h1 className="text-2xl my-2">{event.title}</h1>
+      <DetailBackLink href="/calendar" label="일정으로" />
+      <div className="flex items-center gap-2 flex-wrap my-2">
+        <Badge color="navy" className="shrink-0">{event.category}</Badge>
+        <h1 className="text-2xl m-0 min-w-0">{event.title}</h1>
+      </div>
       <div className="text-muted text-sm mb-[18px]">
         {fmt(event.start_at)} {event.end_at ? `~ ${fmt(event.end_at)}` : ""} · {event.location || "장소 미정"}
         {" · "}등록자 {event.creator_name || "정보 없음"}

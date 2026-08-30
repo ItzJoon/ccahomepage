@@ -1,6 +1,6 @@
-import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
+import DetailBackLink from "@/components/DetailBackLink";
 
 const COLOR_VAR: Record<string, string> = {
   navy: "var(--navy)",
@@ -22,12 +22,12 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
-      <Link href="/organizations" className="text-blue font-bold text-sm mb-3.5 inline-block">
-        ← 학생자치회 소개로
-      </Link>
+      <DetailBackLink href="/organizations" label="학생자치회 소개로" />
       <div className="pl-4" style={{ borderLeft: `6px solid ${COLOR_VAR[org.color] || COLOR_VAR.navy}` }}>
-        <Badge color={org.color}>부서</Badge>
-        <h1 className="text-2xl my-2">{org.name}</h1>
+        <div className="flex items-center gap-2 flex-wrap my-2">
+          <Badge color={org.color} className="shrink-0">부서</Badge>
+          <h1 className="text-2xl m-0 min-w-0">{org.name}</h1>
+        </div>
         <p className="text-muted">{org.description}</p>
       </div>
       <div className="mt-6 pt-5 border-t border-border">

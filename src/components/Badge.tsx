@@ -7,14 +7,16 @@ const COLOR_CLASS: Record<string, string> = {
 
 export default function Badge({
   color = "navy",
+  className = "",
   children,
 }: {
   color?: string;
+  className?: string;
   children: React.ReactNode;
 }) {
-  return <span className={`badge ${COLOR_CLASS[color] || "badge-navy"}`}>{children}</span>;
+  return <span className={`badge ${COLOR_CLASS[color] || "badge-navy"} ${className}`}>{children}</span>;
 }
 
-export function Pin() {
-  return <span className="pin">고정</span>;
+export function Pin({ className = "" }: { className?: string } = {}) {
+  return <span className={`pin ${className}`}>고정</span>;
 }

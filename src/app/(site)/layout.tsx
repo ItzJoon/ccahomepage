@@ -3,6 +3,7 @@ import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
 import BadgeGrantWatcher from "@/components/BadgeGrantWatcher";
 import NotificationPopup from "@/components/NotificationPopup";
+import PrevPathProvider from "@/components/PrevPathProvider";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 
@@ -99,19 +100,21 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     memberType === "teacher";
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header
-        profile={profile as any}
-        customPages={customPages ?? []}
-        checkInEligible={checkInEligible}
-        initialThemeKey={initialThemeKey}
-        disabledFeatures={disabledFeatures}
-      />
-      {showNotifications && <NotificationBanner initial={latestBanner as any} />}
-      {showNotifications && <NotificationPopup initial={latestPopup as any} />}
-      {showNotifications && <BadgeGrantWatcher userId={profile?.id ?? null} />}
-      <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
-      <Footer initialThemeKey={initialThemeKey} />
-    </div>
+    <PrevPathProvider>
+      <div className="min-h-screen flex flex-col">
+        <Header
+          profile={profile as any}
+          customPages={customPages ?? []}
+          checkInEligible={checkInEligible}
+          initialThemeKey={initialThemeKey}
+          disabledFeatures={disabledFeatures}
+        />
+        {showNotifications && <NotificationBanner initial={latestBanner as any} />}
+        {showNotifications && <NotificationPopup initial={latestPopup as any} />}
+        {showNotifications && <BadgeGrantWatcher userId={profile?.id ?? null} />}
+        <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
+        <Footer initialThemeKey={initialThemeKey} />
+      </div>
+    </PrevPathProvider>
   );
 }

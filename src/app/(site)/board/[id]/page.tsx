@@ -1,10 +1,10 @@
-import Link from "next/link";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import ViewCounter from "@/components/ViewCounter";
 import Linkify from "@/components/Linkify";
 import BoardComments from "@/components/BoardComments";
 import BoardPostActions from "@/components/BoardPostActions";
 import ReportableName from "@/components/ReportableName";
+import DetailBackLink from "@/components/DetailBackLink";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -28,9 +28,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
-      <Link href="/board" className="text-blue font-bold text-sm mb-3.5 inline-block">
-        ← 목록으로
-      </Link>
+      <DetailBackLink href="/board" label="게시판으로" />
       <h1 className="text-2xl my-2">{post.title}</h1>
       <div className="flex items-center justify-between flex-wrap gap-2 text-muted text-sm mb-[18px]">
         <div className="flex items-center gap-1.5">
