@@ -72,7 +72,7 @@ export default function AdminQnaPage() {
   const current = rows.find((q) => q.id === openId);
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
+    <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">Q&amp;A 관리</h2>
         <AdminTable>

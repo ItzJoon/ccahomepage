@@ -154,7 +154,7 @@ export default function AdminBadgesPage() {
     .filter((b) => grantUserEarnedIds.has(b.id));
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
+    <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">뱃지 관리</h2>

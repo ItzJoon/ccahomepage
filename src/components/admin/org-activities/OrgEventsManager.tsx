@@ -109,7 +109,7 @@ export default function OrgEventsManager() {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
+    <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">부서 활동 · 부서 일정 관리</h2>
