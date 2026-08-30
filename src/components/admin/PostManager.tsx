@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import FileUpload, { AttachmentRef } from "./FileUpload";
+import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { Post, PostType } from "@/lib/types";
 
 interface PostWithAttachments extends Post {
@@ -73,6 +74,10 @@ export default function PostManager({
   const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
+  // 공지/뉴스 화면이 이 컴포넌트를 공유하므로(교사의 교과/학급 공지 포함), type별로
+  // 임시저장 키를 분리한다. 기존 글 수정 중에는 자동저장하지 않는다(새 글 작성만 대상).
+  const draftKey = `${type}_new`;
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -100,7 +105,7 @@ export default function PostManager({
     });
   }, [supabase]);
 
-  const startNew = () => {
+  const freshForm = () => {
     let initialType: PostType = type;
     let initialSubject: string | null = null;
     let initialHomeroom: number | null = null;
@@ -113,13 +118,44 @@ export default function PostManager({
         initialHomeroom = teacherInfo.homeroom;
       }
     }
-    const next = { ...emptyForm, type: initialType, target_subject: initialSubject, target_homeroom: initialHomeroom };
-    setForm(next);
+    return { ...emptyForm, type: initialType, target_subject: initialSubject, target_homeroom: initialHomeroom };
+  };
+
+  const startNew = () => {
+    const next = freshForm();
+    const draft = loadDraft<typeof emptyForm>(draftKey);
+    if (draft && (draft.title || draft.content)) {
+      setForm(draft);
+      setHasDraft(true);
+    } else {
+      setForm(next);
+      setHasDraft(false);
+    }
     setInitialForm(next);
     setNewFiles([]);
     setExistingFiles([]);
     setEditing("new");
   };
+
+  const discardDraft = () => {
+    clearDraft(draftKey);
+    setHasDraft(false);
+    const next = freshForm();
+    setForm(next);
+    setInitialForm(next);
+    setNewFiles([]);
+    setExistingFiles([]);
+  };
+
+  // 새 글 작성 중일 때만(기존 글 수정 중에는 자동저장하지 않음) 살짝 디바운스해서 로컬에 저장.
+  useEffect(() => {
+    if (editing !== "new") return;
+    const t = setTimeout(() => {
+      if (form.title || form.content) saveDraft(draftKey, form);
+    }, 500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form, editing]);
   const startEdit = (item: PostWithAttachments) => {
     // teacher는 본인이 쓴 교과/학급 공지만 수정할 수 있다(RLS도 동일 기준). 다른 선생님의
     // 공지는 목록에서 보이기만 하고 열어도 수정은 막는다 — 실수로 열었다가 저장해도
@@ -161,6 +197,10 @@ export default function PostManager({
         await supabase
           .from("attachments")
           .insert(newFiles.map((f) => ({ post_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+      }
+      if (!error) {
+        clearDraft(draftKey);
+        setHasDraft(false);
       }
     } else if (editing) {
       await supabase.from("posts").update(form).eq("id", editing);
@@ -330,6 +370,15 @@ export default function PostManager({
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
           <h3>{editing === "new" ? "새 글 작성" : "글 수정"}</h3>
+
+          {hasDraft && editing === "new" && (
+            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2">
+              <span>임시저장된 내용을 불러왔습니다.</span>
+              <button type="button" onClick={discardDraft} className="text-red font-bold">
+                지우고 새로 쓰기
+              </button>
+            </div>
+          )}
 
           {type === "notice" && isTeacher && (
             <>

@@ -7,6 +7,9 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
+import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
+
+const DRAFT_KEY = "qna_new";
 
 interface QuestionWithAnswer {
   id: string;
@@ -32,6 +35,7 @@ export default function QnaPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [form, setForm] = useState({ title: "", content: "", isPrivate: false, revealAuthor: false });
   const [error, setError] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
     select: "*, answers(*)",
@@ -41,6 +45,31 @@ export default function QnaPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, [supabase]);
+
+  // 질문하기 탭을 열면 임시저장된 내용이 있는지 확인해 자동으로 불러온다.
+  useEffect(() => {
+    if (tab !== "write") return;
+    const draft = loadDraft<typeof form>(DRAFT_KEY);
+    if (draft && (draft.title || draft.content)) {
+      setForm(draft);
+      setHasDraft(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
+  useEffect(() => {
+    if (tab !== "write") return;
+    const t = setTimeout(() => {
+      if (form.title || form.content) saveDraft(DRAFT_KEY, form);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [form, tab]);
+
+  const discardDraft = () => {
+    clearDraft(DRAFT_KEY);
+    setForm({ title: "", content: "", isPrivate: false, revealAuthor: false });
+    setHasDraft(false);
+  };
 
   const submit = async () => {
     setError(null);
@@ -67,7 +96,9 @@ export default function QnaPage() {
       setError(error.message);
       return;
     }
+    clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "", isPrivate: false, revealAuthor: false });
+    setHasDraft(false);
     setTab("list");
     reload();
   };
@@ -105,6 +136,14 @@ export default function QnaPage() {
           {userId === null && (
             <div className="text-sm bg-[#FFF7E6] rounded-lg p-3 mb-2">
               <Link href="/login" className="text-blue font-bold">로그인</Link> 후 질문을 등록할 수 있습니다.
+            </div>
+          )}
+          {hasDraft && (
+            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2">
+              <span>임시저장된 내용을 불러왔습니다.</span>
+              <button type="button" onClick={discardDraft} className="text-red font-bold">
+                지우고 새로 쓰기
+              </button>
             </div>
           )}
           <label className="text-sm font-bold mt-2">제목</label>

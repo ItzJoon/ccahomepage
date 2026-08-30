@@ -6,7 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import ReportableName from "@/components/ReportableName";
+import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { BoardPost } from "@/lib/types";
+
+const DRAFT_KEY = "board_new";
 
 interface Row extends BoardPost {
   author: { name: string | null; nickname: string | null; profile_image: string | null } | null;
@@ -24,6 +27,7 @@ export default function BoardPage() {
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [form, setForm] = useState({ title: "", content: "" });
   const [error, setError] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState(false);
 
   const { rows, reload } = useRealtimeList<Row>("board_posts", {
     select: "*, author:profiles(name, nickname, profile_image)",
@@ -33,6 +37,33 @@ export default function BoardPage() {
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, [supabase]);
+
+  // 글쓰기 창을 열면 저장된 임시저장이 있는지 확인해서 자동으로 불러온다.
+  useEffect(() => {
+    if (!writing) return;
+    const draft = loadDraft<{ title: string; content: string }>(DRAFT_KEY);
+    if (draft && (draft.title || draft.content)) {
+      setForm(draft);
+      setHasDraft(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writing]);
+
+  // 입력할 때마다(살짝 디바운스) 로컬에 임시저장 — 작성 중 페이지를 벗어났다가 다시
+  // 들어와도 복원할 수 있게 한다. 등록이 끝나면 지운다.
+  useEffect(() => {
+    if (!writing) return;
+    const t = setTimeout(() => {
+      if (form.title || form.content) saveDraft(DRAFT_KEY, form);
+    }, 500);
+    return () => clearTimeout(t);
+  }, [form, writing]);
+
+  const discardDraft = () => {
+    clearDraft(DRAFT_KEY);
+    setForm({ title: "", content: "" });
+    setHasDraft(false);
+  };
 
   const submit = async () => {
     setError(null);
@@ -50,7 +81,9 @@ export default function BoardPage() {
       setError(error.message);
       return;
     }
+    clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "" });
+    setHasDraft(false);
     setWriting(false);
     reload();
   };
@@ -88,6 +121,14 @@ export default function BoardPage() {
         <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
           {userId === null && (
             <div className="text-sm bg-[#FFF7E6] rounded-lg p-3 mb-2">로그인 후 글을 등록할 수 있습니다.</div>
+          )}
+          {hasDraft && (
+            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2 mb-1">
+              <span>임시저장된 내용을 불러왔습니다.</span>
+              <button type="button" onClick={discardDraft} className="text-red font-bold">
+                지우고 새로 쓰기
+              </button>
+            </div>
           )}
           <label className="text-sm font-bold">제목</label>
           <input
