@@ -1,11 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
+import PostManager from "@/components/admin/PostManager";
 import type { Post } from "@/lib/types";
+
+// 관리자 화면(/admin/notices)에 들어가지 않고도, 공지를 쓸 수 있는 역할이면 이 목록
+// 페이지에서 바로 작성할 수 있게 한다. 실제 작성 폼/권한 분기(teacher는 교과·학급
+// 자동 타겟팅, editor 이상은 일반 공지)는 PostManager를 그대로 재사용해서 관리자
+// 화면과 완전히 동일한 로직 하나만 유지한다.
+const WRITABLE_ROLES = ["teacher", "editor", "admin", "superadmin"];
 
 interface Row extends Post {
   author_name: string | null;
@@ -28,6 +36,17 @@ export default function NoticesPage() {
   });
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("전체");
+  const [canWrite, setCanWrite] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setCanWrite(!!me && WRITABLE_ROLES.includes(me.role));
+    });
+  }, []);
 
   const cats = useMemo(() => ["전체", ...Array.from(new Set(rows.map((n) => n.category)))], [rows]);
 
@@ -38,7 +57,17 @@ export default function NoticesPage() {
 
   return (
     <div>
-      <SectionTitle eyebrow="NOTICE" title="공지사항" />
+      <SectionTitle
+        eyebrow="NOTICE"
+        title="공지사항"
+        action={
+          canWrite ? (
+            <button onClick={() => setComposerOpen(true)} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">
+              + 새 공지 작성
+            </button>
+          ) : undefined
+        }
+      />
       <div className="flex gap-2.5 mb-3.5 flex-wrap">
         <input
           className="flex-1 min-w-[200px] border border-border rounded-lg px-3 py-2 text-sm"
@@ -52,6 +81,17 @@ export default function NoticesPage() {
           ))}
         </select>
       </div>
+
+      {composerOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 flex items-start justify-center overflow-y-auto p-4 sm:p-8"
+          onClick={() => setComposerOpen(false)}
+        >
+          <div className="w-full max-w-xl mt-4 mb-8" onClick={(e) => e.stopPropagation()}>
+            <PostManager type="notice" label="공지사항" hideList autoStartNew onClose={() => setComposerOpen(false)} />
+          </div>
+        </div>
+      )}
       <table className="w-full border-collapse bg-white">
         <thead>
           <tr>

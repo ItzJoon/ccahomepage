@@ -1,10 +1,19 @@
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
 import { getTransporter } from "./transporter";
-import type { EmailAudience, Post } from "@/lib/types";
+import type { EmailAudience, Post, PostType } from "@/lib/types";
 
 const FROM_NAME = "학생자치회";
 const MAX_ATTEMPTS = 3; // 최초 시도 + 재시도 2회
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
+
+// 대상 계산에는 글의 type/target_subject/target_homeroom만 있으면 되고 제목·본문은 필요
+// 없다 — 그 덕분에 아직 저장 전인 글(작성 화면에서 "게시하기" 누르기 전 미리보기)도 같은
+// 로직으로 대상자 수를 계산할 수 있다.
+interface AudienceCriteria {
+  type: PostType;
+  target_subject: string | null;
+  target_homeroom: number | null;
+}
 
 function snippet(text: string, len = 200) {
   const clean = text.replace(/\s+/g, " ").trim();
@@ -45,7 +54,7 @@ function buildHtml(post: Post) {
  */
 async function resolveAudience(
   supabase: ReturnType<typeof createServiceRoleClient>,
-  post: Post,
+  criteria: AudienceCriteria,
   audience: EmailAudience
 ): Promise<{ emails: string[]; description: string }> {
   const filterOptOut = async (emails: string[]) => {
@@ -55,24 +64,24 @@ async function resolveAudience(
     return emails.filter((e) => !optedOut.has(e));
   };
 
-  if (post.type === "subject_notice" && post.target_subject) {
+  if (criteria.type === "subject_notice" && criteria.target_subject) {
     const { data } = await supabase
       .from("student_subjects")
       .select("user_id, profiles!inner(email)")
-      .eq("subject", post.target_subject);
+      .eq("subject", criteria.target_subject);
     const emails = Array.from(new Set((data ?? []).map((r: any) => r.profiles?.email as string).filter(Boolean)));
-    return { emails: await filterOptOut(emails), description: `교과 공지 자동 대상 (${post.target_subject})` };
+    return { emails: await filterOptOut(emails), description: `교과 공지 자동 대상 (${criteria.target_subject})` };
   }
 
-  if (post.type === "homeroom_notice" && post.target_homeroom) {
+  if (criteria.type === "homeroom_notice" && criteria.target_homeroom) {
     const { data } = await supabase
       .from("directory_members")
       .select("email")
       .eq("member_type", "student")
-      .eq("homeroom", post.target_homeroom)
+      .eq("homeroom", criteria.target_homeroom)
       .eq("is_allowed", true);
     const emails = Array.from(new Set((data ?? []).map((m) => m.email)));
-    const label = HOMEROOM_LABEL[post.target_homeroom] ?? `${post.target_homeroom}`;
+    const label = HOMEROOM_LABEL[criteria.target_homeroom] ?? `${criteria.target_homeroom}`;
     return { emails: await filterOptOut(emails), description: `학급 공지 자동 대상 (${label})` };
   }
 
@@ -137,13 +146,7 @@ async function sendOne(to: string, post: Post): Promise<{ ok: true } | { ok: fal
   return { ok: false, error: lastError instanceof Error ? lastError.message : String(lastError) };
 }
 
-/** 실제 발송 없이 대상자 수/목록/문구만 미리 계산한다(발송 전 확인 화면용). */
-export async function previewNoticeAudience(postId: string, audience: EmailAudience) {
-  const supabase = createServiceRoleClient();
-  const { data: post } = await supabase.from("posts").select("*").eq("id", postId).single();
-  if (!post) return null;
-  const { emails, description } = await resolveAudience(supabase, post as Post, audience);
-
+async function todaySentCount(supabase: ReturnType<typeof createServiceRoleClient>) {
   // Gmail 무료 계정 일일 발송 한도(약 500통) 참고용으로, 오늘(KST) 이미 시도한 발송 건수를
   // 함께 보여준다 — 정확한 차단이 아니라 사전 경고 목적이다.
   const todayStartUtc = new Date();
@@ -152,8 +155,26 @@ export async function previewNoticeAudience(postId: string, audience: EmailAudie
     .from("email_notification_logs")
     .select("id", { count: "exact", head: true })
     .gte("created_at", todayStartUtc.toISOString());
+  return count ?? 0;
+}
 
-  return { post, emails, description, todaySentCount: count ?? 0 };
+/** 실제 발송 없이 대상자 수/목록/문구만 미리 계산한다(발송 전 확인 화면용, 이미 저장된 글). */
+export async function previewNoticeAudience(postId: string, audience: EmailAudience) {
+  const supabase = createServiceRoleClient();
+  const { data: post } = await supabase.from("posts").select("*").eq("id", postId).single();
+  if (!post) return null;
+  const { emails, description } = await resolveAudience(supabase, post as Post, audience);
+  return { post, emails, description, todaySentCount: await todaySentCount(supabase) };
+}
+
+/**
+ * 아직 저장되지 않은 글(작성 화면에서 "게시하기" 누르기 전)에 대한 대상자 미리보기.
+ * type/target_subject/target_homeroom만으로 계산하므로 postId가 필요 없다.
+ */
+export async function previewAudienceByCriteria(criteria: AudienceCriteria, audience: EmailAudience) {
+  const supabase = createServiceRoleClient();
+  const { emails, description } = await resolveAudience(supabase, criteria, audience);
+  return { emails, description, todaySentCount: await todaySentCount(supabase) };
 }
 
 /**
@@ -163,7 +184,11 @@ export async function sendNoticeToAudience(postId: string, audience: EmailAudien
   const supabase = createServiceRoleClient();
   const { data: post } = await supabase.from("posts").select("*").eq("id", postId).single();
   if (!post) return null;
-  const { emails, description } = await resolveAudience(supabase, post as Post, audience);
+  const { emails, description } = await resolveAudience(
+    supabase,
+    { type: post.type, target_subject: post.target_subject, target_homeroom: post.target_homeroom },
+    audience
+  );
 
   const { data: batch, error: batchError } = await supabase
     .from("email_notification_batches")

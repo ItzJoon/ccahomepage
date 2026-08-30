@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
-import { previewNoticeAudience, sendNoticeToAudience } from "@/lib/email/sendNoticeNotification";
-import type { EmailAudience } from "@/lib/types";
+import { previewAudienceByCriteria, previewNoticeAudience, sendNoticeToAudience } from "@/lib/email/sendNoticeNotification";
+import type { EmailAudience, PostType } from "@/lib/types";
 
 // nodemailer는 Node.js API(net/tls)를 쓰므로 Edge 런타임에서 돌릴 수 없다.
 export const runtime = "nodejs";
@@ -9,16 +9,81 @@ export const runtime = "nodejs";
 // 학교 규모가 훨씬 커지면 이 방식 대신 큐 기반 발송으로 바꿔야 할 수 있다.
 export const maxDuration = 300;
 
+interface Criteria {
+  type: PostType;
+  target_subject: string | null;
+  target_homeroom: number | null;
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { postId, audience, dryRun } = body as { postId?: string; audience?: EmailAudience; dryRun?: boolean };
-  if (!postId || typeof postId !== "string") {
-    return NextResponse.json({ error: "postId가 필요합니다." }, { status: 400 });
-  }
+  const { postId, criteria, audience, dryRun } = body as {
+    postId?: string;
+    criteria?: Criteria;
+    audience?: EmailAudience;
+    dryRun?: boolean;
+  };
 
   const profile = await getCurrentProfile();
   if (!profile || !["teacher", "editor", "admin", "superadmin"].includes(profile.role)) {
     return NextResponse.json({ error: "권한이 없습니다." }, { status: 403 });
+  }
+
+  // "게시하기" 버튼 누르기 전, 아직 저장되지 않은 글에 대한 대상자 미리보기 — postId가
+  // 없고 criteria만 있을 때다. 실제 발송(dryRun=false)은 글이 실제로 존재해야 하므로
+  // 이 경로에서는 지원하지 않는다.
+  if (!postId && criteria) {
+    if (!dryRun) {
+      return NextResponse.json({ error: "저장되지 않은 글은 미리보기만 가능합니다." }, { status: 400 });
+    }
+    if (profile.role === "teacher") {
+      if (criteria.type !== "subject_notice" && criteria.type !== "homeroom_notice") {
+        return NextResponse.json({ error: "teacher는 교과/학급 공지만 발송할 수 있습니다." }, { status: 403 });
+      }
+      // 본인이 실제로 담당하는 과목/학급인지 서버에서 다시 확인한다(RLS의
+      // teacher_owns_subject/teacher_owns_homeroom과 동일한 검증을 클라이언트가
+      // 아직 저장하지 않은 값에 대해서도 우회할 수 없게).
+      const supabase = createClient();
+      const { data: dm } = await supabase
+        .from("directory_members")
+        .select("subject, homeroom")
+        .eq("email", profile.email)
+        .maybeSingle();
+      if (criteria.type === "subject_notice") {
+        const subjects = ((dm?.subject as string | null) ?? "").split(",").map((s) => s.trim());
+        if (!criteria.target_subject || !subjects.includes(criteria.target_subject)) {
+          return NextResponse.json({ error: "본인이 담당하는 과목이 아닙니다." }, { status: 403 });
+        }
+      } else if (criteria.type === "homeroom_notice") {
+        if (!criteria.target_homeroom || dm?.homeroom !== criteria.target_homeroom) {
+          return NextResponse.json({ error: "본인이 담당하는 학급이 아닙니다." }, { status: 403 });
+        }
+      }
+    }
+    if (
+      (criteria.type === "notice" || criteria.type === "news") &&
+      audience?.mode === "all" &&
+      !["admin", "superadmin"].includes(profile.role)
+    ) {
+      return NextResponse.json({ error: "전체 발송은 admin 이상만 할 수 있습니다." }, { status: 403 });
+    }
+    const effectiveAudience: EmailAudience =
+      criteria.type === "subject_notice" || criteria.type === "homeroom_notice" ? { mode: "auto" } : audience ?? { mode: "all" };
+    try {
+      const result = await previewAudienceByCriteria(criteria, effectiveAudience);
+      return NextResponse.json({
+        count: result.emails.length,
+        emails: result.emails.slice(0, 50),
+        description: result.description,
+        todaySentCount: result.todaySentCount,
+      });
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : "대상자 계산 중 오류가 발생했습니다." }, { status: 500 });
+    }
+  }
+
+  if (!postId || typeof postId !== "string") {
+    return NextResponse.json({ error: "postId가 필요합니다." }, { status: 400 });
   }
 
   const supabase = createClient();
