@@ -12,7 +12,8 @@ import type { BoardPost } from "@/lib/types";
 const DRAFT_KEY = "board_new";
 
 interface Row extends BoardPost {
-  author: { name: string | null; nickname: string | null; profile_image: string | null } | null;
+  author_name: string | null;
+  author_avatar: string | null;
 }
 
 function fmt(d: string) {
@@ -29,8 +30,11 @@ export default function BoardPage() {
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
 
+  // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
+  // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
+  // (supabase/schema.sql 51번 참고).
   const { rows, reload } = useRealtimeList<Row>("board_posts", {
-    select: "*, author:profiles(name, nickname, profile_image)",
+    select: "*, author_name, author_avatar",
     orderBy: sort === "latest" ? { column: "created_at", ascending: false } : { column: "view_count", ascending: false },
   });
 
@@ -167,17 +171,17 @@ export default function BoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">
                 <div className="flex items-center gap-1.5">
-                  {p.author?.profile_image ? (
-                    <img src={p.author.profile_image} alt="" className="w-5 h-5 rounded-full object-cover" />
+                  {p.author_avatar ? (
+                    <img src={p.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
                   ) : (
                     <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold">
-                      {(p.author?.nickname || p.author?.name || "?")[0]}
+                      {(p.author_name || "?")[0]}
                     </span>
                   )}
                   {p.author_id ? (
                     <ReportableName
                       targetUserId={p.author_id}
-                      name={p.author?.nickname || p.author?.name || "이름 없음"}
+                      name={p.author_name || "이름 없음"}
                       myId={userId ?? null}
                       context={`게시판 글: ${p.title}`}
                     />

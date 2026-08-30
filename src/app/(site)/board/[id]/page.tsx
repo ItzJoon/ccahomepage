@@ -13,15 +13,18 @@ function fmt(d: string) {
 
 export default async function BoardDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
+  // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
+  // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
+  // (supabase/schema.sql 51번 참고).
   const [{ data: post }, profile] = await Promise.all([
-    supabase.from("board_posts").select("*, author:profiles(name, nickname, profile_image)").eq("id", params.id).single(),
+    supabase.from("board_posts").select("*, author_name, author_avatar").eq("id", params.id).single(),
     getCurrentProfile(),
   ]);
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다(삭제되었거나 숨김 처리된 글일 수 있습니다).</div>;
   }
 
-  const authorLabel = post.author?.nickname || post.author?.name || "탈퇴한 사용자";
+  const authorLabel = post.author_name || "탈퇴한 사용자";
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
@@ -31,8 +34,8 @@ export default async function BoardDetailPage({ params }: { params: { id: string
       <h1 className="text-2xl my-2">{post.title}</h1>
       <div className="flex items-center justify-between flex-wrap gap-2 text-muted text-sm mb-[18px]">
         <div className="flex items-center gap-1.5">
-          {post.author?.profile_image ? (
-            <img src={post.author.profile_image} alt="" className="w-5 h-5 rounded-full object-cover" />
+          {post.author_avatar ? (
+            <img src={post.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
           ) : (
             <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold">
               {authorLabel[0]}

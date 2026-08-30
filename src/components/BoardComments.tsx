@@ -8,7 +8,8 @@ import ReportableName from "@/components/ReportableName";
 import type { BoardComment } from "@/lib/types";
 
 interface Row extends BoardComment {
-  author: { name: string | null; nickname: string | null; profile_image: string | null } | null;
+  author_name: string | null;
+  author_avatar: string | null;
 }
 
 function fmtDateTime(iso: string) {
@@ -33,8 +34,11 @@ function groupByParent(rows: Row[]) {
 
 export default function BoardComments({ postId, userId }: { postId: string; userId: string | null }) {
   const supabase = createClient();
+  // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
+  // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
+  // (supabase/schema.sql 51번 참고).
   const { rows, reload } = useRealtimeList<Row>("board_comments", {
-    select: "*, author:profiles(name, nickname, profile_image)",
+    select: "*, author_name, author_avatar",
     filter: (q) => q.eq("post_id", postId),
     orderBy: { column: "created_at", ascending: true },
   });
@@ -65,12 +69,12 @@ export default function BoardComments({ postId, userId }: { postId: string; user
     // 대댓글(depth 1)에 다시 답글을 눌러도 새 댓글은 이 노드가 아니라 최상위 댓글에
     // 붙여서(rootId), 들여쓰기가 더 깊어지지 않고 같은 줄에 나란히 쌓이게 한다.
     const rootId = depth === 0 ? node.id : node.parent_id!;
-    const authorLabel = node.author?.nickname || node.author?.name || "탈퇴한 사용자";
+    const authorLabel = node.author_name || "탈퇴한 사용자";
     return (
       <div key={node.id} className={depth > 0 ? "ml-6 mt-2.5 border-l-2 border-border pl-3" : "mt-3.5 pt-3.5 border-t border-border first:border-t-0 first:pt-0"}>
         <div className="flex items-center gap-1.5 text-sm">
-          {node.author?.profile_image ? (
-            <img src={node.author.profile_image} alt="" className="w-5 h-5 rounded-full object-cover" />
+          {node.author_avatar ? (
+            <img src={node.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
           ) : (
             <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
               {authorLabel[0]}
