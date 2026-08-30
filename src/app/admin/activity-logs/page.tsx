@@ -18,21 +18,35 @@ const TABLE_LABELS: Record<string, string> = {
   directory_members: "외부 계정 명단",
   login_access_requests: "외부 계정 요청",
   user_badges: "뱃지 지급",
-  proposals: "안건 상태",
+  proposals: "안건함",
   org_events: "부서 일정",
   org_records: "부서 활동기록",
   site_settings: "사이트 설정",
+  board_posts: "게시판",
+  board_comments: "게시판 댓글",
+  questions: "Q&A 질문",
 };
 
 // 테이블마다 insert/update/delete가 실제로 뜻하는 행위가 달라서(예: user_badges의
 // insert는 "지급", delete는 "회수") 테이블별로 자연스러운 한국어 라벨을 따로 정의한다.
-function actionLabel(table: string | null, action: AuditAction) {
+// is_hidden 토글은 여러 테이블(posts/events/board_posts/questions/proposals/org_records/
+// board_comments)에 공통으로 있으므로, before/after를 비교해서 테이블과 무관하게 한 번에 처리한다.
+function actionLabel(row: Pick<AuditLog, "target_table" | "action" | "before_data" | "after_data">) {
+  const table = row.target_table;
+  const action = row.action;
   if (table === "user_badges") return action === "insert" ? "지급" : action === "delete" ? "회수" : "수정";
   if (table === "login_access_requests") return "승인/차단 처리";
   if (table === "directory_members") return action === "insert" ? "명단 등록" : "허용 상태 변경";
   if (table === "profiles") return "권한 변경";
-  if (table === "proposals") return "상태 변경";
   if (table === "site_settings") return "점검모드 변경";
+  if (action === "update") {
+    const before = row.before_data as Record<string, unknown> | null;
+    const after = row.after_data as Record<string, unknown> | null;
+    if (before && after && "is_hidden" in after && before.is_hidden !== after.is_hidden) {
+      return after.is_hidden ? "숨김 처리" : "숨김 해제";
+    }
+    if (table === "proposals") return "상태 변경";
+  }
   return action === "insert" ? "작성" : action === "update" ? "수정" : "삭제";
 }
 
@@ -51,6 +65,8 @@ function summarize(row: AuditLog): string {
       return `점검모드: ${data.maintenance_mode ? "켜짐" : "꺼짐"}`;
     case "proposals":
       return `${data.title ?? "-"} → ${data.status}`;
+    case "board_comments":
+      return typeof data.content === "string" ? data.content.slice(0, 40) : row.target_id ?? "-";
     default:
       return data.title || data.name || data.email || row.target_id || "-";
   }
@@ -218,7 +234,7 @@ export default function AdminActivityLogsPage() {
                   {r.profiles?.nickname || r.profiles?.name || r.profiles?.email || "시스템"}
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}</td>
-                <td className="p-2.5 border-b border-border text-sm">{actionLabel(r.target_table, r.action)}</td>
+                <td className="p-2.5 border-b border-border text-sm">{actionLabel(r)}</td>
                 <td className="p-2.5 border-b border-border text-sm truncate max-w-[320px]">{summarize(r)}</td>
               </tr>
               {expandedId === r.id && (

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Linkify from "@/components/Linkify";
@@ -45,6 +45,16 @@ export default function BoardComments({ postId, userId }: { postId: string; user
   const [content, setContent] = useState("");
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [iAmEditorUp, setIAmEditorUp] = useState(false);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase.from("profiles").select("role").eq("id", userId).single().then(({ data }) => {
+      setIAmEditorUp(!!data && ["editor", "admin", "superadmin"].includes(data.role));
+      setIAmAdmin(!!data && ["admin", "superadmin"].includes(data.role));
+    });
+  }, [supabase, userId]);
 
   const byParent = groupByParent(rows);
   const roots = byParent.get(null) ?? [];
@@ -59,6 +69,11 @@ export default function BoardComments({ postId, userId }: { postId: string; user
   const removeComment = async (id: string) => {
     if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
     await supabase.from("board_comments").delete().eq("id", id);
+    reload();
+  };
+
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("board_comments").update({ is_hidden: !isHidden }).eq("id", id);
     reload();
   };
 
@@ -86,18 +101,26 @@ export default function BoardComments({ postId, userId }: { postId: string; user
             <strong>{authorLabel}</strong>
           )}
           <span className="text-muted text-xs">{fmtDateTime(node.created_at)}</span>
+          {node.is_hidden && (
+            <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+          )}
         </div>
         <p className="text-sm mt-1 mb-1">
           <Linkify text={node.content} />
         </p>
-        <div className="flex gap-2.5 text-xs">
+        <div className="flex items-center gap-2.5 text-xs whitespace-nowrap">
           {userId && (
-            <button onClick={() => setReplyTo(replyTo === node.id ? null : node.id)} className="text-blue font-bold">
+            <button onClick={() => setReplyTo(replyTo === node.id ? null : node.id)} className="text-blue font-bold shrink-0">
               답글
             </button>
           )}
-          {userId === node.author_id && (
-            <button onClick={() => removeComment(node.id)} className="text-red font-bold">
+          {iAmEditorUp && (
+            <button onClick={() => toggleHidden(node.id, node.is_hidden)} className="text-blue font-bold shrink-0">
+              {node.is_hidden ? "숨김 해제" : "숨김"}
+            </button>
+          )}
+          {(userId === node.author_id || iAmAdmin) && (
+            <button onClick={() => removeComment(node.id)} className="text-red font-bold shrink-0">
               삭제
             </button>
           )}

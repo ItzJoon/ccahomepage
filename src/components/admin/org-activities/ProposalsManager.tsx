@@ -1,6 +1,6 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "../AdminTable";
+import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -34,6 +34,7 @@ export default function ProposalsManager() {
   const { rows: votes } = useRealtimeList<ProposalVote>("proposal_votes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [iAmEditorUp, setIAmEditorUp] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
   // 원래는 학생용 /org-activities 공개 페이지에서만 안건을 등록할 수 있었는데, 부서 활동이
   // 임원회 전용으로 바뀌면서 이 관리 화면(이 페이지에 들어올 수 있다는 것 자체가 이미
@@ -48,6 +49,7 @@ export default function ProposalsManager() {
       setMyId(data.user.id);
       const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
       setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+      setIAmEditorUp(!!me && ["editor", "admin", "superadmin"].includes(me.role));
     });
   }, [supabase]);
 
@@ -89,6 +91,11 @@ export default function ProposalsManager() {
     reload();
   };
 
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("proposals").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
   const current = proposals.find((p) => p.id === selectedId);
 
   return (
@@ -104,7 +111,8 @@ export default function ProposalsManager() {
           </button>
         </div>
         <p className="text-muted mb-4 text-sm">
-          등록된 안건과 찬반 투표 현황을 확인하고 상태를 바꿀 수 있습니다. 삭제는 admin 이상만 가능합니다.
+          등록된 안건과 찬반 투표 현황을 확인하고 상태를 바꿀 수 있습니다. 숨김은 editor 이상,
+          삭제는 작성자 본인 또는 admin 이상만 가능합니다.
         </p>
         {writing && (
           <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
@@ -145,6 +153,7 @@ export default function ProposalsManager() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">찬성/반대</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
           <tbody>
@@ -156,6 +165,9 @@ export default function ProposalsManager() {
               >
                 <td className="p-2.5 border-b border-border text-sm">
                   <span {...truncateCellProps(p.title)}>{p.title}</span>
+                  {p.is_hidden && (
+                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{orgName(p.org_id)}</td>
                 <td className="p-2.5 border-b border-border text-sm">
@@ -166,10 +178,30 @@ export default function ProposalsManager() {
                     {STATUS_LABEL[p.status]}
                   </span>
                 </td>
+                <td className="p-2.5 border-b border-border">
+                  <div className={actionCellClass}>
+                    {iAmEditorUp && (
+                      <button
+                        className="text-blue text-xs font-bold shrink-0"
+                        onClick={(e) => { e.stopPropagation(); toggleHidden(p.id, p.is_hidden); }}
+                      >
+                        {p.is_hidden ? "숨김 해제" : "숨김"}
+                      </button>
+                    )}
+                    {(myId === p.author_id || iAmAdmin) && (
+                      <button
+                        className="text-red text-xs font-bold shrink-0"
+                        onClick={(e) => { e.stopPropagation(); remove(p.id); }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
             ))}
             {proposals.length === 0 && (
-              <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 안건이 없습니다.</td></tr>
+              <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 안건이 없습니다.</td></tr>
             )}
           </tbody>
         </AdminTable>
@@ -192,13 +224,21 @@ export default function ProposalsManager() {
               <option key={s} value={s}>{STATUS_LABEL[s]}</option>
             ))}
           </select>
-          <div className="flex gap-2 mt-3.5">
-            {iAmAdmin ? (
+          <div className="flex items-center gap-2 mt-3.5 flex-wrap">
+            {iAmEditorUp && (
+              <button
+                onClick={() => toggleHidden(current.id, current.is_hidden)}
+                className="text-blue text-xs font-bold border border-border rounded-lg px-4 py-2"
+              >
+                {current.is_hidden ? "숨김 해제" : "숨김"}
+              </button>
+            )}
+            {(myId === current.author_id || iAmAdmin) ? (
               <button onClick={() => remove(current.id)} className="text-red text-xs font-bold border border-border rounded-lg px-4 py-2">
                 삭제
               </button>
             ) : (
-              <span className="text-muted text-xs self-center" title="삭제는 admin 이상만 가능합니다">🔒 삭제 불가</span>
+              <span className="text-muted text-xs self-center" title="삭제는 작성자 본인 또는 admin 이상만 가능합니다">🔒 삭제 불가</span>
             )}
             <button onClick={() => setSelectedId(null)} className="border border-border text-sm rounded-lg px-4 py-2 ml-auto">
               닫기

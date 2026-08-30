@@ -2139,3 +2139,104 @@ create policy "email_notification_logs_read_own_batch" on email_notification_log
 create index if not exists email_notification_batches_post_id_idx on email_notification_batches(post_id);
 create index if not exists email_notification_batches_created_at_idx on email_notification_batches(created_at desc);
 create index if not exists email_notification_logs_batch_id_idx on email_notification_logs(batch_id);
+
+-- ------------------------------------------------------------
+-- 58. 게시판 댓글/안건함/부서 활동기록에도 숨김+삭제 규칙 통일, 활동 로그 누락 보완
+-- ------------------------------------------------------------
+-- 공지/뉴스/Q&A/게시판/일정에만 있던 "일시 숨김" + "작성자 본인 또는 admin 이상 삭제" 규칙을
+-- 글을 쓸 수 있는 나머지 기능(게시판 댓글, 안건함, 부서 활동기록)에도 맞춘다.
+
+-- 1) 게시판 댓글: is_hidden 추가. 목록 조회 시 게시글 자체의 숨김 여부에 더해 댓글 자신의
+-- 숨김 여부도 함께 확인한다(게시글은 안 숨겨졌는데 댓글만 숨길 수도 있으므로).
+alter table board_comments add column if not exists is_hidden boolean not null default false;
+
+drop policy if exists "board_comments_read" on board_comments;
+create policy "board_comments_read" on board_comments for select
+  using (
+    exists (
+      select 1 from board_posts bp
+      where bp.id = board_comments.post_id
+        and (not bp.is_hidden or is_editor_or_above() or auth.uid() = bp.author_id)
+    )
+    and (not is_hidden or is_editor_or_above() or auth.uid() = author_id)
+  );
+
+-- 숨김 토글용 update 정책(지금까지 댓글은 update 정책 자체가 없어서 수정이 불가능했다).
+drop policy if exists "board_comments_update_staff" on board_comments;
+create policy "board_comments_update_staff" on board_comments for update
+  using (is_editor_or_above())
+  with check (is_editor_or_above());
+
+-- 2) 안건함: is_hidden 추가. 삭제 규칙을 admin 전용 -> 작성자 본인 또는 admin 이상으로 통일
+-- (다른 콘텐츠 타입과 동일한 기준).
+alter table proposals add column if not exists is_hidden boolean not null default false;
+
+drop policy if exists "proposals_read_all" on proposals;
+create policy "proposals_read_all" on proposals for select
+  using (not is_hidden or is_editor_or_above() or auth.uid() = author_id);
+
+drop policy if exists "proposals_delete_admin" on proposals;
+drop policy if exists "proposals_delete_own_or_admin" on proposals;
+create policy "proposals_delete_own_or_admin" on proposals for delete
+  using (auth.uid() = author_id or is_admin());
+
+-- 상태 변경만 기록하던 트리거를 숨김 토글도 함께 기록하도록 확장.
+drop trigger if exists audit_proposals_status on proposals;
+create trigger audit_proposals_status after update on proposals
+  for each row
+  when (old.status is distinct from new.status or old.is_hidden is distinct from new.is_hidden)
+  execute function log_audit_event();
+
+-- 안건 삭제는 지금까지 활동 로그에 기록되지 않고 있었다.
+drop trigger if exists audit_proposals_delete on proposals;
+create trigger audit_proposals_delete after delete on proposals
+  for each row execute function log_audit_event();
+
+-- 3) 부서 활동기록: is_hidden 추가. 기존 "for all" 정책을 세분화해서 삭제만 작성자 본인
+-- 또는 admin 이상으로 제한한다(작성/수정/숨김 토글은 기존대로 editor 이상 누구나).
+alter table org_records add column if not exists is_hidden boolean not null default false;
+
+drop policy if exists "org_records_read_all" on org_records;
+create policy "org_records_read_all" on org_records for select
+  using (not is_hidden or is_editor_or_above() or auth.uid() = author_id);
+
+drop policy if exists "org_records_write_editor" on org_records;
+drop policy if exists "org_records_insert_editor" on org_records;
+drop policy if exists "org_records_update_editor" on org_records;
+drop policy if exists "org_records_delete_own_or_admin" on org_records;
+create policy "org_records_insert_editor" on org_records for insert
+  with check (is_editor_or_above());
+create policy "org_records_update_editor" on org_records for update
+  using (is_editor_or_above()) with check (is_editor_or_above());
+create policy "org_records_delete_own_or_admin" on org_records for delete
+  using (auth.uid() = author_id or is_admin());
+
+-- org_events/org_records는 이미 insert/update/delete를 전부 기록하는 트리거가 있어서
+-- is_hidden 추가만으로 자동으로 감사 로그에 포함된다(별도 트리거 변경 불필요).
+
+-- 4) Q&A 질문: is_hidden/삭제 규칙은 이미 있었지만, 지금까지 활동 로그에는 한 번도
+-- 기록되지 않고 있었다(questions 테이블에 audit 트리거 자체가 없었음).
+drop trigger if exists audit_questions_insert on questions;
+create trigger audit_questions_insert after insert on questions
+  for each row execute function log_audit_event();
+drop trigger if exists audit_questions_update on questions;
+create trigger audit_questions_update after update on questions
+  for each row
+  when (old.status is distinct from new.status or old.is_hidden is distinct from new.is_hidden)
+  execute function log_audit_event();
+drop trigger if exists audit_questions_delete on questions;
+create trigger audit_questions_delete after delete on questions
+  for each row execute function log_audit_event();
+
+-- 5) 게시판 댓글도 지금까지 활동 로그에 기록되지 않고 있었다.
+drop trigger if exists audit_board_comments_insert on board_comments;
+create trigger audit_board_comments_insert after insert on board_comments
+  for each row execute function log_audit_event();
+drop trigger if exists audit_board_comments_update on board_comments;
+create trigger audit_board_comments_update after update on board_comments
+  for each row
+  when (old.is_hidden is distinct from new.is_hidden)
+  execute function log_audit_event();
+drop trigger if exists audit_board_comments_delete on board_comments;
+create trigger audit_board_comments_delete after delete on board_comments
+  for each row execute function log_audit_event();

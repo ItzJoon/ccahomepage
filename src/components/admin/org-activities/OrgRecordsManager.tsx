@@ -1,7 +1,7 @@
 "use client";
 
-import AdminTable, { truncateCellProps } from "../AdminTable";
-import { useState } from "react";
+import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
@@ -33,7 +33,20 @@ export default function OrgRecordsManager() {
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
+  const [myId, setMyId] = useState<string | null>(null);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [iAmEditorUp, setIAmEditorUp] = useState(false);
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setMyId(data.user.id);
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+      setIAmEditorUp(!!me && ["editor", "admin", "superadmin"].includes(me.role));
+    });
+  }, [supabase]);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
 
@@ -75,6 +88,11 @@ export default function OrgRecordsManager() {
     reload();
   };
 
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("org_records").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
       <div className="min-w-0">
@@ -89,7 +107,7 @@ export default function OrgRecordsManager() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성일</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
           <tbody>
@@ -97,12 +115,32 @@ export default function OrgRecordsManager() {
               <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === r.id ? "bg-[#EAF0FB]" : ""}`}>
                 <td className="p-2.5 border-b border-border text-sm">
                   <span {...truncateCellProps(r.title)}>{r.title}</span>
+                  {r.is_hidden && (
+                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{orgName(r.org_id)}</td>
                 <td className="p-2.5 border-b border-border"><Badge color={CATEGORY_COLOR[r.category]}>{CATEGORY_LABEL[r.category]}</Badge></td>
                 <td className="p-2.5 border-b border-border text-sm">{fmt(r.created_at)}</td>
                 <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>삭제</button>
+                  <div className={actionCellClass}>
+                    {iAmEditorUp && (
+                      <button
+                        className="text-blue text-xs font-bold shrink-0"
+                        onClick={(e) => { e.stopPropagation(); toggleHidden(r.id, r.is_hidden); }}
+                      >
+                        {r.is_hidden ? "숨김 해제" : "숨김"}
+                      </button>
+                    )}
+                    {(myId === r.author_id || iAmAdmin) && (
+                      <button
+                        className="text-red text-xs font-bold shrink-0"
+                        onClick={(e) => { e.stopPropagation(); remove(r.id); }}
+                      >
+                        삭제
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}

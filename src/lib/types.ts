@@ -208,6 +208,7 @@ export interface Proposal {
   summary: string;
   author_id: string | null;
   status: "review" | "approved" | "rejected" | "completed";
+  is_hidden: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -240,6 +241,7 @@ export interface OrgRecord {
   title: string;
   content: string;
   author_id: string | null;
+  is_hidden: boolean;
   created_at: string;
 }
 
@@ -339,6 +341,7 @@ export interface BoardComment {
   parent_id: string | null;
   author_id: string | null;
   content: string;
+  is_hidden: boolean;
   created_at: string;
 }
 
