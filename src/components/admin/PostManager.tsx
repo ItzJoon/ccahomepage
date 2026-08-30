@@ -761,7 +761,7 @@ export default function PostManager({
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성자</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">상태</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">발행일</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
@@ -786,20 +786,22 @@ export default function PostManager({
                   {n.author?.nickname || n.author?.name || n.author?.email || "-"}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  <span
-                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      n.status === "published"
-                        ? "bg-[#E4F5EE] text-teal"
-                        : n.status === "scheduled"
-                        ? "bg-[#FFF3DC] text-gold"
-                        : "bg-[#EEF1F6] text-muted"
-                    }`}
-                  >
-                    {n.status === "published" ? "발행" : n.status === "scheduled" ? "예약" : "임시저장"}
-                  </span>
-                  {n.is_hidden && (
-                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
-                  )}
+                  <div className={actionCellClass}>
+                    <span
+                      className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        n.status === "published"
+                          ? "bg-[#E4F5EE] text-teal"
+                          : n.status === "scheduled"
+                          ? "bg-[#FFF3DC] text-gold"
+                          : "bg-[#EEF1F6] text-muted"
+                      }`}
+                    >
+                      {n.status === "published" ? "발행" : n.status === "scheduled" ? "예약" : "임시저장"}
+                    </span>
+                    {n.is_hidden && (
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{n.publish_at}</td>
                 <td className="p-2.5 border-b border-border">

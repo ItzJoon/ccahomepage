@@ -81,7 +81,7 @@ export default function AdminQnaPage() {
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">질문자</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">공개</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">상태</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">상태</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
             </tr>
           </thead>
@@ -96,12 +96,14 @@ export default function AdminQnaPage() {
                 </td>
                 <td className="p-2.5 border-b border-border">{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
                 <td className="p-2.5 border-b border-border">
-                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
-                    {q.status === "answered" ? "답변완료" : "대기"}
-                  </span>
-                  {q.is_hidden && (
-                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
-                  )}
+                  <div className={actionCellClass}>
+                    <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
+                      {q.status === "answered" ? "답변완료" : "대기"}
+                    </span>
+                    {q.is_hidden && (
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border">
                   <div className={actionCellClass}>

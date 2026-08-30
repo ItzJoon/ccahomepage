@@ -164,10 +164,12 @@ export default function ProposalsManager() {
                 className={`cursor-pointer hover:bg-[#F2F4F8] ${selectedId === p.id ? "bg-[#EAF0FB]" : ""}`}
               >
                 <td className="p-2.5 border-b border-border text-sm">
-                  <span {...truncateCellProps(p.title)}>{p.title}</span>
-                  {p.is_hidden && (
-                    <span className="ml-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
-                  )}
+                  <div className="flex items-center gap-1">
+                    <span {...truncateCellProps(p.title)}>{p.title}</span>
+                    {p.is_hidden && (
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                    )}
+                  </div>
                 </td>
                 <td className="p-2.5 border-b border-border text-sm">{orgName(p.org_id)}</td>
                 <td className="p-2.5 border-b border-border text-sm">
