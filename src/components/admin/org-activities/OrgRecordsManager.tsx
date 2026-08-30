@@ -1,9 +1,10 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import Badge from "@/components/Badge";
 import type { Organization, OrgRecord } from "@/lib/types";
 
@@ -33,20 +34,8 @@ export default function OrgRecordsManager() {
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
-  const [iAmAdmin, setIAmAdmin] = useState(false);
-  const [iAmEditorUp, setIAmEditorUp] = useState(false);
+  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp } = useMyRole();
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      setMyId(data.user.id);
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-      setIAmEditorUp(!!me && ["editor", "admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
 

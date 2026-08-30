@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { FeatureFlag } from "@/lib/types";
 
 const LABELS: Record<string, { label: string; description: string }> = {
@@ -14,8 +15,7 @@ export default function AdminFeatureFlagsPage() {
   // feature_flags는 기본키가 id가 아니라 key라서 useRealtimeList(항상 id 기준)를 쓰지
   // 않고 직접 조회한다. 자주 바뀌는 값이 아니라 실시간 구독까지는 필요 없다.
   const [rows, setRows] = useState<FeatureFlag[]>([]);
-  const [isSuperadmin, setIsSuperadmin] = useState<boolean | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
+  const { myId, isSuperadmin, loading: roleLoading } = useMyRole();
   const [saving, setSaving] = useState<string | null>(null);
 
   const load = async () => {
@@ -25,15 +25,6 @@ export default function AdminFeatureFlagsPage() {
 
   useEffect(() => {
     load();
-    supabase.auth.getUser().then(async ({ data }) => {
-      setMyId(data.user?.id ?? null);
-      if (!data.user) {
-        setIsSuperadmin(false);
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIsSuperadmin(profile?.role === "superadmin");
-    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -56,7 +47,7 @@ export default function AdminFeatureFlagsPage() {
         직접 들어와도 접근이 막힙니다. superadmin만 바꿀 수 있습니다.
       </p>
 
-      {isSuperadmin === false && (
+      {!roleLoading && !isSuperadmin && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 superadmin만 이용할 수 있습니다.
         </div>

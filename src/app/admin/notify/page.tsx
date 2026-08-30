@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import Badge from "@/components/Badge";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import type { NotificationItem } from "@/lib/types";
@@ -18,21 +19,13 @@ export default function AdminNotifyPage() {
     select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
   });
-  const [iAmAdmin, setIAmAdmin] = useState(false);
+  const { isAdmin: iAmAdmin } = useMyRole();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [level, setLevel] = useState<"info" | "urgent">("info");
   const [displayType, setDisplayType] = useState<"banner" | "popup">("banner");
   const [duration, setDuration] = useState(""); // "" = 계속 표시(직접 닫기 전까지) — 배너에만 적용
   const [sending, setSending] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
 
   const send = async () => {
     if (!title.trim() || !message.trim()) return;

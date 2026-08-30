@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { Report, ReportStatus } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
@@ -17,18 +18,7 @@ export default function AdminReportsPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<Report>("reports", { orderBy: { column: "created_at", ascending: false } });
   const [profilesById, setProfilesById] = useState<Record<string, { name: string | null; nickname: string | null; email: string }>>({});
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) {
-        setIsAdmin(false);
-        return;
-      }
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIsAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
+  const { isAdmin, loading: roleLoading } = useMyRole();
 
   // reports.target_id는 target_type에 따라 다른 대상을 가리키는 범용 컬럼이라 profiles와
   // FK로 묶여있지 않다(외래키 임베딩 불가) — 신고자/신고 대상(사용자인 경우) id를 모아
@@ -70,7 +60,7 @@ export default function AdminReportsPage() {
         실제 제재(닉네임 변경, 이용 제한 등)는 별도로 처리해 주세요.
       </p>
 
-      {isAdmin === false && (
+      {!roleLoading && !isAdmin && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 admin 이상만 열람할 수 있습니다.
         </div>

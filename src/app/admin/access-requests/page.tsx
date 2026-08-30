@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import AdminTable from "@/components/admin/AdminTable";
 import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
@@ -19,22 +20,9 @@ export default function AdminAccessRequestsPage() {
   });
   const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
-  const [myId, setMyId] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState<boolean | null>(null);
+  const { myId, isAdmin, loading: roleLoading } = useMyRole();
   const [busyId, setBusyId] = useState<string | null>(null);
   const [togglingRestriction, setTogglingRestriction] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      setMyId(data.user?.id ?? null);
-      if (!data.user) {
-        setIsAdmin(false);
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIsAdmin(!!profile && ["admin", "superadmin"].includes(profile.role));
-    });
-  }, [supabase]);
 
   const approve = async (req: LoginAccessRequest) => {
     if (!myId) return;
@@ -109,7 +97,7 @@ export default function AdminAccessRequestsPage() {
         이후 재시도해도 계속 이용이 막힙니다.
       </p>
 
-      {isAdmin === false && (
+      {!roleLoading && !isAdmin && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 admin 이상만 열람할 수 있습니다.
         </div>

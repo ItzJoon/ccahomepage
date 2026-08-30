@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import { homeThemeStyles, THEME_LABELS, DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import type { SiteTheme } from "@/lib/types";
 
@@ -21,21 +22,8 @@ export default function AdminThemePage() {
   const current = rows.find((r) => r.id === "default");
   const currentKey = current && isHomeThemeKey(current.theme) ? current.theme : DEFAULT_HOME_THEME;
 
-  const [isSuperadmin, setIsSuperadmin] = useState<boolean | null>(null);
-  const [myId, setMyId] = useState<string | null>(null);
+  const { myId, isSuperadmin, loading: roleLoading } = useMyRole();
   const [saving, setSaving] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      setMyId(data.user?.id ?? null);
-      if (!data.user) {
-        setIsSuperadmin(false);
-        return;
-      }
-      const { data: profile } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIsSuperadmin(profile?.role === "superadmin");
-    });
-  }, [supabase]);
 
   const applyTheme = async (key: string) => {
     if (!myId || key === currentKey) return;
@@ -55,7 +43,7 @@ export default function AdminThemePage() {
         superadmin만 바꿀 수 있습니다.
       </p>
 
-      {isSuperadmin === false && (
+      {!roleLoading && !isSuperadmin && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 superadmin만 이용할 수 있습니다.
         </div>

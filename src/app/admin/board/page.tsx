@@ -1,9 +1,9 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
-import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { BoardPost } from "@/lib/types";
 
 interface Row extends BoardPost {
@@ -22,15 +22,7 @@ export default function AdminBoardPage() {
     select: "*, author:profiles(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });
-  const [iAmAdmin, setIAmAdmin] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
+  const { isAdmin: iAmAdmin } = useMyRole();
 
   const remove = async (id: string) => {
     if (!confirm("이 글을 삭제하시겠습니까? 댓글도 함께 삭제됩니다.")) return;

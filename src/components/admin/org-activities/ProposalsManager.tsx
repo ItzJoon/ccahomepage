@@ -1,9 +1,10 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { Organization, Proposal, ProposalVote } from "@/lib/types";
 
 const STATUS_OPTIONS: Proposal["status"][] = ["review", "approved", "rejected", "completed"];
@@ -33,25 +34,13 @@ export default function ProposalsManager() {
   });
   const { rows: votes } = useRealtimeList<ProposalVote>("proposal_votes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [iAmAdmin, setIAmAdmin] = useState(false);
-  const [iAmEditorUp, setIAmEditorUp] = useState(false);
-  const [myId, setMyId] = useState<string | null>(null);
+  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp } = useMyRole();
   // 원래는 학생용 /org-activities 공개 페이지에서만 안건을 등록할 수 있었는데, 부서 활동이
   // 임원회 전용으로 바뀌면서 이 관리 화면(이 페이지에 들어올 수 있다는 것 자체가 이미
   // is_council 또는 superadmin이라는 뜻)에서도 바로 등록할 수 있게 추가했다.
   const [writing, setWriting] = useState(false);
   const [form, setForm] = useState({ org_id: "", title: "", summary: "" });
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      setMyId(data.user.id);
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-      setIAmEditorUp(!!me && ["editor", "admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
 
   const submitNew = async () => {
     setError(null);

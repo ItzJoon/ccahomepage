@@ -1,19 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import PostManager from "@/components/admin/PostManager";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import type { Post } from "@/lib/types";
-
-// 관리자 화면(/admin/notices)에 들어가지 않고도, 공지를 쓸 수 있는 역할이면 이 목록
-// 페이지에서 바로 작성할 수 있게 한다. teacher는 student와 동일하게 권한이 차단돼서
-// 더 이상 여기 포함되지 않는다(예전엔 교과·학급 공지 자동 타겟팅으로 작성 가능했음).
-const WRITABLE_ROLES = ["editor", "admin", "superadmin"];
 
 interface Row extends Post {
   author_name: string | null;
@@ -37,23 +33,11 @@ export default function NoticesPage() {
   });
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("전체");
-  const [myId, setMyId] = useState<string | null>(null);
-  const [canWrite, setCanWrite] = useState(false);
-  const [isTeacher, setIsTeacher] = useState(false);
-  const [iAmAdmin, setIAmAdmin] = useState(false);
+  // 공지 작성 권한(WRITABLE_ROLES였던 editor 이상)은 useMyRole의 isEditorUp과 정확히
+  // 같은 기준이다 — teacher는 student와 동일하게 권한이 차단돼서 더 이상 여기 포함되지
+  // 않는다(예전엔 교과·학급 공지 자동 타겟팅으로 작성 가능했음).
+  const { myId, isEditorUp: canWrite, isTeacher, isAdmin: iAmAdmin } = useMyRole();
   const [composerOpen, setComposerOpen] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      setMyId(data.user?.id ?? null);
-      if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setCanWrite(!!me && WRITABLE_ROLES.includes(me.role));
-      setIsTeacher(me?.role === "teacher");
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // 관리자 화면(/admin/notices)과 동일한 기준 — editor 이상은 전부, teacher는 본인이 쓴
   // 교과/학급 공지만 숨김 처리할 수 있다(RLS도 동일하게 검증한다).

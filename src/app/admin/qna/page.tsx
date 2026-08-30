@@ -1,9 +1,10 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useMyRole } from "@/hooks/useMyRole";
 import Badge from "@/components/Badge";
 
 interface QuestionWithAnswer {
@@ -27,15 +28,7 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const [iAmAdmin, setIAmAdmin] = useState(false);
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
-    });
-  }, [supabase]);
+  const { isAdmin: iAmAdmin } = useMyRole();
 
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);

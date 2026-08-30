@@ -3,6 +3,7 @@
 import AdminTable from "@/components/admin/AdminTable";
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { AuditAction, AuditLog } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -82,7 +83,7 @@ interface Row extends AuditLog {
 
 export default function AdminActivityLogsPage() {
   const supabase = createClient();
-  const [isSuperadmin, setIsSuperadmin] = useState<boolean | null>(null);
+  const { isSuperadmin, loading: roleLoading } = useMyRole();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -94,17 +95,6 @@ export default function AdminActivityLogsPage() {
   const [tableFilter, setTableFilter] = useState("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-
-  useEffect(() => {
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) {
-        setIsSuperadmin(false);
-        return;
-      }
-      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
-      setIsSuperadmin(me?.role === "superadmin");
-    });
-  }, [supabase]);
 
   useEffect(() => {
     if (!isSuperadmin) return;
@@ -152,7 +142,7 @@ export default function AdminActivityLogsPage() {
     setPage(0);
   }, [search, actionFilter, tableFilter, dateFrom, dateTo]);
 
-  if (isSuperadmin === false) {
+  if (!roleLoading && !isSuperadmin) {
     return (
       <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-4">
         이 화면은 superadmin만 열람할 수 있습니다.
