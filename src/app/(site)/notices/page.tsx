@@ -7,6 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import PostManager from "@/components/admin/PostManager";
+import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import type { Post } from "@/lib/types";
 
 // 관리자 화면(/admin/notices)에 들어가지 않고도, 공지를 쓸 수 있는 역할이면 이 목록
@@ -25,28 +26,50 @@ function fmt(d: string) {
 }
 
 export default function NoticesPage() {
+  const supabase = createClient();
   // 교과/학급 공지도 같이 조회한다 — RLS가 본인이 대상인 것만 돌려주므로(student_subjects
   // 수강 과목 일치 / homeroom 일치), 여기서 별도로 필터링할 필요는 없다.
   // author_name은 profiles를 그대로 조인하면 다른 사람 이름이 RLS에 막혀 비어오므로,
   // 안전하게 이름만 반환하는 computed column을 대신 쓴다(supabase/schema.sql 51번 참고).
-  const { rows } = useRealtimeList<Row>("posts", {
+  const { rows, reload } = useRealtimeList<Row>("posts", {
     select: "*, author_name",
     filter: (q) => q.in("type", ["notice", "subject_notice", "homeroom_notice"]).eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("전체");
+  const [myId, setMyId] = useState<string | null>(null);
   const [canWrite, setCanWrite] = useState(false);
+  const [isTeacher, setIsTeacher] = useState(false);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
+      setMyId(data.user?.id ?? null);
       if (!data.user) return;
       const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
       setCanWrite(!!me && WRITABLE_ROLES.includes(me.role));
+      setIsTeacher(me?.role === "teacher");
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 관리자 화면(/admin/notices)과 동일한 기준 — editor 이상은 전부, teacher는 본인이 쓴
+  // 교과/학급 공지만 숨김 처리할 수 있다(RLS도 동일하게 검증한다).
+  const canHide = (n: Row) => canWrite && !(isTeacher && n.type !== "notice" && n.author_id !== myId);
+
+  const toggleHidden = async (id: string, isHidden: boolean) => {
+    await supabase.from("posts").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("삭제하시겠습니까?")) return;
+    await supabase.from("posts").delete().eq("id", id);
+    reload();
+  };
 
   const cats = useMemo(() => ["전체", ...Array.from(new Set(rows.map((n) => n.category)))], [rows]);
 
@@ -92,7 +115,7 @@ export default function NoticesPage() {
           </div>
         </div>
       )}
-      <table className="w-full border-collapse bg-white">
+      <AdminTable>
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">분류</th>
@@ -100,6 +123,7 @@ export default function NoticesPage() {
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">작성자</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">날짜</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">조회</th>
+            {canWrite && <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />}
           </tr>
         </thead>
         <tbody>
@@ -116,16 +140,42 @@ export default function NoticesPage() {
               </td>
               <td className="p-2.5 border-b border-border">
                 <Link href={`/notices/${n.id}`} className="flex items-center gap-1">
-                  {n.is_pinned && <Pin />} {n.title}
+                  {n.is_pinned && <Pin />} <span {...truncateCellProps(n.title)}>{n.title}</span>
+                  {n.is_hidden && (
+                    <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                  )}
                 </Link>
               </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">{n.author_name || "-"}</td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(n.publish_at)}</td>
               <td className="p-2.5 border-b border-border text-sm">{n.view_count}</td>
+              {canWrite && (
+                <td className="p-2.5 border-b border-border">
+                  <div className="flex items-center gap-2">
+                    {canHide(n) && (
+                      <button
+                        className="text-blue text-xs font-bold"
+                        onClick={() => toggleHidden(n.id, n.is_hidden)}
+                      >
+                        {n.is_hidden ? "숨김 해제" : "숨김"}
+                      </button>
+                    )}
+                    {iAmAdmin ? (
+                      <button className="text-red text-xs font-bold" onClick={() => remove(n.id)}>
+                        삭제
+                      </button>
+                    ) : (
+                      <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다.">
+                        🔒
+                      </span>
+                    )}
+                  </div>
+                </td>
+              )}
             </tr>
           ))}
         </tbody>
-      </table>
+      </AdminTable>
       {list.length === 0 && <div className="text-muted text-center py-8 text-sm">검색 결과가 없습니다.</div>}
     </div>
   );
