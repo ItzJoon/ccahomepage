@@ -75,6 +75,18 @@ export const homeThemeStyles = {
     adminNavIdle: "text-navy hover:bg-[#F2F4F8]",
     adminAsideBorder: "border-border",
     adminNavIndicator: "hidden",
+
+    dashStatCard: "bg-white border border-border rounded-2xl p-6",
+    dashStatCardWarn: "bg-white border-2 border-gold rounded-2xl p-6",
+    dashStatIconBg: "bg-[#F2F4F8] rounded-full p-2",
+    dashStatValue: "text-navy",
+    dashStatValueWarn: "text-gold",
+    dashActionPrimary: "bg-gold text-white font-bold text-sm rounded-lg px-5 py-3",
+    dashActionSecondary: "border border-navy text-navy font-bold text-sm rounded-lg px-5 py-3 bg-white",
+    dashActivityCard: "bg-white border border-border rounded-2xl p-6",
+    dashActivityTagNotice: "bg-[#EAF0FB] text-blue",
+    dashActivityTagNews: "bg-[#E6F5F0] text-teal",
+    dashActivityViewAllBtn: "border border-navy text-navy text-sm font-bold rounded-lg px-3 py-1.5 bg-white",
   },
   /** Figma "Sneaker Product Page"(실제로는 학교 포털 목업) 참고 — 검정+초록 브루탈리즘 */
   green: {
@@ -138,6 +150,18 @@ export const homeThemeStyles = {
     adminNavIdle: "text-ink hover:bg-ccahGreenLight",
     adminAsideBorder: "border-ink",
     adminNavIndicator: "hidden",
+
+    dashStatCard: "bg-white border-2 border-ink rounded-none p-6",
+    dashStatCardWarn: "bg-white border-2 border-ccahGreen rounded-none p-6",
+    dashStatIconBg: "bg-ccahGreenLight rounded-none p-2",
+    dashStatValue: "text-ink",
+    dashStatValueWarn: "text-ccahGreen",
+    dashActionPrimary: "bg-ccahGreen text-white font-bold text-sm px-5 py-3",
+    dashActionSecondary: "border-2 border-ink text-ink font-bold text-sm px-5 py-3 bg-white",
+    dashActivityCard: "bg-white border-2 border-ink rounded-none p-6",
+    dashActivityTagNotice: "bg-ccahGreenLight text-ccahGreen",
+    dashActivityTagNews: "bg-ink text-white",
+    dashActivityViewAllBtn: "border-2 border-ink text-ink text-sm font-bold px-3 py-1.5 bg-white",
   },
   /** Figma "CCA-Hompage"(https://figma.com/design/pFbmBXTCxTyhTBLFZ9VCUe) 재현 — Apple 느낌의
    * 미니멀한 화이트/블루 톤. 색상·도형·타이포를 실제 디자인 값 그대로 옮겼다(단, 존재하지
@@ -209,6 +233,18 @@ export const homeThemeStyles = {
     adminNavIdle: "text-appleInk hover:bg-appleBg font-medium",
     adminAsideBorder: "border-appleBorder",
     adminNavIndicator: "block ml-auto w-1 h-4 rounded bg-appleBlue",
+
+    dashStatCard: "bg-white border border-appleBorder rounded-[20px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
+    dashStatCardWarn: "bg-white border-[1.5px] border-appleAmber rounded-[20px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
+    dashStatIconBg: "bg-appleBg rounded-full p-2",
+    dashStatValue: "text-appleInk",
+    dashStatValueWarn: "text-appleAmber",
+    dashActionPrimary: "bg-appleBlue text-white font-bold text-sm rounded-full px-5 py-3 shadow-[0_4px_6px_rgba(37,99,235,0.15)]",
+    dashActionSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-full px-5 py-3 bg-white",
+    dashActivityCard: "bg-white border border-appleBorder rounded-3xl p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
+    dashActivityTagNotice: "bg-appleBlue/[0.07] text-appleBlue",
+    dashActivityTagNews: "bg-[#ecfdf5] text-appleGreen",
+    dashActivityViewAllBtn: "border border-appleBlue text-appleInk text-sm font-bold rounded-full px-3 py-1.5 bg-[#f9fafb]",
   },
 } as const;
 
