@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import SectionTitle from "@/components/SectionTitle";
@@ -16,6 +17,17 @@ export default function OrganizationsPage() {
   const { rows } = useRealtimeList<Organization>("organizations", {
     orderBy: { column: "order_index" },
   });
+  const [q, setQ] = useState("");
+
+  const list = rows
+    .filter((o) => o.is_active)
+    .filter(
+      (o) =>
+        !q.trim() ||
+        o.name.includes(q) ||
+        (o.description ?? "").includes(q) ||
+        (o.role_description ?? "").includes(q)
+    );
 
   return (
     <div>
@@ -23,8 +35,16 @@ export default function OrganizationsPage() {
       <p className="text-muted mb-4">
         학생자치회는 여러 조직으로 구성되어 학생들의 자율적인 학교생활을 지원합니다.
       </p>
+      <div className="mb-3.5">
+        <input
+          className="w-full max-w-md border border-border rounded-lg px-3 py-2 text-sm"
+          placeholder="조직 이름 또는 소개 검색"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {rows.filter((o) => o.is_active).map((o) => (
+        {list.map((o) => (
           <Link
             href={`/organizations/${o.slug}`}
             key={o.id}
@@ -36,7 +56,11 @@ export default function OrganizationsPage() {
             <span className="text-blue font-bold text-sm">자세히 보기 →</span>
           </Link>
         ))}
-        {rows.length === 0 && <div className="text-muted text-center py-8 text-sm col-span-2">등록된 조직이 없습니다.</div>}
+        {list.length === 0 && (
+          <div className="text-muted text-center py-8 text-sm col-span-2">
+            {q.trim() ? "검색 결과가 없습니다." : "등록된 조직이 없습니다."}
+          </div>
+        )}
       </div>
     </div>
   );

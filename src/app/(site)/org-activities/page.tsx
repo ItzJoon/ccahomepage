@@ -54,6 +54,7 @@ export default function OrgActivitiesPage() {
   const [tab, setTab] = useState<"proposals" | "events" | "records" | "executive">("proposals");
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const [orgFilter, setOrgFilter] = useState("all");
+  const [q, setQ] = useState("");
   const [isExecutive, setIsExecutive] = useState(false);
   const supabase = createClient();
 
@@ -113,15 +114,26 @@ export default function OrgActivitiesPage() {
         )}
       </div>
 
-      {tab === "proposals" && <ProposalsTab orgs={orgs} orgFilter={orgFilter} />}
+      {(tab === "proposals" || tab === "records") && (
+        <div className="mb-3.5">
+          <input
+            className="w-full max-w-md border border-border rounded-lg px-3 py-2 text-sm"
+            placeholder={tab === "proposals" ? "안건 제목 또는 내용 검색" : "기록 제목 또는 내용 검색"}
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+        </div>
+      )}
+
+      {tab === "proposals" && <ProposalsTab orgs={orgs} orgFilter={orgFilter} q={q} />}
       {tab === "events" && <EventsTab orgs={orgs} orgFilter={orgFilter} />}
-      {tab === "records" && <RecordsTab orgs={orgs} orgFilter={orgFilter} />}
+      {tab === "records" && <RecordsTab orgs={orgs} orgFilter={orgFilter} q={q} />}
       {tab === "executive" && isExecutive && <ExecutiveCalendarTab orgs={orgs} />}
     </div>
   );
 }
 
-function ProposalsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: string }) {
+function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter: string; q: string }) {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [writing, setWriting] = useState(false);
@@ -139,7 +151,9 @@ function ProposalsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: st
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
 
-  const list = orgFilter === "all" ? proposals : proposals.filter((p) => p.org_id === orgFilter);
+  const list = proposals
+    .filter((p) => orgFilter === "all" || p.org_id === orgFilter)
+    .filter((p) => !q.trim() || p.title.includes(q) || p.summary.includes(q));
 
   const myVote = (proposalId: string) => votes.find((v) => v.proposal_id === proposalId && v.user_id === userId);
   const voteCount = (proposalId: string, vote: "yes" | "no") =>
@@ -265,7 +279,11 @@ function ProposalsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: st
             </div>
           );
         })}
-        {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 안건이 없습니다.</div>}
+        {list.length === 0 && (
+          <div className="text-muted text-center py-8 text-sm">
+            {q.trim() ? "검색 결과가 없습니다." : "등록된 안건이 없습니다."}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -468,7 +486,7 @@ function ExecutiveCalendarTab({ orgs }: { orgs: Organization[] }) {
   );
 }
 
-function RecordsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: string }) {
+function RecordsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter: string; q: string }) {
   const supabase = createClient();
   const [iAmEditor, setIAmEditor] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -488,7 +506,9 @@ function RecordsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: stri
   }, [supabase]);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
-  const list = orgFilter === "all" ? records : records.filter((r) => r.org_id === orgFilter);
+  const list = records
+    .filter((r) => orgFilter === "all" || r.org_id === orgFilter)
+    .filter((r) => !q.trim() || r.title.includes(q) || r.content.includes(q));
 
   const submit = async () => {
     setError(null);
@@ -578,7 +598,11 @@ function RecordsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: stri
             <p className="text-sm whitespace-pre-wrap"><Linkify text={r.content} /></p>
           </div>
         ))}
-        {list.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 기록이 없습니다.</div>}
+        {list.length === 0 && (
+          <div className="text-muted text-center py-8 text-sm">
+            {q.trim() ? "검색 결과가 없습니다." : "등록된 기록이 없습니다."}
+          </div>
+        )}
       </div>
     </div>
   );
