@@ -115,7 +115,17 @@ export async function updateSession(request: NextRequest) {
   // 기능 단위 활성화 스위치(feature_flags) — superadmin이 /admin/feature-flags에서
   // Q&A/게시판 같은 메뉴 전체를 끌 수 있다. 로그인 여부와 무관하게 적용되어야 하므로
   // 위의 로그인 사용자 전용 병렬 조회와 별도로, 해당 경로에 들어올 때만 조회한다.
-  const FEATURE_GATED_PREFIXES: Record<string, string> = { "/qna": "qna", "/board": "board" };
+  const FEATURE_GATED_PREFIXES: Record<string, string> = {
+    "/qna": "qna",
+    "/board": "board",
+    "/notices": "notices",
+    "/organizations": "organizations",
+    "/members": "members",
+    "/calendar": "calendar",
+    "/events": "calendar",
+    "/news": "news",
+    "/rules": "rules",
+  };
   const gatedFeatureKey = Object.keys(FEATURE_GATED_PREFIXES).find(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );

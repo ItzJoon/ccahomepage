@@ -2259,3 +2259,15 @@ returns boolean as $$
     where id = auth.uid() and role in ('editor','admin','superadmin')
   );
 $$ language sql stable security definer;
+
+-- ------------------------------------------------------------
+-- 60. 기능 활성화 스위치를 Q&A/게시판 외 나머지 메뉴에도 확장
+-- ------------------------------------------------------------
+-- 헤더 NAV의 나머지 메뉴(공지사항/학생자치회 소개/구성원/일정/뉴스/생활규정)도 superadmin이
+-- 통째로 켜고 끌 수 있게 한다. "홈"은 사이트 루트라 대상에서 제외.
+insert into feature_flags (key) values ('notices') on conflict (key) do nothing;
+insert into feature_flags (key) values ('organizations') on conflict (key) do nothing;
+insert into feature_flags (key) values ('members') on conflict (key) do nothing;
+insert into feature_flags (key) values ('calendar') on conflict (key) do nothing;
+insert into feature_flags (key) values ('news') on conflict (key) do nothing;
+insert into feature_flags (key) values ('rules') on conflict (key) do nothing;

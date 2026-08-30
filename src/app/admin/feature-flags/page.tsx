@@ -6,6 +6,12 @@ import { useMyRole } from "@/hooks/useMyRole";
 import type { FeatureFlag } from "@/lib/types";
 
 const LABELS: Record<string, { label: string; description: string }> = {
+  notices: { label: "공지사항", description: "학생 화면의 공지사항 메뉴(목록/상세) 전체" },
+  organizations: { label: "학생자치회 소개", description: "학생 화면의 학생자치회 소개(부서 목록/상세) 메뉴 전체" },
+  members: { label: "구성원", description: "학생 화면의 구성원(학교 전체 명단) 메뉴 전체" },
+  calendar: { label: "일정", description: "학생 화면의 일정 메뉴(목록/상세) 전체" },
+  news: { label: "뉴스", description: "학생 화면의 뉴스 메뉴(목록/상세) 전체" },
+  rules: { label: "생활규정", description: "학생 화면의 생활규정 메뉴 전체" },
   qna: { label: "Q&A", description: "학생 화면의 Q&A 메뉴(질문 등록/열람) 전체" },
   board: { label: "게시판", description: "학생 화면의 게시판 메뉴(글/댓글 작성 및 열람) 전체" },
 };

@@ -15,12 +15,12 @@ import type { PageDoc, Profile } from "@/lib/types";
 
 const NAV = [
   { href: "/", label: "홈" },
-  { href: "/notices", label: "공지사항" },
-  { href: "/organizations", label: "학생자치회 소개" },
-  { href: "/members", label: "구성원" },
-  { href: "/calendar", label: "일정" },
-  { href: "/news", label: "뉴스" },
-  { href: "/rules", label: "생활규정" },
+  { href: "/notices", label: "공지사항", flagKey: "notices" },
+  { href: "/organizations", label: "학생자치회 소개", flagKey: "organizations" },
+  { href: "/members", label: "구성원", flagKey: "members" },
+  { href: "/calendar", label: "일정", flagKey: "calendar" },
+  { href: "/news", label: "뉴스", flagKey: "news" },
+  { href: "/rules", label: "생활규정", flagKey: "rules" },
   { href: "/qna", label: "Q&A", flagKey: "qna" },
   { href: "/board", label: "게시판", flagKey: "board" },
 ];
