@@ -4,6 +4,7 @@ import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
 import type { BadgeDef, Profile } from "@/lib/types";
 
@@ -33,6 +34,7 @@ const sortKey = (b: BadgeDef) => b.streak_threshold ?? Infinity;
 
 export default function AdminBadgesPage() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows, reload } = useRealtimeList<BadgeDef>("badges", { orderBy: { column: "order_index" } });
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -158,7 +160,7 @@ export default function AdminBadgesPage() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">뱃지 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 뱃지 추가</button>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 뱃지 추가</button>
         </div>
         <p className="text-muted mb-4 text-sm">
           지급 방식이 "자동"이면 연속 접속일수가 조건에 도달하는 즉시 학생에게 자동 지급됩니다.
@@ -171,25 +173,25 @@ export default function AdminBadgesPage() {
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-14">아이콘</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">조건</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className={`${t.adminTableHeaderCell} w-14`}>아이콘</th>
+              <th className={t.adminTableHeaderCell}>이름</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>조건</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-16`} />
             </tr>
           </thead>
           <tbody>
             {[...rows].sort((a, b) => sortKey(a) - sortKey(b)).map((b) => (
-              <tr key={b.id} onClick={() => startEdit(b)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === b.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-xl">{b.icon}</td>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={b.id} onClick={() => startEdit(b)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === b.id ? t.adminTableRowActive : ""}`}>
+                <td className={`${t.adminTableCell} text-xl`}>{b.icon}</td>
+                <td className={t.adminTableCell}>
                   <div className="font-bold flex items-center gap-1">
                     {b.label}
                     {b.is_secret && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
                   </div>
                   <div className="text-muted text-xs">{b.description}</div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>
                   {b.award_type === "auto"
                     ? `연속 ${b.streak_threshold}일`
                     : b.award_type === "date"
@@ -198,7 +200,7 @@ export default function AdminBadgesPage() {
                       : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
                     : "수동 부여"}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <button
                     className={`text-xs font-bold ${b.is_active ? "text-teal" : "text-muted"}`}
                     onClick={(e) => { e.stopPropagation(); toggleActive(b); }}
@@ -206,8 +208,8 @@ export default function AdminBadgesPage() {
                     {b.is_active ? "활성" : "비활성"}
                   </button>
                 </td>
-                <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(b.id); }}>삭제</button>
+                <td className={t.adminTableCell}>
+                  <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(b.id); }}>삭제</button>
                 </td>
               </tr>
             ))}
@@ -215,7 +217,7 @@ export default function AdminBadgesPage() {
           </tbody>
         </AdminTable>
 
-        <div className="bg-white border border-border rounded-xl p-[18px] mt-5">
+        <div className={`${t.adminEditPanel} mt-5`}>
           <h3 className="mb-1">뱃지 직접 부여</h3>
           <p className="text-muted text-xs mb-3">학생을 검색해 원하는 뱃지를 바로 지급합니다. 자동 지급 뱃지도 예외적으로 직접 줄 수 있습니다.</p>
           <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-start">
@@ -231,7 +233,7 @@ export default function AdminBadgesPage() {
             <div>
               <label className="text-xs font-bold text-muted block mb-1">뱃지 선택</label>
               <select
-                className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
+                className={`${t.adminInput} w-full`}
                 value={grantBadgeId}
                 onChange={(e) => setGrantBadgeId(e.target.value)}
                 disabled={!grantUser || grantableBadges.length === 0}
@@ -252,7 +254,7 @@ export default function AdminBadgesPage() {
             <button
               onClick={grantBadge}
               disabled={!grantUser || !grantBadgeId}
-              className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 sm:mt-[22px]"
+              className={`${t.adminBtnPrimary} disabled:opacity-40 sm:mt-[22px]`}
             >
               부여
             </button>
@@ -284,18 +286,18 @@ export default function AdminBadgesPage() {
         </div>
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "뱃지 추가" : "뱃지 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">코드 (영문, 고유값)</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="예: streak_14" />
+          <input className={t.adminInput} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="예: streak_14" />
           <label className="text-xs font-bold text-muted mt-2">아이콘 (이모지 1자)</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
+          <input className={t.adminInput} value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">뱃지 이름</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
+          <input className={t.adminInput} value={form.label} onChange={(e) => setForm({ ...form, label: e.target.value })} />
 
           <label className="text-xs font-bold text-muted mt-2">지급 방식</label>
           <select
-            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            className={t.adminInput}
             value={form.award_type}
             onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" })}
           >
@@ -309,7 +311,7 @@ export default function AdminBadgesPage() {
           </label>
           <textarea
             rows={2}
-            className="border border-border rounded-lg px-2.5 py-2 text-sm"
+            className={t.adminInput}
             placeholder={form.award_type === "manual" ? "예: ○○ 선생님과 진로 상담 완료하기" : undefined}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
@@ -321,7 +323,7 @@ export default function AdminBadgesPage() {
               <input
                 type="number"
                 min={1}
-                className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                className={t.adminInput}
                 value={form.streak_threshold}
                 onChange={(e) => setForm({ ...form, streak_threshold: Number(e.target.value) })}
               />
@@ -331,7 +333,7 @@ export default function AdminBadgesPage() {
             <>
               <label className="text-xs font-bold text-muted mt-2">달성 조건 (날짜)</label>
               <select
-                className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                className={t.adminInput}
                 value={form.date_condition}
                 onChange={(e) => setForm({ ...form, date_condition: e.target.value as "before" | "after" | "on" | "between" })}
               >
@@ -344,14 +346,14 @@ export default function AdminBadgesPage() {
                 <div className="flex items-center gap-2">
                   <input
                     type="date"
-                    className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                    className={`${t.adminInput} flex-1`}
                     value={form.date_condition_value}
                     onChange={(e) => setForm({ ...form, date_condition_value: e.target.value })}
                   />
                   <span className="text-muted text-xs">~</span>
                   <input
                     type="date"
-                    className="border border-border rounded-lg px-2.5 py-2 text-sm flex-1"
+                    className={`${t.adminInput} flex-1`}
                     value={form.date_condition_value_end}
                     onChange={(e) => setForm({ ...form, date_condition_value_end: e.target.value })}
                   />
@@ -359,7 +361,7 @@ export default function AdminBadgesPage() {
               ) : (
                 <input
                   type="date"
-                  className="border border-border rounded-lg px-2.5 py-2 text-sm"
+                  className={t.adminInput}
                   value={form.date_condition_value}
                   onChange={(e) => setForm({ ...form, date_condition_value: e.target.value })}
                 />
@@ -384,8 +386,8 @@ export default function AdminBadgesPage() {
             시크릿 (획득 전까지 학생에게 숨김)
           </label>
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}

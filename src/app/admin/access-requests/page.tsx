@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
 import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
@@ -21,6 +22,7 @@ export default function AdminAccessRequestsPage() {
   const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
   const { myId, isAdmin, role, loading: roleLoading } = useMyRole();
+  const { t } = useHomeTheme();
   // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는 제외한다
   // (실제 조작 차단은 DesignerModeGate가 담당).
   const canView = isAdmin || role === "designer";
@@ -106,7 +108,7 @@ export default function AdminAccessRequestsPage() {
         </div>
       )}
 
-      <div className="bg-white border border-border rounded-xl p-4 mb-6">
+      <div className={`${t.adminEditPanel} mb-6`}>
         <label className="flex items-center gap-2 text-sm font-bold">
           <input
             type="checkbox"
@@ -128,19 +130,19 @@ export default function AdminAccessRequestsPage() {
       <AdminTable className="mb-6">
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">최근 시도</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-48">처리</th>
+            <th className={t.adminTableHeaderCell}>이메일</th>
+            <th className={t.adminTableHeaderCell}>최근 시도</th>
+            <th className={`${t.adminTableHeaderCell} w-48`}>처리</th>
           </tr>
         </thead>
         <tbody>
           {pending.map((r) => (
             <tr key={r.id}>
-              <td className="p-2.5 border-b border-border text-sm">{r.email}</td>
-              <td className="p-2.5 border-b border-border text-sm text-muted">
+              <td className={t.adminTableCell}>{r.email}</td>
+              <td className={`${t.adminTableCell} text-muted`}>
                 {new Date(r.attempted_at).toLocaleString("ko-KR")}
               </td>
-              <td className="p-2.5 border-b border-border">
+              <td className={t.adminTableCell}>
                 <div className="flex gap-1.5">
                   <button
                     onClick={() => approve(r)}
@@ -174,11 +176,11 @@ export default function AdminAccessRequestsPage() {
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">최근 시도</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">상태</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">처리 시각</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28" />
+            <th className={t.adminTableHeaderCell}>이메일</th>
+            <th className={t.adminTableHeaderCell}>최근 시도</th>
+            <th className={t.adminTableHeaderCell}>상태</th>
+            <th className={t.adminTableHeaderCell}>처리 시각</th>
+            <th className={`${t.adminTableHeaderCell} w-28`} />
           </tr>
         </thead>
         <tbody>
@@ -186,15 +188,15 @@ export default function AdminAccessRequestsPage() {
             const label = STATUS_LABEL[r.status];
             return (
               <tr key={r.id}>
-                <td className="p-2.5 border-b border-border text-sm">{r.email}</td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">
+                <td className={t.adminTableCell}>{r.email}</td>
+                <td className={`${t.adminTableCell} text-muted`}>
                   {new Date(r.attempted_at).toLocaleString("ko-KR")}
                 </td>
-                <td className={`p-2.5 border-b border-border text-sm font-bold ${label.className}`}>{label.text}</td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">
+                <td className={`${t.adminTableCell} font-bold ${label.className}`}>{label.text}</td>
+                <td className={`${t.adminTableCell} text-muted`}>
                   {r.decided_at ? new Date(r.decided_at).toLocaleString("ko-KR") : "-"}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   {r.status === "approved" && (
                     <button
                       onClick={() => revokeApproval(r)}

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { SiteSettings } from "@/lib/types";
 
 export default function AdminMaintenancePage() {
@@ -13,6 +14,7 @@ export default function AdminMaintenancePage() {
 
   const { isAdmin: iAmAdmin, role } = useMyRole();
   const isDesigner = role === "designer";
+  const { t } = useHomeTheme();
   const [form, setForm] = useState({ maintenance_mode: false, maintenance_message: "", maintenance_until: "" });
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
@@ -58,7 +60,7 @@ export default function AdminMaintenancePage() {
         들어와도 <code>/maintenance</code> 안내 화면으로 이동합니다. admin 이상만 켜고 끌 수 있습니다.
       </p>
 
-      <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5">
+      <div className={`${t.adminEditPanel} flex flex-col gap-1.5`}>
         <label className="flex items-center gap-2 text-sm font-bold">
           <input
             type="checkbox"
@@ -74,7 +76,7 @@ export default function AdminMaintenancePage() {
         <textarea
           rows={3}
           disabled={!iAmAdmin}
-          className="border border-border rounded-lg px-2.5 py-2 text-sm disabled:bg-[#F7F8FB]"
+          className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
           value={form.maintenance_message}
           onChange={(e) => setForm({ ...form, maintenance_message: e.target.value })}
         />
@@ -83,14 +85,14 @@ export default function AdminMaintenancePage() {
         <input
           type="date"
           disabled={!iAmAdmin}
-          className="border border-border rounded-lg px-2.5 py-2 text-sm disabled:bg-[#F7F8FB]"
+          className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
           value={form.maintenance_until}
           onChange={(e) => setForm({ ...form, maintenance_until: e.target.value })}
         />
 
         {iAmAdmin || isDesigner ? (
           <div className="flex items-center gap-2 mt-3.5">
-            <button disabled={!iAmAdmin || saving || !isDirty} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button disabled={!iAmAdmin || saving || !isDirty} onClick={save} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>
               {saving ? "저장 중…" : "저장"}
             </button>
             {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}

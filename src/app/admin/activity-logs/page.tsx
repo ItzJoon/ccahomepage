@@ -4,6 +4,7 @@ import AdminTable from "@/components/admin/AdminTable";
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { AuditAction, AuditLog } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -87,6 +88,7 @@ export default function AdminActivityLogsPage() {
   // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 한다 — 실제 조작 차단은
   // DesignerModeGate(inert)가 담당하므로 여기서는 열람 자격만 함께 인정한다.
   const canView = isSuperadmin || role === "designer";
+  const { t } = useHomeTheme();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -165,13 +167,13 @@ export default function AdminActivityLogsPage() {
 
       <div className="flex flex-wrap gap-2 mb-4">
         <input
-          className="border border-border rounded-lg px-3 py-2 text-sm w-full max-w-xs"
+          className={`${t.adminInput} w-full max-w-xs`}
           placeholder="사용자 이름 또는 이메일 검색"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
         <select
-          className="border border-border rounded-lg px-3 py-2 text-sm"
+          className={t.adminInput}
           value={actionFilter}
           onChange={(e) => setActionFilter(e.target.value as any)}
         >
@@ -181,7 +183,7 @@ export default function AdminActivityLogsPage() {
           <option value="delete">삭제</option>
         </select>
         <select
-          className="border border-border rounded-lg px-3 py-2 text-sm"
+          className={t.adminInput}
           value={tableFilter}
           onChange={(e) => setTableFilter(e.target.value)}
         >
@@ -192,14 +194,14 @@ export default function AdminActivityLogsPage() {
         </select>
         <input
           type="date"
-          className="border border-border rounded-lg px-3 py-2 text-sm"
+          className={t.adminInput}
           value={dateFrom}
           onChange={(e) => setDateFrom(e.target.value)}
         />
         <span className="self-center text-muted text-sm">~</span>
         <input
           type="date"
-          className="border border-border rounded-lg px-3 py-2 text-sm"
+          className={t.adminInput}
           value={dateTo}
           onChange={(e) => setDateTo(e.target.value)}
         />
@@ -208,11 +210,11 @@ export default function AdminActivityLogsPage() {
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">시각</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">사용자</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">대상</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">행위</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">내용</th>
+            <th className={`${t.adminTableHeaderCell} w-40`}>시각</th>
+            <th className={`${t.adminTableHeaderCell} w-40`}>사용자</th>
+            <th className={`${t.adminTableHeaderCell} w-28`}>대상</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>행위</th>
+            <th className={t.adminTableHeaderCell}>내용</th>
           </tr>
         </thead>
         <tbody>
@@ -220,15 +222,15 @@ export default function AdminActivityLogsPage() {
             <Fragment key={r.id}>
               <tr
                 onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
-                className={`cursor-pointer hover:bg-[#F2F4F8] ${expandedId === r.id ? "bg-[#EAF0FB]" : ""}`}
+                className={`cursor-pointer ${t.adminTableRowHover} ${expandedId === r.id ? t.adminTableRowActive : ""}`}
               >
-                <td className="p-2.5 border-b border-border text-sm text-muted">{fmtDateTime(r.created_at)}</td>
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={`${t.adminTableCell} text-muted`}>{fmtDateTime(r.created_at)}</td>
+                <td className={t.adminTableCell}>
                   {r.profiles?.nickname || r.profiles?.name || r.profiles?.email || "시스템"}
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}</td>
-                <td className="p-2.5 border-b border-border text-sm">{actionLabel(r)}</td>
-                <td className="p-2.5 border-b border-border text-sm truncate max-w-[320px]">{summarize(r)}</td>
+                <td className={t.adminTableCell}>{TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}</td>
+                <td className={t.adminTableCell}>{actionLabel(r)}</td>
+                <td className={`${t.adminTableCell} truncate max-w-[320px]`}>{summarize(r)}</td>
               </tr>
               {expandedId === r.id && (
                 <tr>
@@ -265,7 +267,7 @@ export default function AdminActivityLogsPage() {
         <span className="text-muted text-xs">전체 {total}건</span>
         <div className="flex items-center gap-2">
           <button
-            className="border border-border text-sm rounded-lg px-3 py-1.5 disabled:opacity-40"
+            className={`${t.adminBtnSecondary} disabled:opacity-40`}
             disabled={page === 0}
             onClick={() => setPage((p) => Math.max(0, p - 1))}
           >
@@ -273,7 +275,7 @@ export default function AdminActivityLogsPage() {
           </button>
           <span className="text-sm text-muted">{page + 1} / {totalPages}</span>
           <button
-            className="border border-border text-sm rounded-lg px-3 py-1.5 disabled:opacity-40"
+            className={`${t.adminBtnSecondary} disabled:opacity-40`}
             disabled={page + 1 >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >

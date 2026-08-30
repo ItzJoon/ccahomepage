@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { PageDoc } from "@/lib/types";
 
 const empty = { title: "", content: "", menu_visible: true };
@@ -15,6 +16,7 @@ function slugify(title: string) {
 export default function AdminPagesPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<PageDoc>("pages", { orderBy: { column: "order_index" } });
+  const { t } = useHomeTheme();
   const [form, setForm] = useState({ ...empty });
 
   const add = async () => {
@@ -53,25 +55,25 @@ export default function AdminPagesPage() {
           <AdminTable>
             <thead>
               <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">페이지 제목</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">메뉴 노출</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+                <th className={t.adminTableHeaderCell}>페이지 제목</th>
+                <th className={`${t.adminTableHeaderCell} w-24`}>메뉴 노출</th>
+                <th className={`${t.adminTableHeaderCell} w-16`} />
               </tr>
             </thead>
             <tbody>
               {rows.map((p) => (
                 <tr key={p.id}>
-                  <td className="p-2.5 border-b border-border text-sm">
+                  <td className={t.adminTableCell}>
                     <div className="flex items-center gap-1.5">
                       <span {...truncateCellProps(p.title)}>{p.title}</span>
                       <span className="text-muted text-xs shrink-0">/pages/{p.slug}</span>
                     </div>
                   </td>
-                  <td className="p-2.5 border-b border-border">
+                  <td className={t.adminTableCell}>
                     <input type="checkbox" checked={p.menu_visible} onChange={() => toggleMenu(p)} />
                   </td>
-                  <td className="p-2.5 border-b border-border">
-                    <button className="text-red text-xs font-bold" onClick={() => remove(p.id)}>삭제</button>
+                  <td className={t.adminTableCell}>
+                    <button className={t.adminBtnDanger} onClick={() => remove(p.id)}>삭제</button>
                   </td>
                 </tr>
               ))}
@@ -79,13 +81,13 @@ export default function AdminPagesPage() {
             </tbody>
           </AdminTable>
         </div>
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5`}>
           <h3>새 페이지 추가</h3>
           <label className="text-xs font-bold text-muted mt-2">메뉴에 표시될 제목</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="예: 동아리 소개" />
+          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="예: 동아리 소개" />
           <label className="text-xs font-bold text-muted mt-2">페이지 내용</label>
-          <textarea rows={6} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-          <button onClick={add} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 mt-3.5 self-start">페이지 만들기</button>
+          <textarea rows={6} className={t.adminInput} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+          <button onClick={add} className={`${t.adminBtnPrimary} mt-3.5 self-start`}>페이지 만들기</button>
         </div>
       </div>
     </div>

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import type { NotificationItem } from "@/lib/types";
@@ -20,6 +21,7 @@ export default function AdminNotifyPage() {
     orderBy: { column: "sent_at", ascending: false },
   });
   const { isAdmin: iAmAdmin } = useMyRole();
+  const { t } = useHomeTheme();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
   const [level, setLevel] = useState<"info" | "urgent">("info");
@@ -72,13 +74,13 @@ export default function AdminNotifyPage() {
       <h2 className="text-[22px] mb-4">알림 발송</h2>
       <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-4">
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "popup" ? "bg-navy text-white" : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "popup" ? t.adminToggleActive : "bg-white"}`}
           onClick={() => setTab("popup")}
         >
           배너·팝업
         </button>
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "email" ? "bg-navy text-white" : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "email" ? t.adminToggleActive : "bg-white"}`}
           onClick={() => setTab("email")}
         >
           이메일 발송 이력
@@ -89,19 +91,19 @@ export default function AdminNotifyPage() {
         <EmailNotificationHistory isAdmin={iAmAdmin} />
       ) : (
         <>
-      <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 max-w-lg">
+      <div className={`${t.adminEditPanel} flex flex-col gap-1.5 max-w-lg`}>
         <label className="text-xs font-bold text-muted mt-2">알림 제목</label>
-        <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 긴급 하교 안내" />
+        <input className={t.adminInput} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 긴급 하교 안내" />
         <label className="text-xs font-bold text-muted mt-2">알림 내용</label>
-        <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={message} onChange={(e) => setMessage(e.target.value)} />
+        <textarea rows={3} className={t.adminInput} value={message} onChange={(e) => setMessage(e.target.value)} />
         <label className="text-xs font-bold text-muted mt-2">중요도</label>
-        <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={level} onChange={(e) => setLevel(e.target.value as any)}>
+        <select className={t.adminInput} value={level} onChange={(e) => setLevel(e.target.value as any)}>
           <option value="info">일반 안내</option>
           <option value="urgent">긴급</option>
         </select>
         <label className="text-xs font-bold text-muted mt-2">노출 방식</label>
         <select
-          className="border border-border rounded-lg px-2.5 py-2 text-sm"
+          className={t.adminInput}
           value={displayType}
           onChange={(e) => setDisplayType(e.target.value as "banner" | "popup")}
         >
@@ -111,7 +113,7 @@ export default function AdminNotifyPage() {
         {displayType === "banner" ? (
           <>
             <label className="text-xs font-bold text-muted mt-2">표시 시간</label>
-            <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={duration} onChange={(e) => setDuration(e.target.value)}>
+            <select className={t.adminInput} value={duration} onChange={(e) => setDuration(e.target.value)}>
               <option value="">계속 표시 (학생이 직접 닫기 전까지)</option>
               <option value="10">10분</option>
               <option value="30">30분</option>
@@ -125,7 +127,7 @@ export default function AdminNotifyPage() {
             팝업은 학생이 "확인" 또는 "오늘 하루 안 보기"를 누르기 전까지 계속 뜹니다(표시 시간 설정 없음).
           </p>
         )}
-        <button disabled={sending} onClick={send} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3.5 self-start">
+        <button disabled={sending} onClick={send} className={`${t.adminBtnPrimary} mt-3.5 self-start`}>
           {sending ? "발송 중…" : "학생 화면에 즉시 발송"}
         </button>
       </div>
@@ -148,7 +150,7 @@ export default function AdminNotifyPage() {
               )
             )}
             {iAmAdmin ? (
-              <button onClick={() => remove(n.id)} className="text-red text-xs font-bold">삭제</button>
+              <button onClick={() => remove(n.id)} className={t.adminBtnDanger}>삭제</button>
             ) : (
               <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
             )}

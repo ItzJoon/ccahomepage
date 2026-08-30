@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "./AdminTable";
 
 type TopStreak = { user_id: string; streak_count: number; name: string | null; email: string };
@@ -36,6 +37,7 @@ export default function StatsTabs({
 }) {
   const [tab, setTab] = useState<"log" | "summary">("log");
   const supabase = createClient();
+  const { t } = useHomeTheme();
 
   // 전체 접속 기록은 다른 관리 화면들과 같은 방식(useRealtimeList)으로 실시간 반영한다.
   // 예전에는 페이지 진입 시 서버에서 한 번만 조회해서, 화면을 열어둔 채로 있으면 그 이후
@@ -83,7 +85,7 @@ export default function StatsTabs({
         <button
           onClick={() => setTab("log")}
           className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px ${
-            tab === "log" ? "border-navy text-navy" : "border-transparent text-muted"
+            tab === "log" ? `border-current ${t.sectionAccentColor}` : "border-transparent text-muted"
           }`}
         >
           전체 접속 기록
@@ -91,7 +93,7 @@ export default function StatsTabs({
         <button
           onClick={() => setTab("summary")}
           className={`px-4 py-2.5 text-sm font-bold border-b-2 -mb-px ${
-            tab === "summary" ? "border-navy text-navy" : "border-transparent text-muted"
+            tab === "summary" ? `border-current ${t.sectionAccentColor}` : "border-transparent text-muted"
           }`}
         >
           요약
@@ -101,23 +103,23 @@ export default function StatsTabs({
       {tab === "log" && (
         <div>
           <div className="flex gap-3 flex-wrap mb-6">
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+            <div className={`${t.dashStatCard} min-w-[150px]`}>
               <div className="font-serif font-black text-2xl">{todayVisitCount}</div>
               <div className="text-sm text-muted">하루 방문 횟수</div>
             </div>
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+            <div className={`${t.dashStatCard} min-w-[150px]`}>
               <div className="font-serif font-black text-2xl">{totalUsers}</div>
               <div className="text-sm text-muted">전체 가입자 수</div>
             </div>
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+            <div className={`${t.dashStatCard} min-w-[150px]`}>
               <div className="font-serif font-black text-2xl">{teacherCount}</div>
               <div className="text-sm text-muted">선생님 수</div>
             </div>
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+            <div className={`${t.dashStatCard} min-w-[150px]`}>
               <div className="font-serif font-black text-2xl">{studentCount}</div>
               <div className="text-sm text-muted">전체 학생 수</div>
             </div>
-            <div className="bg-white border border-border rounded-xl px-5 py-4 min-w-[150px]">
+            <div className={`${t.dashStatCard} min-w-[150px]`}>
               <div className="font-serif font-black text-2xl">{staffCount}</div>
               <div className="text-sm text-muted">관리 권한 계정 수</div>
             </div>
@@ -128,7 +130,7 @@ export default function StatsTabs({
               전체 접속 기록 {searchResults ? `(검색 결과 ${searchResults.length}건)` : "(최신순, 최근 200건)"}
             </h3>
             <input
-              className="border border-border rounded-lg px-3 py-1.5 text-sm w-full max-w-xs"
+              className={`${t.adminInput} w-full max-w-xs`}
               placeholder="이름 또는 이메일로 검색"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -137,21 +139,21 @@ export default function StatsTabs({
           <AdminTable>
             <thead>
               <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-40">체크인 시각</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">연속일수</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">프리즈</th>
+                <th className={`${t.adminTableHeaderCell} w-40`}>체크인 시각</th>
+                <th className={t.adminTableHeaderCell}>이름</th>
+                <th className={t.adminTableHeaderCell}>이메일</th>
+                <th className={`${t.adminTableHeaderCell} w-24`}>연속일수</th>
+                <th className={`${t.adminTableHeaderCell} w-20`}>프리즈</th>
               </tr>
             </thead>
             <tbody>
               {attendanceLog.map((row) => (
                 <tr key={row.id}>
-                  <td className="p-2.5 border-b border-border text-sm">{new Date(row.created_at).toLocaleString("ko-KR")}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.nickname || row.name || "-"}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.email}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.is_freeze ? "❄️" : ""}</td>
+                  <td className={t.adminTableCell}>{new Date(row.created_at).toLocaleString("ko-KR")}</td>
+                  <td className={t.adminTableCell}>{row.nickname || row.name || "-"}</td>
+                  <td className={t.adminTableCell}>{row.email}</td>
+                  <td className={t.adminTableCell}>{row.streak_count}일</td>
+                  <td className={t.adminTableCell}>{row.is_freeze ? "❄️" : ""}</td>
                 </tr>
               ))}
               {attendanceLog.length === 0 && (
@@ -176,17 +178,17 @@ export default function StatsTabs({
           <AdminTable>
             <thead>
               <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">이메일</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">연속 접속일</th>
+                <th className={t.adminTableHeaderCell}>이름</th>
+                <th className={t.adminTableHeaderCell}>이메일</th>
+                <th className={`${t.adminTableHeaderCell} w-28`}>연속 접속일</th>
               </tr>
             </thead>
             <tbody>
               {topStreaks.map((row, i) => (
                 <tr key={i}>
-                  <td className="p-2.5 border-b border-border text-sm">{row.name || "-"}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.email}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{row.streak_count}일</td>
+                  <td className={t.adminTableCell}>{row.name || "-"}</td>
+                  <td className={t.adminTableCell}>{row.email}</td>
+                  <td className={t.adminTableCell}>{row.streak_count}일</td>
                 </tr>
               ))}
               {topStreaks.length === 0 && (

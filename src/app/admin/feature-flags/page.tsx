@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { FeatureFlag } from "@/lib/types";
 
 const LABELS: Record<string, { label: string; description: string }> = {
@@ -25,6 +26,7 @@ export default function AdminFeatureFlagsPage() {
   // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는
   // 제외한다(실제 조작 차단은 DesignerModeGate가 담당).
   const canView = isSuperadmin || role === "designer";
+  const { t } = useHomeTheme();
   const [saving, setSaving] = useState<string | null>(null);
 
   const load = async () => {
@@ -66,7 +68,7 @@ export default function AdminFeatureFlagsPage() {
         {rows.map((flag) => {
           const info = LABELS[flag.key] ?? { label: flag.key, description: "" };
           return (
-            <div key={flag.key} className="bg-white border border-border rounded-xl p-4">
+            <div key={flag.key} className={t.dashStatCard}>
               <label className="flex items-center gap-2 text-sm font-bold">
                 <input
                   type="checkbox"

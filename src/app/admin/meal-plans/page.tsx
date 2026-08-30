@@ -6,12 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { todayKST } from "@/lib/date";
 import { safeStorageKey } from "@/lib/storageKey";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { MealPlan } from "@/lib/types";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export default function AdminMealPlansPage() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows, reload } = useRealtimeList<MealPlan>("meal_plans", {
     orderBy: { column: "year", ascending: false },
   });
@@ -80,25 +82,25 @@ export default function AdminMealPlansPage() {
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">연도</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">월</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">미리보기</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className={`${t.adminTableHeaderCell} w-24`}>연도</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>월</th>
+              <th className={t.adminTableHeaderCell}>미리보기</th>
+              <th className={`${t.adminTableHeaderCell} w-16`} />
             </tr>
           </thead>
           <tbody>
             {sorted.map((m) => (
-              <tr key={m.id} className="hover:bg-[#F2F4F8]">
-                <td className="p-2.5 border-b border-border text-sm">{m.year}</td>
-                <td className="p-2.5 border-b border-border text-sm">{m.month}월</td>
-                <td className="p-2.5 border-b border-border">
+              <tr key={m.id} className={t.adminTableRowHover}>
+                <td className={t.adminTableCell}>{m.year}</td>
+                <td className={t.adminTableCell}>{m.month}월</td>
+                <td className={t.adminTableCell}>
                   <div className="flex items-center gap-2">
                     <img src={m.image_url} alt="" className="h-12 rounded border border-border object-cover" />
                     {m.original_file_name && <span className="text-xs text-muted">{m.original_file_name}</span>}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border">
-                  <button className="text-red text-xs font-bold" onClick={() => remove(m)}>
+                <td className={t.adminTableCell}>
+                  <button className={t.adminBtnDanger} onClick={() => remove(m)}>
                     삭제
                   </button>
                 </td>
@@ -114,18 +116,18 @@ export default function AdminMealPlansPage() {
           </tbody>
         </AdminTable>
       </div>
-      <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+      <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
         <h3>급식표 업로드</h3>
         <label className="text-xs font-bold text-muted mt-2">연도</label>
         <input
           type="number"
-          className="border border-border rounded-lg px-2.5 py-2 text-sm"
+          className={t.adminInput}
           value={year}
           onChange={(e) => setYear(Number(e.target.value))}
         />
         <label className="text-xs font-bold text-muted mt-2">월</label>
         <select
-          className="border border-border rounded-lg px-2.5 py-2 text-sm"
+          className={t.adminInput}
           value={month}
           onChange={(e) => setMonth(Number(e.target.value))}
         >

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { MainBlock } from "@/lib/types";
 
 const WIDTH_OPTIONS = [
@@ -22,6 +23,7 @@ const COL_SPAN_CLASS: Record<number, string> = {
 export default function AdminMainEditorPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<MainBlock>("main_blocks", { orderBy: { column: "order_index" } });
+  const { t } = useHomeTheme();
   const sorted = [...rows].sort((a, b) => a.order_index - b.order_index);
   const visiblePreview = sorted.filter((b) => b.is_visible);
 
@@ -61,7 +63,7 @@ export default function AdminMainEditorPage() {
               <input type="checkbox" checked={b.is_visible} onChange={() => toggle(b)} /> {b.label}
             </label>
             <select
-              className="border border-border rounded-lg px-2 py-1 text-xs"
+              className={`${t.adminInput} text-xs`}
               value={b.col_span}
               onChange={(e) => changeWidth(b, Number(e.target.value))}
             >

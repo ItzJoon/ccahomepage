@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { Report, ReportStatus } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
@@ -22,6 +23,7 @@ export default function AdminReportsPage() {
   // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 이 경고 배너에서는 제외한다
   // (실제 조작 차단은 DesignerModeGate가 담당).
   const canView = isAdmin || role === "designer";
+  const { t } = useHomeTheme();
 
   // reports.target_id는 target_type에 따라 다른 대상을 가리키는 범용 컬럼이라 profiles와
   // FK로 묶여있지 않다(외래키 임베딩 불가) — 신고자/신고 대상(사용자인 경우) id를 모아
@@ -72,30 +74,30 @@ export default function AdminReportsPage() {
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">신고자</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">대상 종류</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">신고 대상</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">사유</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-36">시각</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">상태</th>
+            <th className={t.adminTableHeaderCell}>신고자</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>대상 종류</th>
+            <th className={t.adminTableHeaderCell}>신고 대상</th>
+            <th className={t.adminTableHeaderCell}>사유</th>
+            <th className={`${t.adminTableHeaderCell} w-36`}>시각</th>
+            <th className={`${t.adminTableHeaderCell} w-28`}>상태</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
             <tr key={r.id}>
-              <td className="p-2.5 border-b border-border text-sm">{displayUser(r.reporter_id)}</td>
-              <td className="p-2.5 border-b border-border text-sm text-muted">{TARGET_TYPE_LABEL[r.target_type] ?? r.target_type}</td>
-              <td className="p-2.5 border-b border-border text-sm">
+              <td className={t.adminTableCell}>{displayUser(r.reporter_id)}</td>
+              <td className={`${t.adminTableCell} text-muted`}>{TARGET_TYPE_LABEL[r.target_type] ?? r.target_type}</td>
+              <td className={t.adminTableCell}>
                 {r.target_type === "profile" ? displayUser(r.target_id) : r.target_id}
                 {r.context && <div className="text-muted text-xs mt-0.5">{r.context}</div>}
               </td>
-              <td className="p-2.5 border-b border-border text-sm">
+              <td className={t.adminTableCell}>
                 <span {...truncateCellProps(r.reason || "-")}>{r.reason || "-"}</span>
               </td>
-              <td className="p-2.5 border-b border-border text-sm text-muted">{fmtDateTime(r.created_at)}</td>
-              <td className="p-2.5 border-b border-border">
+              <td className={`${t.adminTableCell} text-muted`}>{fmtDateTime(r.created_at)}</td>
+              <td className={t.adminTableCell}>
                 <select
-                  className="border border-border rounded-lg px-2 py-1 text-sm"
+                  className={t.adminInput}
                   value={r.status}
                   onChange={(e) => setStatus(r.id, e.target.value as ReportStatus)}
                 >
