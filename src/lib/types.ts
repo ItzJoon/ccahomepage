@@ -274,3 +274,23 @@ export interface FeatureFlag {
   updated_at: string;
   updated_by: string | null;
 }
+
+export interface BoardPost {
+  id: string;
+  author_id: string | null;
+  title: string;
+  content: string;
+  view_count: number;
+  is_hidden: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BoardComment {
+  id: string;
+  post_id: string;
+  parent_id: string | null;
+  author_id: string | null;
+  content: string;
+  created_at: string;
+}

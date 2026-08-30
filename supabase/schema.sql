@@ -1487,3 +1487,108 @@ drop policy if exists "feature_flags_read_all" on feature_flags;
 create policy "feature_flags_read_all" on feature_flags for select using (true);
 drop policy if exists "feature_flags_write_superadmin" on feature_flags;
 create policy "feature_flags_write_superadmin" on feature_flags for update using (is_superadmin());
+
+-- ------------------------------------------------------------
+-- 41. 게시판 (댓글/대댓글)
+-- ------------------------------------------------------------
+-- Q&A(questions/answers)는 이미 운영 중인 별도 테이블이라 마이그레이션하지 않고 그대로
+-- 둔다(사용자 결정: 테이블은 분리 유지, 검색/알림/숨김 등 기능적 통합만 진행). 게시판은
+-- 완전히 새 기능이라 새 테이블로 만든다.
+create table if not exists board_posts (
+  id uuid primary key default uuid_generate_v4(),
+  author_id uuid references profiles(id) on delete set null,
+  title text not null,
+  content text not null,
+  view_count int not null default 0,
+  is_hidden boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- parent_id가 있으면 대댓글(다른 댓글에 대한 답글), 없으면 게시글에 바로 달린 최상위 댓글.
+create table if not exists board_comments (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid not null references board_posts(id) on delete cascade,
+  parent_id uuid references board_comments(id) on delete cascade,
+  author_id uuid references profiles(id) on delete set null,
+  content text not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists board_comments_post_id_idx on board_comments(post_id);
+
+alter table board_posts enable row level security;
+alter table board_comments enable row level security;
+
+-- 숨김 처리된 글은 작성자 본인과 editor 이상에게만 보인다(관리자 화면에서는 계속 확인 가능).
+drop policy if exists "board_posts_read" on board_posts;
+create policy "board_posts_read" on board_posts for select
+  using (not is_hidden or is_editor_or_above() or auth.uid() = author_id);
+
+drop policy if exists "board_posts_insert_own" on board_posts;
+create policy "board_posts_insert_own" on board_posts for insert with check (auth.uid() = author_id);
+
+-- 본인은 내용 수정, editor 이상은 숨김 처리 등 관리 목적으로 수정 가능.
+drop policy if exists "board_posts_update_own_or_staff" on board_posts;
+create policy "board_posts_update_own_or_staff" on board_posts for update
+  using (auth.uid() = author_id or is_editor_or_above());
+
+-- 삭제는 본인 또는 admin 이상만(다른 콘텐츠 타입과 동일한 기준).
+drop policy if exists "board_posts_delete_own_or_admin" on board_posts;
+create policy "board_posts_delete_own_or_admin" on board_posts for delete
+  using (auth.uid() = author_id or is_admin());
+
+-- 댓글은 자기 글 자체의 RLS가 없으므로, 소속된 게시글이 숨김 상태인지를 그대로 따른다
+-- (게시글이 숨겨지면 댓글도 함께 안 보여야 자연스럽다).
+drop policy if exists "board_comments_read" on board_comments;
+create policy "board_comments_read" on board_comments for select
+  using (
+    exists (
+      select 1 from board_posts bp
+      where bp.id = board_comments.post_id
+        and (not bp.is_hidden or is_editor_or_above() or auth.uid() = bp.author_id)
+    )
+  );
+
+drop policy if exists "board_comments_insert_own" on board_comments;
+create policy "board_comments_insert_own" on board_comments for insert with check (auth.uid() = author_id);
+
+drop policy if exists "board_comments_delete_own_or_admin" on board_comments;
+create policy "board_comments_delete_own_or_admin" on board_comments for delete
+  using (auth.uid() = author_id or is_admin());
+
+-- 조회수는 공지사항과 동일한 방식(RPC + 클라이언트 쿠키 중복 방지)을 우선 적용한다.
+-- 이후 이슈([6] 조회수 시스템 배치 집계 통일)에서 공지사항과 함께 공용 방식으로 교체될 예정.
+create or replace function increment_board_view_count(target_id uuid)
+returns void as $$
+  update board_posts set view_count = view_count + 1 where id = target_id;
+$$ language sql security definer;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'board_posts'
+  ) then
+    alter publication supabase_realtime add table public.board_posts;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'board_comments'
+  ) then
+    alter publication supabase_realtime add table public.board_comments;
+  end if;
+end $$;
+
+-- 활동 로그: posts와 동일하게 view_count만 바뀐 update는 기록하지 않는다.
+drop trigger if exists audit_board_posts_insert on board_posts;
+create trigger audit_board_posts_insert after insert on board_posts
+  for each row execute function log_audit_event();
+drop trigger if exists audit_board_posts_update on board_posts;
+create trigger audit_board_posts_update after update on board_posts
+  for each row
+  when ((to_jsonb(OLD) - 'view_count') is distinct from (to_jsonb(NEW) - 'view_count'))
+  execute function log_audit_event();
+drop trigger if exists audit_board_posts_delete on board_posts;
+create trigger audit_board_posts_delete after delete on board_posts
+  for each row execute function log_audit_event();

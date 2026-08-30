@@ -16,6 +16,7 @@ const NAV = [
   { href: "/admin/members", label: "구성원 관리" },
   { href: "/admin/rules", label: "규정 관리" },
   { href: "/admin/qna", label: "Q&A 관리" },
+  { href: "/admin/board", label: "게시판 관리" },
   { href: "/admin/notify", label: "알림 발송" },
   { href: "/admin/main-editor", label: "메인화면 편집" },
   { href: "/admin/pages", label: "페이지/메뉴 빌더" },
