@@ -1808,3 +1808,89 @@ end $$;
 -- 이전 방식(공지/게시판 각자 RPC로 즉시 UPDATE)은 더 이상 쓰지 않는다.
 drop function if exists increment_post_view_count(uuid);
 drop function if exists increment_board_view_count(uuid);
+
+-- ------------------------------------------------------------
+-- 46. 알림 센터 (댓글/답변 알림)
+-- ------------------------------------------------------------
+-- 다이렉트 메시지 기능은 아직 보류 상태라 이번에는 두 가지만: 내 게시판 글/댓글에
+-- 댓글·답글이 달렸을 때, 내 Q&A 질문에 답변이 달렸을 때. 트리거로 자동 생성하고
+-- (클라이언트가 직접 만들 수 없음, RLS에 insert 정책 없음 — SECURITY DEFINER 함수만
+-- 기록), 본인 것만 읽고 읽음 처리할 수 있다.
+create table if not exists user_notifications (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  type text not null check (type in ('board_comment', 'qna_answered')),
+  target_type text not null,
+  target_id uuid not null,
+  message text not null,
+  is_read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists user_notifications_user_id_idx on user_notifications(user_id);
+
+alter table user_notifications enable row level security;
+
+drop policy if exists "user_notifications_read_own" on user_notifications;
+create policy "user_notifications_read_own" on user_notifications for select using (auth.uid() = user_id);
+drop policy if exists "user_notifications_update_own" on user_notifications;
+create policy "user_notifications_update_own" on user_notifications for update using (auth.uid() = user_id);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_notifications'
+  ) then
+    alter publication supabase_realtime add table public.user_notifications;
+  end if;
+end $$;
+
+-- 댓글 작성자 본인 글에는 알림을 보내지 않는다(자기 글에 자기가 댓글 단 경우).
+-- 대댓글이면 부모 댓글 작성자에게도 보내되, 글쓴이와 같은 사람이면 중복 알림을 피한다.
+create or replace function notify_board_comment()
+returns trigger as $$
+declare
+  v_post_author uuid;
+  v_post_title text;
+  v_parent_author uuid;
+begin
+  select author_id, title into v_post_author, v_post_title from board_posts where id = new.post_id;
+  if v_post_author is not null and v_post_author != new.author_id then
+    insert into user_notifications (user_id, type, target_type, target_id, message)
+    values (v_post_author, 'board_comment', 'board_post', new.post_id, '내 글 "' || coalesce(v_post_title, '') || '"에 댓글이 달렸습니다.');
+  end if;
+
+  if new.parent_id is not null then
+    select author_id into v_parent_author from board_comments where id = new.parent_id;
+    if v_parent_author is not null and v_parent_author != new.author_id and v_parent_author is distinct from v_post_author then
+      insert into user_notifications (user_id, type, target_type, target_id, message)
+      values (v_parent_author, 'board_comment', 'board_post', new.post_id, '내 댓글에 답글이 달렸습니다.');
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists notify_on_board_comment on board_comments;
+create trigger notify_on_board_comment after insert on board_comments
+  for each row execute function notify_board_comment();
+
+create or replace function notify_qna_answered()
+returns trigger as $$
+declare
+  v_user_id uuid;
+  v_title text;
+begin
+  select user_id, title into v_user_id, v_title from questions where id = new.question_id;
+  if v_user_id is not null then
+    insert into user_notifications (user_id, type, target_type, target_id, message)
+    values (v_user_id, 'qna_answered', 'qna_question', new.question_id, '내 질문 "' || coalesce(v_title, '') || '"에 답변이 등록되었습니다.');
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists notify_on_answer on answers;
+create trigger notify_on_answer after insert on answers
+  for each row execute function notify_qna_answered();

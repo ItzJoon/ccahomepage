@@ -9,6 +9,7 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import NotificationCenter from "@/components/NotificationCenter";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { PageDoc, Profile } from "@/lib/types";
 
@@ -142,6 +143,7 @@ export default function Header({
               🔍
             </button>
           )}
+          {profile && <NotificationCenter userId={profile.id} />}
           {profile ? (
             <>
               {isAdmin && (
