@@ -20,7 +20,10 @@ export default function AdminAccessRequestsPage() {
   });
   const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
-  const { myId, isAdmin, loading: roleLoading } = useMyRole();
+  const { myId, isAdmin, role, loading: roleLoading } = useMyRole();
+  // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는 제외한다
+  // (실제 조작 차단은 DesignerModeGate가 담당).
+  const canView = isAdmin || role === "designer";
   const [busyId, setBusyId] = useState<string | null>(null);
   const [togglingRestriction, setTogglingRestriction] = useState(false);
 
@@ -97,7 +100,7 @@ export default function AdminAccessRequestsPage() {
         이후 재시도해도 계속 이용이 막힙니다.
       </p>
 
-      {!roleLoading && !isAdmin && (
+      {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 admin 이상만 열람할 수 있습니다.
         </div>

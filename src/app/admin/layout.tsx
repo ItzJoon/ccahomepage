@@ -3,6 +3,7 @@ import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminHeader from "@/components/admin/AdminHeader";
+import DesignerModeGate from "@/components/admin/DesignerModeGate";
 
 export const dynamic = "force-dynamic";
 
@@ -10,9 +11,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // middleware.ts 에서 1차로 걸러지지만, 서버 컴포넌트 레벨에서도 한 번 더 확인합니다.
   // sub_editor는 /admin/org-activities/*만 middleware가 통과시키므로, 여기서는 세부
   // 경로를 다시 따지지 않고 "관리 화면에 발 들일 자격이 있는 역할인지"만 본다.
-  // teacher는 관리 화면 접근 권한이 없다(student와 동일하게 차단됨).
+  // teacher는 관리 화면 접근 권한이 없다(student와 동일하게 차단됨). designer(조회 전용)는
+  // 모든 관리 화면에 들어올 수 있어야 하므로 포함한다 — 실제 데이터 변경은 RLS가 막는다.
   const profile = await getCurrentProfile();
-  if (!profile || !["sub_editor", "editor", "admin", "superadmin"].includes(profile.role)) {
+  if (!profile || !["sub_editor", "editor", "admin", "superadmin", "designer"].includes(profile.role)) {
     redirect("/login?next=/admin");
   }
 
@@ -30,7 +32,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
       <div className="max-w-[1280px] mx-auto flex">
         <AdminNav role={profile.role} isCouncil={profile.is_council} initialThemeKey={initialThemeKey} />
-        <main className="flex-1 p-6 min-w-0">{children}</main>
+        <main className="flex-1 p-6 min-w-0">
+          <DesignerModeGate isDesigner={profile.role === "designer"}>{children}</DesignerModeGate>
+        </main>
       </div>
     </div>
   );

@@ -18,7 +18,10 @@ export default function AdminReportsPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<Report>("reports", { orderBy: { column: "created_at", ascending: false } });
   const [profilesById, setProfilesById] = useState<Record<string, { name: string | null; nickname: string | null; email: string }>>({});
-  const { isAdmin, loading: roleLoading } = useMyRole();
+  const { isAdmin, role, loading: roleLoading } = useMyRole();
+  // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 이 경고 배너에서는 제외한다
+  // (실제 조작 차단은 DesignerModeGate가 담당).
+  const canView = isAdmin || role === "designer";
 
   // reports.target_id는 target_type에 따라 다른 대상을 가리키는 범용 컬럼이라 profiles와
   // FK로 묶여있지 않다(외래키 임베딩 불가) — 신고자/신고 대상(사용자인 경우) id를 모아
@@ -60,7 +63,7 @@ export default function AdminReportsPage() {
         실제 제재(닉네임 변경, 이용 제한 등)는 별도로 처리해 주세요.
       </p>
 
-      {!roleLoading && !isAdmin && (
+      {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 admin 이상만 열람할 수 있습니다.
         </div>

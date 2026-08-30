@@ -22,7 +22,10 @@ export default function AdminThemePage() {
   const current = rows.find((r) => r.id === "default");
   const currentKey = current && isHomeThemeKey(current.theme) ? current.theme : DEFAULT_HOME_THEME;
 
-  const { myId, isSuperadmin, loading: roleLoading } = useMyRole();
+  const { myId, isSuperadmin, role, loading: roleLoading } = useMyRole();
+  // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는
+  // 제외한다(실제 조작 차단은 DesignerModeGate가 담당).
+  const canView = isSuperadmin || role === "designer";
   const [saving, setSaving] = useState<string | null>(null);
 
   const applyTheme = async (key: string) => {
@@ -43,7 +46,7 @@ export default function AdminThemePage() {
         superadmin만 바꿀 수 있습니다.
       </p>
 
-      {!roleLoading && !isSuperadmin && (
+      {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 superadmin만 이용할 수 있습니다.
         </div>

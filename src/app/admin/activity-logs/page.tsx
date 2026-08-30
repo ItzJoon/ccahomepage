@@ -83,7 +83,10 @@ interface Row extends AuditLog {
 
 export default function AdminActivityLogsPage() {
   const supabase = createClient();
-  const { isSuperadmin, loading: roleLoading } = useMyRole();
+  const { isSuperadmin, role, loading: roleLoading } = useMyRole();
+  // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 한다 — 실제 조작 차단은
+  // DesignerModeGate(inert)가 담당하므로 여기서는 열람 자격만 함께 인정한다.
+  const canView = isSuperadmin || role === "designer";
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(0);
@@ -97,7 +100,7 @@ export default function AdminActivityLogsPage() {
   const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
-    if (!isSuperadmin) return;
+    if (!canView) return;
     setLoading(true);
     (async () => {
       // 이름/이메일 검색은 audit_logs가 아니라 profiles 쪽 조건이라, 먼저 일치하는
@@ -135,14 +138,14 @@ export default function AdminActivityLogsPage() {
       setTotal(count ?? 0);
       setLoading(false);
     })();
-  }, [isSuperadmin, search, actionFilter, tableFilter, dateFrom, dateTo, page, supabase]);
+  }, [canView, search, actionFilter, tableFilter, dateFrom, dateTo, page, supabase]);
 
   // 필터/검색이 바뀌면 첫 페이지로 되돌린다.
   useEffect(() => {
     setPage(0);
   }, [search, actionFilter, tableFilter, dateFrom, dateTo]);
 
-  if (!roleLoading && !isSuperadmin) {
+  if (!roleLoading && !canView) {
     return (
       <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-4">
         이 화면은 superadmin만 열람할 수 있습니다.

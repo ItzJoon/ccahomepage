@@ -178,14 +178,18 @@ export async function updateSession(request: NextRequest) {
     // teacher는 예전엔 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로
     // 접근할 수 있었는데, teacher 권한을 student와 동일하게 차단하면서 이 예외도 없앴다
     // (posts RLS에서도 teacher 전용 작성/수정 정책을 제거함).
+    // designer(조회 전용)는 모든 관리자 탭에 접근은 가능해야 하므로 이 아래의 모든 경로
+    // 제한에서 superadmin과 동급으로 취급한다 — 실제 쓰기 차단은 UI가 아니라 RLS(각 테이블의
+    // write 정책에 designer가 없음)가 담당하므로, 여기서 접근을 열어줘도 데이터는 안전하다.
     const adminAllowedRoles = isOrgActivitiesPath
-      ? ["sub_editor", "editor", "admin", "superadmin"]
-      : ["editor", "admin", "superadmin"];
+      ? ["sub_editor", "editor", "admin", "superadmin", "designer"]
+      : ["editor", "admin", "superadmin", "designer"];
     // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
     // 관리 탭도 항상 볼 수 있어야 한다(관리자가 플래그 설정 실수로 스스로를 포함해
     // 아무도 접근 못 하는 상황을 막기 위한 안전장치 — admin/superadmin이 명단과 무관하게
-    // 항상 로그인 가능한 것과 같은 종류의 예외).
-    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil && r !== "superadmin")) {
+    // 항상 로그인 가능한 것과 같은 종류의 예외). designer도 "모든 관리자 탭 접근 가능"
+    // 요건상 동일하게 예외 처리한다.
+    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil && r !== "superadmin" && r !== "designer")) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       url.searchParams.set("denied", "1");
@@ -193,7 +197,8 @@ export async function updateSession(request: NextRequest) {
     }
     // 아래 관리 메뉴들은 admin이 아니라 superadmin만 볼 수 있어야 한다(사이트 전체에
     // 영향을 주거나 민감한 개인정보를 다루는 화면들). 메뉴 자체는 AdminNav에서 숨기지만,
-    // URL을 직접 입력해 들어오는 시도도 여기서 막는다.
+    // URL을 직접 입력해 들어오는 시도도 여기서 막는다. designer는 조회 전용으로 이 화면들도
+    // 볼 수 있어야 하므로(요건: "super admin 전용 탭을 포함한 모든 관리자 탭") 함께 예외.
     const superadminOnlyPrefixes = [
       "/admin/access-requests",
       "/admin/badges",
@@ -204,17 +209,18 @@ export async function updateSession(request: NextRequest) {
       "/admin/feature-flags",
     ];
     if (superadminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-      if (r !== "superadmin") {
+      if (r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();
         url.pathname = "/admin";
         url.searchParams.set("denied", "1");
         return NextResponse.redirect(url);
       }
     }
-    // 신고 내역/급식표 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin 이상만 봐야 한다.
+    // 신고 내역/급식표 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin 이상만 봐야
+    // 한다. designer는 조회 전용으로 여기도 볼 수 있어야 해서 함께 예외.
     const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans"];
     if (adminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
-      if (r !== "admin" && r !== "superadmin") {
+      if (r !== "admin" && r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();
         url.pathname = "/admin";
         url.searchParams.set("denied", "1");

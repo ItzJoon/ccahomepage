@@ -78,8 +78,11 @@ export default function AdminNav({
   // sub_editor는 /admin/org-activities/* 외에는 middleware가 접근 자체를 막으므로, 눌러도
   // 튕겨나가기만 하는 다른 메뉴들은 아예 보여주지 않는다. teacher는 student와 동일하게
   // 관리 화면 접근 권한이 없어서(middleware가 /admin 진입 자체를 막음) 이 컴포넌트까지
-  // 오지 않는다.
+  // 오지 않는다. designer(조회 전용)는 "탭 자체는 숨기지 않는다"는 요건이라, 아래 모든
+  // 그룹 표시 조건에서 superadmin과 동일하게 취급해 전부 보여준다(실제 조작은 다른 곳에서
+  // DesignerModeGate가 막는다).
   const isSubEditor = role === "sub_editor";
+  const isDesigner = role === "designer";
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
       {!isSubEditor && (
@@ -90,7 +93,7 @@ export default function AdminNav({
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
         </>
       )}
-      {(isCouncil || role === "superadmin") && (
+      {(isCouncil || role === "superadmin" || isDesigner) && (
         <>
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
           {ORG_ACTIVITIES_NAV.map((n) => (
@@ -98,7 +101,7 @@ export default function AdminNav({
           ))}
         </>
       )}
-      {(role === "admin" || role === "superadmin") && (
+      {(role === "admin" || role === "superadmin" || isDesigner) && (
         <>
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
           {ADMIN_ONLY_NAV.map((n) => (
@@ -106,7 +109,7 @@ export default function AdminNav({
           ))}
         </>
       )}
-      {role === "superadmin" && (
+      {(role === "superadmin" || isDesigner) && (
         <>
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">관리자 전용</div>

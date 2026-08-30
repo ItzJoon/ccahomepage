@@ -2271,3 +2271,44 @@ insert into feature_flags (key) values ('members') on conflict (key) do nothing;
 insert into feature_flags (key) values ('calendar') on conflict (key) do nothing;
 insert into feature_flags (key) values ('news') on conflict (key) do nothing;
 insert into feature_flags (key) values ('rules') on conflict (key) do nothing;
+
+-- ------------------------------------------------------------
+-- 61. "designer" 조회 전용 역할 추가
+-- ------------------------------------------------------------
+-- 어떤 write(insert/update/delete) 정책에도 designer를 추가하지 않는다 — is_admin()/
+-- is_superadmin()/is_editor_or_above()/is_teacher_or_editor_above() 등 기존 role 체크
+-- 함수들을 전혀 건드리지 않으므로, 이 함수들로 게이트된 모든 write는 designer에게 자동으로
+-- 계속 막힌다. 대신 관리자 화면이 읽어야 하는 테이블마다 "select만 허용하는" 전용 정책을
+-- 새로 추가해서 admin/superadmin이 보는 데이터를 동일하게 볼 수 있게 한다(다른 정책과
+-- 병행되는 permissive 정책이라 기존 규칙에는 영향 없음). 실제 계정으로 라이브 테스트해서
+-- select는 통과하고 update는 0행 처리(차단)되는 것을 확인함.
+alter table profiles drop constraint if exists profiles_role_check;
+alter table profiles add constraint profiles_role_check
+  check (role in ('student','teacher','sub_editor','editor','admin','superadmin','viewer','designer'));
+
+create or replace function is_designer()
+returns boolean as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid() and role = 'designer'
+  );
+$$ language sql stable security definer;
+
+create policy "profiles_select_designer" on profiles for select using (is_designer());
+create policy "answers_select_designer" on answers for select using (is_designer());
+create policy "audit_logs_select_designer" on audit_logs for select using (is_designer());
+create policy "board_comments_select_designer" on board_comments for select using (is_designer());
+create policy "board_posts_select_designer" on board_posts for select using (is_designer());
+create policy "email_notification_batches_select_designer" on email_notification_batches for select using (is_designer());
+create policy "email_notification_logs_select_designer" on email_notification_logs for select using (is_designer());
+create policy "events_select_designer" on events for select using (is_designer());
+create policy "login_access_requests_select_designer" on login_access_requests for select using (is_designer());
+create policy "org_records_select_designer" on org_records for select using (is_designer());
+create policy "pages_select_designer" on pages for select using (is_designer());
+create policy "posts_select_designer" on posts for select using (is_designer());
+create policy "proposals_select_designer" on proposals for select using (is_designer());
+create policy "questions_select_designer" on questions for select using (is_designer());
+create policy "reports_select_designer" on reports for select using (is_designer());
+create policy "student_subjects_select_designer" on student_subjects for select using (is_designer());
+create policy "user_attendance_select_designer" on user_attendance for select using (is_designer());
+create policy "user_badges_select_designer" on user_badges for select using (is_designer());

@@ -21,7 +21,10 @@ export default function AdminFeatureFlagsPage() {
   // feature_flags는 기본키가 id가 아니라 key라서 useRealtimeList(항상 id 기준)를 쓰지
   // 않고 직접 조회한다. 자주 바뀌는 값이 아니라 실시간 구독까지는 필요 없다.
   const [rows, setRows] = useState<FeatureFlag[]>([]);
-  const { myId, isSuperadmin, loading: roleLoading } = useMyRole();
+  const { myId, isSuperadmin, role, loading: roleLoading } = useMyRole();
+  // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는
+  // 제외한다(실제 조작 차단은 DesignerModeGate가 담당).
+  const canView = isSuperadmin || role === "designer";
   const [saving, setSaving] = useState<string | null>(null);
 
   const load = async () => {
@@ -53,7 +56,7 @@ export default function AdminFeatureFlagsPage() {
         직접 들어와도 접근이 막힙니다. superadmin만 바꿀 수 있습니다.
       </p>
 
-      {!roleLoading && !isSuperadmin && (
+      {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 superadmin만 이용할 수 있습니다.
         </div>

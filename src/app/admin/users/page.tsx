@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
-const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin"];
+const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
 export default function AdminUsersPage() {
@@ -29,7 +29,10 @@ export default function AdminUsersPage() {
   const me = rows.find((p) => p.id === myId);
   const iAmSuperadmin = me?.role === "superadmin";
   const iAmAdmin = iAmSuperadmin || me?.role === "admin";
-  const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin");
+  const iAmDesigner = me?.role === "designer";
+  // designer(조회 전용) 옵션은 superadmin 계정에게만 보인다 — admin은 이 역할 자체를
+  // 부여할 수 없다(요건: admin에게는 안 보임).
+  const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin" && r !== "designer");
 
   const changeRole = async (id: string, role: string) => {
     await supabase.from("profiles").update({ role }).eq("id", id);
@@ -106,13 +109,20 @@ export default function AdminUsersPage() {
                   {dm?.member_type === "other" && "외부 승인 계정"}
                 </td>
                 <td className="p-2.5 border-b border-border">
-                  {canEdit ? (
+                  {canEdit || iAmDesigner ? (
+                    // designer는 어차피 아무것도 바꿀 수 없지만(DesignerModeGate + RLS가
+                    // 이중으로 막음), 요건상 입력 요소 자체는 감추지 않고 disabled로만
+                    // 보여준다 — 편집 가능한 다른 계정과 화면 구조가 동일하게 보인다.
                     <select
                       className="border border-border rounded-lg px-2 py-1 text-sm"
                       value={p.role}
+                      disabled={!canEdit}
                       onChange={(e) => changeRole(p.id, e.target.value)}
                     >
-                      {selectableRoles.map((r) => <option key={r} value={r}>{r}</option>)}
+                      {/* disabled(designer 열람 전용)일 때는 표시 중인 role이 selectableRoles에
+                          없어도(예: designer가 admin 계정의 행을 보는 경우) value가 옵션 목록에
+                          없어서 빈 값으로 보이지 않도록 전체 ROLES를 옵션으로 쓴다. */}
+                      {(canEdit ? selectableRoles : ROLES).map((r) => <option key={r} value={r}>{r}</option>)}
                     </select>
                   ) : (
                     <span className="text-sm text-muted" title={lockReason}>

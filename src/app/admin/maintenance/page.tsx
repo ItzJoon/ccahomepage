@@ -11,7 +11,8 @@ export default function AdminMaintenancePage() {
   const { rows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = rows.find((r) => r.id === "default");
 
-  const { isAdmin: iAmAdmin } = useMyRole();
+  const { isAdmin: iAmAdmin, role } = useMyRole();
+  const isDesigner = role === "designer";
   const [form, setForm] = useState({ maintenance_mode: false, maintenance_message: "", maintenance_until: "" });
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
@@ -87,9 +88,9 @@ export default function AdminMaintenancePage() {
           onChange={(e) => setForm({ ...form, maintenance_until: e.target.value })}
         />
 
-        {iAmAdmin ? (
+        {iAmAdmin || isDesigner ? (
           <div className="flex items-center gap-2 mt-3.5">
-            <button disabled={saving || !isDirty} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+            <button disabled={!iAmAdmin || saving || !isDirty} onClick={save} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
               {saving ? "저장 중…" : "저장"}
             </button>
             {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}
