@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
+import ImageLightbox from "@/components/ImageLightbox";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { todayKST } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
@@ -208,7 +209,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
                 <BlockTitle t={t} eyebrow="MEAL" title="이번 달 급식표" />
                 {thisMonth ? (
-                  <img
+                  <ImageLightbox
                     src={thisMonth.image_url}
                     alt={`${thisMonth.year}년 ${thisMonth.month}월 급식표`}
                     className="w-full rounded-lg border border-border object-contain"
