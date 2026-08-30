@@ -66,17 +66,30 @@ export async function updateSession(request: NextRequest) {
   let role: string | null = null;
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
   let directoryAllowed = false;
-  if (user && !isSpecialPageExempt) {
-    const [roleResult, settingsResult, directoryResult] = await Promise.all([
-      supabase.from("profiles").select("role").eq("id", user.id).single(),
-      supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
-      user.email
-        ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
-        : Promise.resolve({ data: null }),
-    ]);
-    role = roleResult.data?.role ?? null;
-    siteSettings = settingsResult.data;
-    directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
+  if (!isSpecialPageExempt) {
+    if (user) {
+      const [roleResult, settingsResult, directoryResult] = await Promise.all([
+        supabase.from("profiles").select("role").eq("id", user.id).single(),
+        supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
+        user.email
+          ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
+      role = roleResult.data?.role ?? null;
+      siteSettings = settingsResult.data;
+      directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
+    } else {
+      // 비로그인 방문자는 role/명단 체크가 필요 없지만, 사이트 잠금 모드(maintenance_mode)는
+      // 로그인 여부와 무관하게 모든 방문자에게 적용돼야 하므로 이 조회만은 건너뛰면 안 된다.
+      // (이전에는 이 fetch 전체가 `user &&` 조건 안에만 있어서, 잠금 중에도 비로그인
+      // 방문자에게는 사이트가 그대로 보이는 버그가 있었다.)
+      const { data } = await supabase
+        .from("site_settings")
+        .select("maintenance_mode, restrict_external_checkin")
+        .eq("id", "default")
+        .maybeSingle();
+      siteSettings = data;
+    }
   }
 
   // 학교 구성원 명단(directory_members)에 없는 이메일은 로그인은 되어도 사이트를 이용할 수
