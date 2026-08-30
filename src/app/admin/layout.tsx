@@ -4,6 +4,7 @@ import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import AdminNav from "@/components/admin/AdminNav";
 import AdminHeader from "@/components/admin/AdminHeader";
 import DesignerModeGate from "@/components/admin/DesignerModeGate";
+import AdminDateBadgeSync from "@/components/admin/AdminDateBadgeSync";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="max-w-[1280px] mx-auto flex">
         <AdminNav role={profile.role} isCouncil={profile.is_council} initialThemeKey={initialThemeKey} />
         <main className="flex-1 p-6 min-w-0">
+          <AdminDateBadgeSync userId={profile.id} />
           <DesignerModeGate isDesigner={profile.role === "designer"}>{children}</DesignerModeGate>
         </main>
       </div>
