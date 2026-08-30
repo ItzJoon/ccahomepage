@@ -10,7 +10,7 @@ const PAGE_SIZE = 50;
 const TABLE_LABELS: Record<string, string> = {
   posts: "게시글(공지/뉴스)",
   events: "일정",
-  organizations: "조직",
+  organizations: "부서",
   members: "구성원",
   rules: "규정",
   answers: "Q&A 답변",
@@ -19,8 +19,8 @@ const TABLE_LABELS: Record<string, string> = {
   login_access_requests: "외부 계정 요청",
   user_badges: "뱃지 지급",
   proposals: "안건 상태",
-  org_events: "조직 일정",
-  org_records: "조직 활동기록",
+  org_events: "부서 일정",
+  org_records: "부서 활동기록",
   site_settings: "사이트 설정",
 };
 

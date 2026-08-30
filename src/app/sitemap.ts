@@ -5,7 +5,7 @@ const SITE_URL = "https://ccahomepage.vercel.app";
 
 /**
  * 구글 등 검색엔진에 어떤 페이지가 있는지 알려주는 sitemap.xml을 자동 생성한다.
- * 정적 메뉴 페이지 + 실제 공개된 공지/뉴스/조직 상세 페이지를 모두 포함한다.
+ * 정적 메뉴 페이지 + 실제 공개된 공지/뉴스/부서 상세 페이지를 모두 포함한다.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient();

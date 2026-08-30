@@ -55,7 +55,7 @@ export default function OrgRecordsManager() {
   const save = async () => {
     setError(null);
     if (!form.org_id || !form.title.trim() || !form.content.trim()) {
-      setError("소속 조직, 제목, 내용을 모두 입력해 주세요.");
+      setError("소속 부서, 제목, 내용을 모두 입력해 주세요.");
       return;
     }
     if (editing === "new") {
@@ -79,14 +79,14 @@ export default function OrgRecordsManager() {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
-          <h2 className="text-[22px]">조직 활동 · 활동기록 관리</h2>
+          <h2 className="text-[22px]">부서 활동 · 활동기록 관리</h2>
           <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 기록 작성</button>
         </div>
         <AdminTable>
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">조직</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성일</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
@@ -113,9 +113,9 @@ export default function OrgRecordsManager() {
       {editing && (
         <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
           <h3>{editing === "new" ? "기록 작성" : "기록 수정"}</h3>
-          <label className="text-xs font-bold text-muted mt-2">소속 조직</label>
+          <label className="text-xs font-bold text-muted mt-2">소속 부서</label>
           <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
-            <option value="">조직을 선택하세요</option>
+            <option value="">부서를 선택하세요</option>
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
           <label className="text-xs font-bold text-muted mt-2">분류</label>

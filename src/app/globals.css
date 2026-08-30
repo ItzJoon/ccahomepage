@@ -27,7 +27,7 @@ h1, h2, h3 {
   font-family: "Noto Sans KR", -apple-system, sans-serif;
 }
 
-/* 조직/카테고리 배지 - 리본형 시그니처 요소 */
+/* 부서/카테고리 배지 - 리본형 시그니처 요소 */
 .badge {
   display: inline-block;
   padding: 3px 10px 3px 12px;

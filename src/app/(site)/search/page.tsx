@@ -16,7 +16,7 @@ function snippet(text: string, len = 80) {
   return text.length > len ? `${text.slice(0, len)}…` : text;
 }
 
-// 학생자치회 소개/생활규정/조직 활동은 각자 페이지 안에서만 검색되므로(사용자 요청)
+// 학생자치회 소개/생활규정/부서 활동은 각자 페이지 안에서만 검색되므로(사용자 요청)
 // 여기서는 다루지 않는다 — /organizations, /rules, /org-activities 참고.
 export default function SearchPage() {
   const router = useRouter();

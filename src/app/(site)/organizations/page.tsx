@@ -33,12 +33,12 @@ export default function OrganizationsPage() {
     <div>
       <SectionTitle eyebrow="ABOUT" title="학생자치회 소개" />
       <p className="text-muted mb-4">
-        학생자치회는 여러 조직으로 구성되어 학생들의 자율적인 학교생활을 지원합니다.
+        학생자치회는 여러 부서로 구성되어 학생들의 자율적인 학교생활을 지원합니다.
       </p>
       <div className="mb-3.5">
         <input
           className="w-full max-w-md border border-border rounded-lg px-3 py-2 text-sm"
-          placeholder="조직 이름 또는 소개 검색"
+          placeholder="부서 이름 또는 소개 검색"
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -58,7 +58,7 @@ export default function OrganizationsPage() {
         ))}
         {list.length === 0 && (
           <div className="text-muted text-center py-8 text-sm col-span-2">
-            {q.trim() ? "검색 결과가 없습니다." : "등록된 조직이 없습니다."}
+            {q.trim() ? "검색 결과가 없습니다." : "등록된 부서가 없습니다."}
           </div>
         )}
       </div>

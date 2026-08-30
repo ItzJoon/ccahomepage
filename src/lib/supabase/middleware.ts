@@ -132,7 +132,7 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
-  // 조직 활동(안건함/조직 일정/활동기록)이 임원회 전용으로 바뀌면서, 학생 메뉴에서
+  // 부서 활동(안건함/부서 일정/활동기록)이 임원회 전용으로 바뀌면서, 학생 메뉴에서
   // 링크를 지운 것과 별개로 URL을 직접 입력해 들어오는 것도 막는다 — /admin/org-activities/*
   // 와 동일한 기준(is_council, superadmin은 예외)을 그대로 적용한다.
   if ((pathname === "/org-activities" || pathname.startsWith("/org-activities/")) && !(isCouncil || role === "superadmin")) {
@@ -160,8 +160,8 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     const r = role;
-    // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "조직 활동
-    // 관리"(안건함/조직 일정/활동기록) 화면은 sub_editor 이상 중에서도 임원회
+    // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "부서 활동
+    // 관리"(안건함/부서 일정/활동기록) 화면은 sub_editor 이상 중에서도 임원회
     // (is_council=true)만 볼 수 있다 — role만으로는 부족하고 플래그도 함께 필요하다.
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");

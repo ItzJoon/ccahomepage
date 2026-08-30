@@ -12,7 +12,7 @@ const COLOR_VAR: Record<string, string> = {
 export default async function OrgDetailPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();
   const { data: org } = await supabase.from("organizations").select("*").eq("slug", params.slug).single();
-  if (!org) return <div className="text-muted text-center py-10">조직을 찾을 수 없습니다.</div>;
+  if (!org) return <div className="text-muted text-center py-10">부서를 찾을 수 없습니다.</div>;
 
   const { data: members } = await supabase
     .from("members")
@@ -26,7 +26,7 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
         ← 학생자치회 소개로
       </Link>
       <div className="pl-4" style={{ borderLeft: `6px solid ${COLOR_VAR[org.color] || COLOR_VAR.navy}` }}>
-        <Badge color={org.color}>조직</Badge>
+        <Badge color={org.color}>부서</Badge>
         <h1 className="text-2xl my-2">{org.name}</h1>
         <p className="text-muted">{org.description}</p>
       </div>

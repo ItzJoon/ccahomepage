@@ -35,7 +35,7 @@ export default function ProposalsManager() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [iAmAdmin, setIAmAdmin] = useState(false);
   const [myId, setMyId] = useState<string | null>(null);
-  // 원래는 학생용 /org-activities 공개 페이지에서만 안건을 등록할 수 있었는데, 조직 활동이
+  // 원래는 학생용 /org-activities 공개 페이지에서만 안건을 등록할 수 있었는데, 부서 활동이
   // 임원회 전용으로 바뀌면서 이 관리 화면(이 페이지에 들어올 수 있다는 것 자체가 이미
   // is_council 또는 superadmin이라는 뜻)에서도 바로 등록할 수 있게 추가했다.
   const [writing, setWriting] = useState(false);
@@ -55,7 +55,7 @@ export default function ProposalsManager() {
     setError(null);
     if (!myId) return;
     if (!form.org_id || !form.title.trim() || !form.summary.trim()) {
-      setError("소속 조직, 제목, 내용을 모두 입력해 주세요.");
+      setError("소속 부서, 제목, 내용을 모두 입력해 주세요.");
       return;
     }
     const { error } = await supabase.from("proposals").insert({
@@ -95,7 +95,7 @@ export default function ProposalsManager() {
     <div className="grid grid-cols-1 lg:grid-cols-[1fr_360px] gap-[18px] items-start">
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
-          <h2 className="text-[22px]">조직 활동 · 안건함 관리</h2>
+          <h2 className="text-[22px]">부서 활동 · 안건함 관리</h2>
           <button
             onClick={() => setWriting((v) => !v)}
             className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5"
@@ -108,13 +108,13 @@ export default function ProposalsManager() {
         </p>
         {writing && (
           <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
-            <label className="text-sm font-bold">소속 조직</label>
+            <label className="text-sm font-bold">소속 부서</label>
             <select
               className="border border-border rounded-lg px-3 py-2 text-sm"
               value={form.org_id}
               onChange={(e) => setForm({ ...form, org_id: e.target.value })}
             >
-              <option value="">조직을 선택하세요</option>
+              <option value="">부서를 선택하세요</option>
               {orgs.map((o) => (
                 <option key={o.id} value={o.id}>{o.name}</option>
               ))}
@@ -142,7 +142,7 @@ export default function ProposalsManager() {
           <thead>
             <tr>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">조직</th>
+              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">찬성/반대</th>
               <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
             </tr>

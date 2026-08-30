@@ -71,7 +71,7 @@ export default function OrgActivitiesPage() {
 
   return (
     <div>
-      <SectionTitle eyebrow="ORGANIZATIONS" title="조직 활동" />
+      <SectionTitle eyebrow="ORGANIZATIONS" title="부서 활동" />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex border border-border rounded-lg overflow-hidden">
           <button
@@ -84,7 +84,7 @@ export default function OrgActivitiesPage() {
             className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "events" ? "bg-navy text-white" : "bg-white"}`}
             onClick={() => setTab("events")}
           >
-            조직 일정
+            부서 일정
           </button>
           <button
             className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "records" ? "bg-navy text-white" : "bg-white"}`}
@@ -107,7 +107,7 @@ export default function OrgActivitiesPage() {
             value={orgFilter}
             onChange={(e) => setOrgFilter(e.target.value)}
           >
-            <option value="all">전체 조직</option>
+            <option value="all">전체 부서</option>
             {orgs.map((o) => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
@@ -179,7 +179,7 @@ function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter:
       return;
     }
     if (!form.org_id || !form.title.trim() || !form.summary.trim()) {
-      setError("소속 조직, 제목, 내용을 모두 입력해 주세요.");
+      setError("소속 부서, 제목, 내용을 모두 입력해 주세요.");
       return;
     }
     const { error } = await supabase.from("proposals").insert({
@@ -212,13 +212,13 @@ function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter:
           {userId === null && (
             <div className="text-sm bg-[#FFF7E6] rounded-lg p-3 mb-2">로그인 후 안건을 등록할 수 있습니다.</div>
           )}
-          <label className="text-sm font-bold">소속 조직</label>
+          <label className="text-sm font-bold">소속 부서</label>
           <select
             className="border border-border rounded-lg px-3 py-2 text-sm"
             value={form.org_id}
             onChange={(e) => setForm({ ...form, org_id: e.target.value })}
           >
-            <option value="">조직을 선택하세요</option>
+            <option value="">부서를 선택하세요</option>
             {orgs.map((o) => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
@@ -323,7 +323,7 @@ function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: strin
   const submit = async () => {
     setError(null);
     if (!form.org_id || !form.title.trim() || !form.start_at || !form.end_at) {
-      setError("소속 조직, 일정명, 시작·종료 시간을 확인해 주세요.");
+      setError("소속 부서, 일정명, 시작·종료 시간을 확인해 주세요.");
       return;
     }
     const start = new Date(form.start_at);
@@ -365,13 +365,13 @@ function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: strin
 
       {writing && iAmEditor && (
         <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
-          <label className="text-sm font-bold">소속 조직</label>
+          <label className="text-sm font-bold">소속 부서</label>
           <select
             className="border border-border rounded-lg px-3 py-2 text-sm"
             value={form.org_id}
             onChange={(e) => setForm({ ...form, org_id: e.target.value })}
           >
-            <option value="">조직을 선택하세요</option>
+            <option value="">부서를 선택하세요</option>
             {orgs.map((o) => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}
@@ -453,9 +453,9 @@ function EventsTab({ orgs, orgFilter }: { orgs: Organization[]; orgFilter: strin
   );
 }
 
-// 어느 부서가 조직 일정(org_events)을 등록하든, 새 데이터를 따로 저장하지 않고 기존
-// org_events를 조직 구분 없이 전부 모아서 보여준다(요청사항: 새 테이블 없이 재사용).
-// 조직 필터 UI는 상위(OrgActivitiesPage)에서 이 탭일 때 숨긴다 — 전체를 한눈에 보는 게
+// 어느 부서가 부서 일정(org_events)을 등록하든, 새 데이터를 따로 저장하지 않고 기존
+// org_events를 부서 구분 없이 전부 모아서 보여준다(요청사항: 새 테이블 없이 재사용).
+// 부서 필터 UI는 상위(OrgActivitiesPage)에서 이 탭일 때 숨긴다 — 전체를 한눈에 보는 게
 // 이 캘린더의 목적이라 필터를 두지 않았다.
 function ExecutiveCalendarTab({ orgs }: { orgs: Organization[] }) {
   const { rows: events } = useRealtimeList<OrgEvent>("org_events", { orderBy: { column: "start_at" } });
@@ -464,7 +464,7 @@ function ExecutiveCalendarTab({ orgs }: { orgs: Organization[] }) {
   return (
     <div>
       <p className="text-muted text-sm mb-3">
-        모든 부서의 조직 일정을 한곳에 모아 보여주는 학생회 임원회 전용 캘린더입니다.
+        모든 부서의 일정을 한곳에 모아 보여주는 학생회 임원회 전용 캘린더입니다.
       </p>
       <ul className="list-none m-0 p-0">
         {events.map((e) => (
@@ -481,7 +481,7 @@ function ExecutiveCalendarTab({ orgs }: { orgs: Organization[] }) {
             {e.description && <p className="text-sm mt-1">{e.description}</p>}
           </li>
         ))}
-        {events.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 조직 일정이 없습니다.</div>}
+        {events.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 부서 일정이 없습니다.</div>}
       </ul>
     </div>
   );
@@ -514,7 +514,7 @@ function RecordsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter: s
   const submit = async () => {
     setError(null);
     if (!form.org_id || !form.title.trim() || !form.content.trim()) {
-      setError("소속 조직, 제목, 내용을 모두 입력해 주세요.");
+      setError("소속 부서, 제목, 내용을 모두 입력해 주세요.");
       return;
     }
     const { error } = await supabase.from("org_records").insert({
@@ -547,13 +547,13 @@ function RecordsTab({ orgs, orgFilter, q }: { orgs: Organization[]; orgFilter: s
 
       {writing && iAmEditor && (
         <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
-          <label className="text-sm font-bold">소속 조직</label>
+          <label className="text-sm font-bold">소속 부서</label>
           <select
             className="border border-border rounded-lg px-3 py-2 text-sm"
             value={form.org_id}
             onChange={(e) => setForm({ ...form, org_id: e.target.value })}
           >
-            <option value="">조직을 선택하세요</option>
+            <option value="">부서를 선택하세요</option>
             {orgs.map((o) => (
               <option key={o.id} value={o.id}>{o.name}</option>
             ))}

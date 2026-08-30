@@ -7,7 +7,7 @@ export const metadata: Metadata = {
     default: "중앙기독고등학교 학생자치회",
     template: "%s | 중앙기독고등학교 학생자치회",
   },
-  description: "학생자치회 공식 홈페이지 — 공지사항, 조직 소개, 학사일정, 규정 등을 확인하세요.",
+  description: "학생자치회 공식 홈페이지 — 공지사항, 부서 소개, 학사일정, 규정 등을 확인하세요.",
   verification: {
     google: "95ZwXJ_vN51YAY4FWQv4OR3AC0yR6MbKc2eA4K3hAfc",
   },

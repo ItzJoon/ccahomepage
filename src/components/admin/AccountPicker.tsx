@@ -7,7 +7,7 @@ export const accountDisplayName = (p: Profile) => p.nickname || p.name || p.emai
 
 /**
  * 로그인된 사용자를 이름/이메일로 검색해 연결하는 공용 위젯.
- * 구성원 관리(/admin/members), 조직 관리(/admin/organizations)의 구성원 추가 폼에서 공유해서 쓴다.
+ * 구성원 관리(/admin/members), 부서 관리(/admin/organizations)의 구성원 추가 폼에서 공유해서 쓴다.
  */
 export default function AccountPicker({
   profiles,
