@@ -62,9 +62,10 @@ export default function OrgActivitiesPage() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) return;
       // "학생회 임원회" 여부는 profiles.is_council 플래그로 관리한다(admin이 /admin/users
-      // 에서 개별 지정). role과 독립적인 값이라 role 체크와 별도로 조회한다.
-      const { data: me } = await supabase.from("profiles").select("is_council").eq("id", data.user.id).single();
-      setIsExecutive(!!me?.is_council);
+      // 에서 개별 지정). role과 독립적인 값이라 role 체크와 별도로 조회한다. superadmin은
+      // is_council 여부와 무관하게 항상 볼 수 있어야 하는 최상위 권한이라 함께 예외 처리한다.
+      const { data: me } = await supabase.from("profiles").select("is_council, role").eq("id", data.user.id).single();
+      setIsExecutive(!!me?.is_council || me?.role === "superadmin");
     });
   }, [supabase]);
 

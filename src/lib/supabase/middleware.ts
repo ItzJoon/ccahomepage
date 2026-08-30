@@ -132,6 +132,15 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // 조직 활동(안건함/조직 일정/활동기록)이 임원회 전용으로 바뀌면서, 학생 메뉴에서
+  // 링크를 지운 것과 별개로 URL을 직접 입력해 들어오는 것도 막는다 — /admin/org-activities/*
+  // 와 동일한 기준(is_council, superadmin은 예외)을 그대로 적용한다.
+  if ((pathname === "/org-activities" || pathname.startsWith("/org-activities/")) && !(isCouncil || role === "superadmin")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/";
+    return NextResponse.redirect(url);
+  }
+
   if (!isMaintenanceExempt && siteSettings?.maintenance_mode) {
     // viewer는 관리자 권한은 전혀 없지만(아래 /admin 체크에서 항상 막힘), 잠금 모드
     // 중에도 사이트를 볼 수 있어야 하는 전용 역할이라 admin/superadmin과 함께 예외 처리한다.

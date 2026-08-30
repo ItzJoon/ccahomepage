@@ -1946,3 +1946,41 @@ returns boolean as $$
       )
   );
 $$ language sql stable security definer;
+
+-- ------------------------------------------------------------
+-- 51. posts/board_posts/board_comments 작성자 이름을 안전하게 노출하는 computed column
+-- ------------------------------------------------------------
+-- profiles의 select RLS는 본인 또는 editor 이상만 다른 사람 행을 볼 수 있어서, 학생
+-- 화면에서 posts/board_posts/board_comments를 profiles와 그대로 조인하면(PostgREST embed)
+-- 다른 사람이 쓴 글은 작성자 이름이 항상 비어서 온다(RLS가 그 프로필 행을 가려버린다 —
+-- 실제로 라이브 쿼리로 재현 확인함). events_with_creator처럼 뷰(security_invoker=false)로
+-- 만들면 posts 자체의 RLS(임시저장/숨김/교과·학급 대상 제한 등)까지 함께 우회돼버려
+-- 위험하므로, 대신 "이름만" 안전하게 반환하는 SECURITY DEFINER 함수를 PostgREST computed
+-- column으로 노출한다 — 원본 테이블의 select는 여전히 정상적으로 RLS를 타고, 이 함수만
+-- profiles 조회를 우회한다.
+create or replace function author_name(posts) returns text as $$
+  select coalesce(p.nickname, p.name) from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+grant execute on function author_name(posts) to anon, authenticated;
+
+create or replace function author_name(board_posts) returns text as $$
+  select coalesce(p.nickname, p.name) from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+grant execute on function author_name(board_posts) to anon, authenticated;
+
+create or replace function author_name(board_comments) returns text as $$
+  select coalesce(p.nickname, p.name) from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+grant execute on function author_name(board_comments) to anon, authenticated;
+
+-- board_posts/board_comments 목록에서 작성자 프로필 사진도 함께 보여주는데, 이것도
+-- author_name과 같은 이유로 profiles RLS에 막혀 다른 사람 것은 비어 온다. 같은 방식으로 해결.
+create or replace function author_avatar(board_posts) returns text as $$
+  select p.profile_image from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+grant execute on function author_avatar(board_posts) to anon, authenticated;
+
+create or replace function author_avatar(board_comments) returns text as $$
+  select p.profile_image from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+grant execute on function author_avatar(board_comments) to anon, authenticated;

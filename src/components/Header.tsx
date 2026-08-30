@@ -18,7 +18,6 @@ const NAV = [
   { href: "/notices", label: "공지사항" },
   { href: "/organizations", label: "학생자치회 소개" },
   { href: "/members", label: "구성원" },
-  { href: "/org-activities", label: "조직 활동" },
   { href: "/calendar", label: "일정" },
   { href: "/news", label: "뉴스" },
   { href: "/rules", label: "생활규정" },
