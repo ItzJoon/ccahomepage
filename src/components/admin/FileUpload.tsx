@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { safeStorageKey } from "@/lib/storageKey";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 
 export interface AttachmentRef {
   file_url: string;
@@ -24,6 +25,7 @@ export default function FileUpload({
   onChange: (files: AttachmentRef[]) => void;
 }) {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -60,7 +62,7 @@ export default function FileUpload({
           </button>
         </span>
       ))}
-      <label className="text-xs font-bold border border-border rounded-lg px-3 py-1.5 cursor-pointer bg-white">
+      <label className={`${t.adminBtnSecondary} text-xs cursor-pointer`}>
         {uploading ? "업로드 중…" : "+ 파일 추가"}
         <input
           type="file"

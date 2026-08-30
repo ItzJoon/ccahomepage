@@ -4,6 +4,7 @@ import AdminTable from "./AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { EmailNotificationBatch, EmailNotificationLog } from "@/lib/types";
 
 function fmtDateTime(iso: string) {
@@ -19,6 +20,7 @@ function fmtDateTime(iso: string) {
  */
 export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean }) {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows } = useRealtimeList<EmailNotificationBatch>("email_notification_batches", {
     orderBy: { column: "created_at", ascending: false },
     limit: 200,
@@ -52,25 +54,25 @@ export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean
       <AdminTable>
         <thead>
           <tr>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">공지 제목</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2">대상</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">대상자 수</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">성공/실패</th>
-            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">발송 시각</th>
+            <th className={t.adminTableHeaderCell}>공지 제목</th>
+            <th className={t.adminTableHeaderCell}>대상</th>
+            <th className={`${t.adminTableHeaderCell} w-20`}>대상자 수</th>
+            <th className={`${t.adminTableHeaderCell} w-24`}>성공/실패</th>
+            <th className={`${t.adminTableHeaderCell} w-32`}>발송 시각</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((b) => (
             <>
-              <tr key={b.id} className="hover:bg-[#F2F4F8] cursor-pointer" onClick={() => toggleExpand(b.id)}>
-                <td className="p-2.5 border-b border-border text-sm">{b.post_title || "(삭제된 글)"}</td>
-                <td className="p-2.5 border-b border-border text-sm text-muted">{b.audience_description}</td>
-                <td className="p-2.5 border-b border-border text-sm">{b.recipient_count}</td>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={b.id} className={`${t.adminTableRowHover} cursor-pointer`} onClick={() => toggleExpand(b.id)}>
+                <td className={t.adminTableCell}>{b.post_title || "(삭제된 글)"}</td>
+                <td className={`${t.adminTableCell} text-muted`}>{b.audience_description}</td>
+                <td className={t.adminTableCell}>{b.recipient_count}</td>
+                <td className={t.adminTableCell}>
                   <span className="text-teal font-bold">{b.success_count}</span> /{" "}
                   <span className="text-red font-bold">{b.failure_count}</span>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{fmtDateTime(b.created_at)}</td>
+                <td className={t.adminTableCell}>{fmtDateTime(b.created_at)}</td>
               </tr>
               {expanded === b.id && (
                 <tr>

@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { Organization, Proposal, ProposalVote } from "@/lib/types";
 
 const STATUS_OPTIONS: Proposal["status"][] = ["review", "approved", "rejected", "completed"];
@@ -28,6 +29,7 @@ function fmt(d: string) {
 
 export default function ProposalsManager() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const { rows: proposals, reload } = useRealtimeList<Proposal>("proposals", {
     orderBy: { column: "updated_at", ascending: false },
@@ -94,7 +96,7 @@ export default function ProposalsManager() {
           <h2 className="text-[22px]">부서 활동 · 안건함 관리</h2>
           <button
             onClick={() => setWriting((v) => !v)}
-            className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5"
+            className={t.adminBtnPrimary}
           >
             {writing ? "닫기" : "+ 안건 추가"}
           </button>
@@ -104,10 +106,10 @@ export default function ProposalsManager() {
           삭제는 작성자 본인 또는 admin 이상만 가능합니다.
         </p>
         {writing && (
-          <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
+          <div className={`${t.adminEditPanel} flex flex-col gap-1.5 mb-4`}>
             <label className="text-sm font-bold">소속 부서</label>
             <select
-              className="border border-border rounded-lg px-3 py-2 text-sm"
+              className={t.adminInput}
               value={form.org_id}
               onChange={(e) => setForm({ ...form, org_id: e.target.value })}
             >
@@ -118,19 +120,19 @@ export default function ProposalsManager() {
             </select>
             <label className="text-sm font-bold mt-2">안건 제목</label>
             <input
-              className="border border-border rounded-lg px-3 py-2 text-sm"
+              className={t.adminInput}
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
             />
             <label className="text-sm font-bold mt-2">안건 내용</label>
             <textarea
               rows={4}
-              className="border border-border rounded-lg px-3 py-2 text-sm"
+              className={t.adminInput}
               value={form.summary}
               onChange={(e) => setForm({ ...form, summary: e.target.value })}
             />
             {error && <div className="text-red text-xs">{error}</div>}
-            <button onClick={submitNew} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3 self-start">
+            <button onClick={submitNew} className={`${t.adminBtnPrimary} mt-3 self-start`}>
               안건 등록
             </button>
           </div>
@@ -138,11 +140,11 @@ export default function ProposalsManager() {
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">찬성/반대</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">상태</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>부서</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>찬성/반대</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
           <tbody>
@@ -150,9 +152,9 @@ export default function ProposalsManager() {
               <tr
                 key={p.id}
                 onClick={() => setSelectedId(p.id)}
-                className={`cursor-pointer hover:bg-[#F2F4F8] ${selectedId === p.id ? "bg-[#EAF0FB]" : ""}`}
+                className={`cursor-pointer ${t.adminTableRowHover} ${selectedId === p.id ? t.adminTableRowActive : ""}`}
               >
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>
                   <div className="flex items-center gap-1">
                     <span {...truncateCellProps(p.title)}>{p.title}</span>
                     {p.is_hidden && (
@@ -160,16 +162,16 @@ export default function ProposalsManager() {
                     )}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{orgName(p.org_id)}</td>
-                <td className="p-2.5 border-b border-border text-sm">
+                <td className={t.adminTableCell}>{orgName(p.org_id)}</td>
+                <td className={t.adminTableCell}>
                   {voteCount(p.id, "yes")} / {voteCount(p.id, "no")}
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLASS[p.status]}`}>
                     {STATUS_LABEL[p.status]}
                   </span>
                 </td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     {iAmEditorUp && (
                       <button
@@ -181,7 +183,7 @@ export default function ProposalsManager() {
                     )}
                     {(myId === p.author_id || iAmAdmin) && (
                       <button
-                        className="text-red text-xs font-bold shrink-0"
+                        className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => { e.stopPropagation(); remove(p.id); }}
                       >
                         삭제
@@ -198,7 +200,7 @@ export default function ProposalsManager() {
         </AdminTable>
       </div>
       {current && (
-        <div className="bg-white border border-border rounded-xl p-[18px] sticky top-20">
+        <div className={`${t.adminEditPanel} sticky top-20`}>
           <h3>{current.title}</h3>
           <div className="text-xs text-muted mb-2">{orgName(current.org_id)} · {fmt(current.created_at)}</div>
           <p className="text-sm whitespace-pre-wrap">{current.summary}</p>
@@ -207,7 +209,7 @@ export default function ProposalsManager() {
           </div>
           <label className="text-xs font-bold text-muted mt-3 block">상태 변경</label>
           <select
-            className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
+            className={`${t.adminInput} w-full`}
             value={current.status}
             onChange={(e) => changeStatus(current.id, e.target.value as Proposal["status"])}
           >
@@ -219,19 +221,19 @@ export default function ProposalsManager() {
             {iAmEditorUp && (
               <button
                 onClick={() => toggleHidden(current.id, current.is_hidden)}
-                className="text-blue text-xs font-bold border border-border rounded-lg px-4 py-2"
+                className={t.adminBtnSecondary}
               >
                 {current.is_hidden ? "숨김 해제" : "숨김"}
               </button>
             )}
             {(myId === current.author_id || iAmAdmin) ? (
-              <button onClick={() => remove(current.id)} className="text-red text-xs font-bold border border-border rounded-lg px-4 py-2">
+              <button onClick={() => remove(current.id)} className={t.adminBtnSecondary}>
                 삭제
               </button>
             ) : (
               <span className="text-muted text-xs self-center" title="삭제는 작성자 본인 또는 admin 이상만 가능합니다">🔒 삭제 불가</span>
             )}
-            <button onClick={() => setSelectedId(null)} className="border border-border text-sm rounded-lg px-4 py-2 ml-auto">
+            <button onClick={() => setSelectedId(null)} className={`${t.adminBtnSecondary} ml-auto`}>
               닫기
             </button>
           </div>

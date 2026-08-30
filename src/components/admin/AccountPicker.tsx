@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { Profile } from "@/lib/types";
 
 export const accountDisplayName = (p: Profile) => p.nickname || p.name || p.email;
@@ -21,6 +22,7 @@ export default function AccountPicker({
   onUnlink: () => void;
 }) {
   const [query, setQuery] = useState("");
+  const { t } = useHomeTheme();
 
   if (linkedProfile) {
     return (
@@ -33,7 +35,7 @@ export default function AccountPicker({
           </div>
         )}
         <div className="flex-1 min-w-0 text-sm truncate">{accountDisplayName(linkedProfile)}</div>
-        <button type="button" onClick={onUnlink} className="text-red text-xs font-bold shrink-0">연결 해제</button>
+        <button type="button" onClick={onUnlink} className={`${t.adminBtnDanger} shrink-0`}>연결 해제</button>
       </div>
     );
   }
@@ -52,7 +54,7 @@ export default function AccountPicker({
   return (
     <div className="relative">
       <input
-        className="border border-border rounded-lg px-2.5 py-2 text-sm w-full"
+        className={`${t.adminInput} w-full`}
         placeholder="이름 또는 이메일로 검색"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -67,7 +69,7 @@ export default function AccountPicker({
                 onLink(p);
                 setQuery("");
               }}
-              className="flex items-center gap-2 w-full text-left px-2.5 py-2 text-sm hover:bg-[#F2F4F8]"
+              className={`flex items-center gap-2 w-full text-left px-2.5 py-2 text-sm ${t.adminTableRowHover}`}
             >
               {p.profile_image ? (
                 <img src={p.profile_image} alt="" className="w-6 h-6 rounded-full object-cover" />

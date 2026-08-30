@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Badge from "@/components/Badge";
 import OrgEventsCalendarGrid from "@/components/OrgEventsCalendarGrid";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { Organization, OrgEvent } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<OrgEvent["category"], string> = {
@@ -38,6 +39,7 @@ const empty = {
 
 export default function OrgEventsManager() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const { rows: events, reload } = useRealtimeList<OrgEvent>("org_events", { orderBy: { column: "start_at" } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -119,20 +121,20 @@ export default function OrgEventsManager() {
             <div className="flex border border-border rounded-lg overflow-hidden">
               <button
                 type="button"
-                className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "month" ? "bg-navy text-white" : "bg-white"}`}
+                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "month" ? t.adminToggleActive : "bg-white"}`}
                 onClick={() => setMode("month")}
               >
                 월간
               </button>
               <button
                 type="button"
-                className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "list" ? "bg-navy text-white" : "bg-white"}`}
+                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "list" ? t.adminToggleActive : "bg-white"}`}
                 onClick={() => setMode("list")}
               >
                 목록
               </button>
             </div>
-            <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 일정 추가</button>
+            <button onClick={startNew} className={t.adminBtnPrimary}>+ 일정 추가</button>
           </div>
         </div>
         {mode === "month" ? (
@@ -141,22 +143,22 @@ export default function OrgEventsManager() {
           <AdminTable>
             <thead>
               <tr>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2">일정명</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-36">시작</th>
-                <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+                <th className={t.adminTableHeaderCell}>일정명</th>
+                <th className={`${t.adminTableHeaderCell} w-28`}>부서</th>
+                <th className={`${t.adminTableHeaderCell} w-20`}>분류</th>
+                <th className={`${t.adminTableHeaderCell} w-36`}>시작</th>
+                <th className={`${t.adminTableHeaderCell} w-16`} />
               </tr>
             </thead>
             <tbody>
               {events.map((e) => (
-                <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === e.id ? "bg-[#EAF0FB]" : ""}`}>
-                  <td className="p-2.5 border-b border-border text-sm">{e.title}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{orgName(e.org_id)}</td>
-                  <td className="p-2.5 border-b border-border"><Badge color="navy">{CATEGORY_LABEL[e.category]}</Badge></td>
-                  <td className="p-2.5 border-b border-border text-sm">{fmtDateTime(e.start_at)}</td>
-                  <td className="p-2.5 border-b border-border">
-                    <button className="text-red text-xs font-bold" onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
+                <tr key={e.id} onClick={() => startEdit(e)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === e.id ? t.adminTableRowActive : ""}`}>
+                  <td className={t.adminTableCell}>{e.title}</td>
+                  <td className={t.adminTableCell}>{orgName(e.org_id)}</td>
+                  <td className={t.adminTableCell}><Badge color="navy">{CATEGORY_LABEL[e.category]}</Badge></td>
+                  <td className={t.adminTableCell}>{fmtDateTime(e.start_at)}</td>
+                  <td className={t.adminTableCell}>
+                    <button className={t.adminBtnDanger} onClick={(ev) => { ev.stopPropagation(); remove(e.id); }}>삭제</button>
                   </td>
                 </tr>
               ))}
@@ -166,31 +168,31 @@ export default function OrgEventsManager() {
         )}
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "일정 추가" : "일정 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">소속 부서</label>
-          <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
+          <select className={t.adminInput} value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
             <option value="">부서를 선택하세요</option>
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
           <label className="text-xs font-bold text-muted mt-2">일정명</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">분류</label>
-          <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as OrgEvent["category"] })}>
+          <select className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as OrgEvent["category"] })}>
             {Object.entries(CATEGORY_LABEL).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
           <label className="text-xs font-bold text-muted mt-2">시작 시간</label>
-          <input type="datetime-local" className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
+          <input type="datetime-local" className={t.adminInput} value={form.start_at} onChange={(e) => setForm({ ...form, start_at: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">종료 시간</label>
-          <input type="datetime-local" className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
+          <input type="datetime-local" className={t.adminInput} value={form.end_at} onChange={(e) => setForm({ ...form, end_at: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">장소</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
+          <input className={t.adminInput} value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">설명</label>
-          <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+          <textarea rows={3} className={t.adminInput} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
           {error && <div className="text-red text-xs">{error}</div>}
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}

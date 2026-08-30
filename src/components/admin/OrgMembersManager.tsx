@@ -4,6 +4,7 @@ import AdminTable from "./AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
 import type { Member, Organization, Profile } from "@/lib/types";
 
@@ -18,6 +19,7 @@ const empty = { org_id: "", user_id: "", name: "", position: "", bio: "", order_
  */
 export default function OrgMembersManager() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const { rows: members, reload } = useRealtimeList<MemberRow>("members", {
     select: "*, profile:profiles(profile_image)",
@@ -89,29 +91,29 @@ export default function OrgMembersManager() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">부서 구성원 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 구성원 추가</button>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 구성원 추가</button>
         </div>
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">순서</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-14">사진</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">이름</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">직책</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">소속</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />
+              <th className={`${t.adminTableHeaderCell} w-16`}>순서</th>
+              <th className={`${t.adminTableHeaderCell} w-14`}>사진</th>
+              <th className={t.adminTableHeaderCell}>이름</th>
+              <th className={t.adminTableHeaderCell}>직책</th>
+              <th className={t.adminTableHeaderCell}>소속</th>
+              <th className={`${t.adminTableHeaderCell} w-16`} />
             </tr>
           </thead>
           <tbody>
             {sortedMembers.map((m) => {
               const photo = m.photo_url || m.profile?.profile_image;
               return (
-                <tr key={m.id} onClick={() => startEdit(m)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === m.id ? "bg-[#EAF0FB]" : ""}`}>
-                  <td className="p-2.5 border-b border-border">
+                <tr key={m.id} onClick={() => startEdit(m)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === m.id ? t.adminTableRowActive : ""}`}>
+                  <td className={t.adminTableCell}>
                     <button className="text-xs text-blue mr-1" onClick={(e) => { e.stopPropagation(); moveMember(m, -1); }}>▲</button>
                     <button className="text-xs text-blue" onClick={(e) => { e.stopPropagation(); moveMember(m, 1); }}>▼</button>
                   </td>
-                  <td className="p-2.5 border-b border-border">
+                  <td className={t.adminTableCell}>
                     {photo ? (
                       <img src={photo} alt={m.name} className="w-8 h-8 rounded-full object-cover" />
                     ) : (
@@ -120,11 +122,11 @@ export default function OrgMembersManager() {
                       </div>
                     )}
                   </td>
-                  <td className="p-2.5 border-b border-border text-sm">{m.name}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{m.position}</td>
-                  <td className="p-2.5 border-b border-border text-sm">{orgName(m.org_id)}</td>
-                  <td className="p-2.5 border-b border-border">
-                    <button className="text-red text-xs font-bold" onClick={(e) => { e.stopPropagation(); remove(m.id); }}>삭제</button>
+                  <td className={t.adminTableCell}>{m.name}</td>
+                  <td className={t.adminTableCell}>{m.position}</td>
+                  <td className={t.adminTableCell}>{orgName(m.org_id)}</td>
+                  <td className={t.adminTableCell}>
+                    <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(m.id); }}>삭제</button>
                   </td>
                 </tr>
               );
@@ -134,10 +136,10 @@ export default function OrgMembersManager() {
         </AdminTable>
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "구성원 추가" : "구성원 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">소속 부서</label>
-          <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
+          <select className={t.adminInput} value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
 
@@ -145,14 +147,14 @@ export default function OrgMembersManager() {
           <AccountPicker profiles={profiles} linkedProfile={linkedProfile} onLink={linkAccount} onUnlink={unlinkAccount} />
 
           <label className="text-xs font-bold text-muted mt-2">이름</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className={t.adminInput} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">직책</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
+          <input className={t.adminInput} value={form.position} onChange={(e) => setForm({ ...form, position: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">소개</label>
-          <textarea rows={3} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
+          <textarea rows={3} className={t.adminInput} value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} />
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}

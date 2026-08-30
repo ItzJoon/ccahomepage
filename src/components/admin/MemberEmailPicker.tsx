@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { DirectoryMember } from "@/lib/types";
 
 /**
@@ -19,6 +20,7 @@ export default function MemberEmailPicker({
   onChange: (members: DirectoryMember[]) => void;
 }) {
   const { rows } = useRealtimeList<DirectoryMember>("directory_members");
+  const { t } = useHomeTheme();
   const [query, setQuery] = useState("");
 
   const selectedEmails = new Set(selected.map((m) => m.email));
@@ -48,7 +50,7 @@ export default function MemberEmailPicker({
       )}
       <div className="relative">
         <input
-          className="border border-border rounded-lg px-2.5 py-2 text-xs w-full"
+          className={`${t.adminInput} text-xs w-full`}
           placeholder="이름 또는 이메일로 검색해서 추가"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -60,7 +62,7 @@ export default function MemberEmailPicker({
                 type="button"
                 key={m.id}
                 onClick={() => add(m)}
-                className="flex flex-col w-full text-left px-2.5 py-1.5 text-xs hover:bg-[#F2F4F8]"
+                className={`flex flex-col w-full text-left px-2.5 py-1.5 text-xs ${t.adminTableRowHover}`}
               >
                 <span className="font-bold">{m.display_name}</span>
                 <span className="text-muted">{m.email}</span>

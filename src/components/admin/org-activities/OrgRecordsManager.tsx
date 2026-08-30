@@ -5,6 +5,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import type { Organization, OrgRecord } from "@/lib/types";
 
@@ -28,6 +29,7 @@ const empty = { org_id: "", category: "notice" as OrgRecord["category"], title: 
 
 export default function OrgRecordsManager() {
   const supabase = createClient();
+  const { t } = useHomeTheme();
   const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const { rows: records, reload } = useRealtimeList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
@@ -87,22 +89,22 @@ export default function OrgRecordsManager() {
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
           <h2 className="text-[22px]">부서 활동 · 활동기록 관리</h2>
-          <button onClick={startNew} className="bg-gold text-white font-bold text-sm rounded-lg px-3.5 py-1.5">+ 기록 작성</button>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 기록 작성</button>
         </div>
         <AdminTable>
           <thead>
             <tr>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">부서</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-20">분류</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-28">작성일</th>
-              <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32" />
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>부서</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>분류</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>작성일</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
           <tbody>
             {records.map((r) => (
-              <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer hover:bg-[#F2F4F8] ${editing === r.id ? "bg-[#EAF0FB]" : ""}`}>
-                <td className="p-2.5 border-b border-border text-sm">
+              <tr key={r.id} onClick={() => startEdit(r)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === r.id ? t.adminTableRowActive : ""}`}>
+                <td className={t.adminTableCell}>
                   <div className="flex items-center gap-1">
                     <span {...truncateCellProps(r.title)}>{r.title}</span>
                     {r.is_hidden && (
@@ -110,10 +112,10 @@ export default function OrgRecordsManager() {
                     )}
                   </div>
                 </td>
-                <td className="p-2.5 border-b border-border text-sm">{orgName(r.org_id)}</td>
-                <td className="p-2.5 border-b border-border"><Badge color={CATEGORY_COLOR[r.category]}>{CATEGORY_LABEL[r.category]}</Badge></td>
-                <td className="p-2.5 border-b border-border text-sm">{fmt(r.created_at)}</td>
-                <td className="p-2.5 border-b border-border">
+                <td className={t.adminTableCell}>{orgName(r.org_id)}</td>
+                <td className={t.adminTableCell}><Badge color={CATEGORY_COLOR[r.category]}>{CATEGORY_LABEL[r.category]}</Badge></td>
+                <td className={t.adminTableCell}>{fmt(r.created_at)}</td>
+                <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     {iAmEditorUp && (
                       <button
@@ -125,7 +127,7 @@ export default function OrgRecordsManager() {
                     )}
                     {(myId === r.author_id || iAmAdmin) && (
                       <button
-                        className="text-red text-xs font-bold shrink-0"
+                        className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => { e.stopPropagation(); remove(r.id); }}
                       >
                         삭제
@@ -140,25 +142,25 @@ export default function OrgRecordsManager() {
         </AdminTable>
       </div>
       {editing && (
-        <div className="bg-white border border-border rounded-xl p-[18px] flex flex-col gap-1.5 sticky top-20">
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
           <h3>{editing === "new" ? "기록 작성" : "기록 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">소속 부서</label>
-          <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
+          <select className={t.adminInput} value={form.org_id} onChange={(e) => setForm({ ...form, org_id: e.target.value })}>
             <option value="">부서를 선택하세요</option>
             {orgs.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
           </select>
           <label className="text-xs font-bold text-muted mt-2">분류</label>
-          <select className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as OrgRecord["category"] })}>
+          <select className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value as OrgRecord["category"] })}>
             {Object.entries(CATEGORY_LABEL).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </select>
           <label className="text-xs font-bold text-muted mt-2">제목</label>
-          <input className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">내용</label>
-          <textarea rows={5} className="border border-border rounded-lg px-2.5 py-2 text-sm" value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+          <textarea rows={5} className={t.adminInput} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
           {error && <div className="text-red text-xs">{error}</div>}
           <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">저장</button>
-            <button onClick={() => setEditing(null)} className="border border-border text-sm rounded-lg px-4 py-2">취소</button>
+            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
       )}
