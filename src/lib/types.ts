@@ -75,6 +75,7 @@ export interface EventItem {
   category: string;
   created_by: string | null;
   is_hidden: boolean;
+  created_at: string;
 }
 
 export interface RuleDoc {

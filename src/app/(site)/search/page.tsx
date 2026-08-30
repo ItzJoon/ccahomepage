@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
-import type { BoardPost, Post, Question } from "@/lib/types";
+import type { BoardPost, EventItem, Organization, OrgRecord, Post, Proposal, Question, RuleDoc } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -14,6 +14,16 @@ function fmt(d: string) {
 
 function snippet(text: string, len = 80) {
   return text.length > len ? `${text.slice(0, len)}…` : text;
+}
+
+// 안건함/활동기록은 둘 다 /org-activities 안에서만 볼 수 있고 개별 상세 페이지가 없어서
+// (Q&A와 동일한 이유로) 검색 결과에서는 "조직 활동" 하나로 묶어서 보여준다.
+interface OrgActivityItem {
+  id: string;
+  kind: "proposal" | "record";
+  title: string;
+  body: string;
+  created_at: string;
 }
 
 export default function SearchPage() {
@@ -25,6 +35,10 @@ export default function SearchPage() {
   const [notices, setNotices] = useState<Post[]>([]);
   const [boardPosts, setBoardPosts] = useState<BoardPost[]>([]);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [events, setEvents] = useState<EventItem[]>([]);
+  const [orgs, setOrgs] = useState<Organization[]>([]);
+  const [rules, setRules] = useState<RuleDoc[]>([]);
+  const [orgActivities, setOrgActivities] = useState<OrgActivityItem[]>([]);
 
   useEffect(() => {
     setInput(q);
@@ -32,6 +46,10 @@ export default function SearchPage() {
       setNotices([]);
       setBoardPosts([]);
       setQuestions([]);
+      setEvents([]);
+      setOrgs([]);
+      setRules([]);
+      setOrgActivities([]);
       return;
     }
     // PostgREST or() 필터 문법에서 콤마/괄호가 특별한 의미를 가지므로 제거해 안전하게 만든다.
@@ -58,12 +76,62 @@ export default function SearchPage() {
         .or(`title.ilike.%${safeQ}%,content.ilike.%${safeQ}%`)
         .order("created_at", { ascending: false })
         .limit(20),
-    ]).then(([n, b, qs]) => {
+      supabase
+        .from("events")
+        .select("*")
+        .or(`title.ilike.%${safeQ}%,description.ilike.%${safeQ}%`)
+        .order("start_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("organizations")
+        .select("*")
+        .or(`name.ilike.%${safeQ}%,description.ilike.%${safeQ}%,role_description.ilike.%${safeQ}%`)
+        .order("order_index")
+        .limit(20),
+      supabase
+        .from("rules")
+        .select("*")
+        .or(`title.ilike.%${safeQ}%,content.ilike.%${safeQ}%`)
+        .order("updated_at", { ascending: false })
+        .limit(20),
+      supabase
+        .from("proposals")
+        .select("*")
+        .or(`title.ilike.%${safeQ}%,summary.ilike.%${safeQ}%`)
+        .order("created_at", { ascending: false })
+        .limit(15),
+      supabase
+        .from("org_records")
+        .select("*")
+        .or(`title.ilike.%${safeQ}%,content.ilike.%${safeQ}%`)
+        .order("created_at", { ascending: false })
+        .limit(15),
+    ]).then(([n, b, qs, ev, og, rl, pr, rec]) => {
       // RLS가 이미 열람 가능한 것만 돌려주므로(숨김/비공개/교과·학급 대상 아닌 것 등
       // 자동 제외), 여기서 추가로 필터링할 필요는 없다.
       setNotices((n.data as any) ?? []);
       setBoardPosts((b.data as any) ?? []);
       setQuestions((qs.data as any) ?? []);
+      setEvents((ev.data as any) ?? []);
+      setOrgs((og.data as any) ?? []);
+      setRules((rl.data as any) ?? []);
+      const proposalItems: OrgActivityItem[] = ((pr.data as Proposal[]) ?? []).map((p) => ({
+        id: p.id,
+        kind: "proposal",
+        title: p.title,
+        body: p.summary,
+        created_at: p.created_at,
+      }));
+      const recordItems: OrgActivityItem[] = ((rec.data as OrgRecord[]) ?? []).map((r) => ({
+        id: r.id,
+        kind: "record",
+        title: r.title,
+        body: r.content,
+        created_at: r.created_at,
+      }));
+      setOrgActivities(
+        [...proposalItems, ...recordItems].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+      );
       setLoading(false);
     });
   }, [q]);
@@ -72,7 +140,8 @@ export default function SearchPage() {
     if (input.trim()) router.push(`/search?q=${encodeURIComponent(input.trim())}`);
   };
 
-  const total = notices.length + boardPosts.length + questions.length;
+  const total =
+    notices.length + boardPosts.length + questions.length + events.length + orgs.length + rules.length + orgActivities.length;
 
   return (
     <div>
@@ -80,7 +149,7 @@ export default function SearchPage() {
       <div className="flex gap-2.5 mb-5">
         <input
           className="flex-1 border border-border rounded-lg px-3 py-2 text-sm"
-          placeholder="공지사항, 뉴스, 게시판, Q&A를 한 번에 검색"
+          placeholder="공지사항, 뉴스, 게시판, Q&A, 일정 등 사이트 전체를 한 번에 검색"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && submit()}
@@ -138,6 +207,71 @@ export default function SearchPage() {
                       {qq.title}
                     </Link>
                     <p className="text-muted text-xs mt-1 mb-0">{snippet(qq.content)} · {fmt(qq.created_at)}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {events.length > 0 && (
+            <section>
+              <h3 className="text-base font-bold mb-2">일정 ({events.length}건)</h3>
+              <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+                {events.map((ev) => (
+                  <li key={ev.id} className="bg-white border border-border rounded-lg p-3">
+                    <Link href={`/events/${ev.id}`} className="font-bold text-sm">
+                      {ev.title}
+                    </Link>
+                    <p className="text-muted text-xs mt-1 mb-0">
+                      {ev.description ? `${snippet(ev.description)} · ` : ""}
+                      {fmt(ev.start_at)}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {orgs.length > 0 && (
+            <section>
+              <h3 className="text-base font-bold mb-2">학생자치회 소개 ({orgs.length}건)</h3>
+              <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+                {orgs.map((o) => (
+                  <li key={o.id} className="bg-white border border-border rounded-lg p-3">
+                    <Link href={`/organizations/${o.slug}`} className="font-bold text-sm">
+                      {o.name}
+                    </Link>
+                    {(o.description || o.role_description) && (
+                      <p className="text-muted text-xs mt-1 mb-0">{snippet(o.description || o.role_description || "")}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {rules.length > 0 && (
+            <section>
+              <h3 className="text-base font-bold mb-2">생활규정 ({rules.length}건)</h3>
+              <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+                {rules.map((r) => (
+                  <li key={r.id} className="bg-white border border-border rounded-lg p-3">
+                    <Link href="/rules" className="font-bold text-sm">
+                      {r.title}
+                    </Link>
+                    <p className="text-muted text-xs mt-1 mb-0">{snippet(r.content)} · {fmt(r.updated_at)}</p>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {orgActivities.length > 0 && (
+            <section>
+              <h3 className="text-base font-bold mb-2">조직 활동 ({orgActivities.length}건)</h3>
+              <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+                {orgActivities.map((a) => (
+                  <li key={`${a.kind}-${a.id}`} className="bg-white border border-border rounded-lg p-3">
+                    <Link href="/org-activities" className="font-bold text-sm">
+                      [{a.kind === "proposal" ? "안건" : "활동기록"}] {a.title}
+                    </Link>
+                    <p className="text-muted text-xs mt-1 mb-0">{snippet(a.body)} · {fmt(a.created_at)}</p>
                   </li>
                 ))}
               </ul>
