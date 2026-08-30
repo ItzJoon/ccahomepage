@@ -2069,3 +2069,23 @@ create index if not exists email_notification_logs_created_at_idx on email_notif
 -- ------------------------------------------------------------
 -- 스토리지 키는 안전한 값(safeStorageKey)으로 바꾸고, 원본 파일명은 여기 보관한다.
 alter table meal_plans add column if not exists original_file_name text;
+
+-- ------------------------------------------------------------
+-- 55. 자동 뱃지 지급이 "받은 사람의 관리자 활동"으로 잘못 기록되던 버그 수정
+-- ------------------------------------------------------------
+-- user_badges insert는 두 경로가 있다: (1) 학생 본인이 자동 조건 충족 시 스스로 insert
+-- (user_badges_insert_self, auth.uid() = user_id) — 관리자 행위가 아님, (2) 관리자/editor가
+-- 다른 학생에게 수동으로 부여(user_badges_insert_staff) — 진짜 관리자 행위. 기존 트리거는
+-- 둘을 구분 안 하고 전부 기록해서, 자동 지급도 "그 학생이 user_badges를 insert했다"고
+-- 남아 활동 로그에서 학생 본인의 활동인 것처럼 보였다(라이브 쿼리로 재현 확인).
+-- login_access_requests의 시스템 자동 기록 제외 패턴과 동일하게, "본인에게 스스로 부여"한
+-- 경우만 감사 로그에서 뺀다.
+drop trigger if exists audit_user_badges on user_badges;
+
+create trigger audit_user_badges_insert after insert on user_badges
+  for each row
+  when (new.user_id is distinct from auth.uid())
+  execute function log_audit_event();
+
+create trigger audit_user_badges_delete after delete on user_badges
+  for each row execute function log_audit_event();
