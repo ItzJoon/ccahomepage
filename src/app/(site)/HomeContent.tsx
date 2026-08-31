@@ -144,7 +144,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
       <StreakBar userId={userId} initialThemeKey={initialThemeKey} />
 
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px]">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px] items-start">
         {visibleBlocks.map((b) => {
           const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6];
           if (b.id === "notice")
