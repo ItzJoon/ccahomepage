@@ -22,6 +22,7 @@ const empty = {
   is_active: true,
   secret_tier: "none" as "none" | "secret" | "super_secret",
   easter_egg_names: [] as string[],
+  condition_text: "",
 };
 
 const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> = {
@@ -84,6 +85,7 @@ export default function AdminBadgesPage() {
       is_active: b.is_active,
       secret_tier: b.secret_tier,
       easter_egg_names: b.easter_egg_names ?? [],
+      condition_text: b.condition_text ?? "",
     };
     setForm(next);
     setInitialForm(next);
@@ -109,6 +111,7 @@ export default function AdminBadgesPage() {
       is_active: form.is_active,
       secret_tier: form.secret_tier,
       easter_egg_names: form.easter_egg_names.filter((n) => n.trim()),
+      condition_text: form.condition_text.trim() || null,
     };
     if (editing === "new") await supabase.from("badges").insert(payload);
     else if (editing) await supabase.from("badges").update(payload).eq("id", editing);
@@ -196,7 +199,9 @@ export default function AdminBadgesPage() {
                   <div className="text-muted text-xs">{b.description}</div>
                 </td>
                 <td className={t.adminTableCell}>
-                  {b.award_type === "auto"
+                  {b.condition_text
+                    ? b.condition_text
+                    : b.award_type === "auto"
                     ? `연속 ${b.streak_threshold}일`
                     : b.award_type === "date"
                     ? b.date_condition === "between"
@@ -313,15 +318,22 @@ export default function AdminBadgesPage() {
             <option value="action">특정 행동 (Q&A 첫 작성 등, 코드로 직접 연결됨)</option>
           </select>
 
-          <label className="text-xs font-bold text-muted mt-2">
-            {form.award_type === "manual" ? "달성 조건 (자유롭게 작성)" : "설명"}
-          </label>
+          <label className="text-xs font-bold text-muted mt-2">설명</label>
           <textarea
             rows={2}
             className={t.adminInput}
-            placeholder={form.award_type === "manual" ? "예: ○○ 선생님과 진로 상담 완료하기" : undefined}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
+          />
+
+          <label className="text-xs font-bold text-muted mt-2">
+            조건 문구 (직접 입력 — 학생들에게 "달성 조건"으로 표시됨)
+          </label>
+          <input
+            className={t.adminInput}
+            placeholder="비워두면 지급 방식에 따른 기본 문구가 자동으로 표시됩니다"
+            value={form.condition_text}
+            onChange={(e) => setForm({ ...form, condition_text: e.target.value })}
           />
 
           {form.award_type === "auto" && (

@@ -186,6 +186,7 @@ export interface BadgeDef {
   is_active: boolean;
   secret_tier: "none" | "secret" | "super_secret";
   easter_egg_names: string[];
+  condition_text: string | null;
 }
 
 export interface UserBadge {

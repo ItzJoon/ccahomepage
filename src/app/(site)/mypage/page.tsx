@@ -7,7 +7,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useBadges } from "@/hooks/useBadges";
 import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
-import type { Profile, UserWarning } from "@/lib/types";
+import type { BadgeDef, Profile, UserWarning } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -28,9 +28,26 @@ export default function MyPage() {
 
   const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
   const { badges, earnedIds } = useBadges(userId ?? null);
+  // developer(=superadmin)는 실제로 획득하지 않아도 모든 뱃지를 항상 가진 것처럼
+  // 보여준다(진짜 user_badges 행을 만들지는 않아서 한정 수량 뱃지의 획득 인원 수에는
+  // 전혀 영향을 주지 않는다) — 비활성화된 뱃지(예: 정원이 찬 이스터에그)도 계속
+  // "가진 것"으로 보여야 하므로, useBadges의 활성 뱃지만 담는 badges와 별개로 전체
+  // 뱃지 목록을 따로 불러온다.
+  const isDeveloper = profile?.role === "superadmin";
+  const [allBadgesForDeveloper, setAllBadgesForDeveloper] = useState<BadgeDef[]>([]);
+  useEffect(() => {
+    if (!isDeveloper) return;
+    supabase
+      .from("badges")
+      .select("*")
+      .order("order_index")
+      .then(({ data }) => setAllBadgesForDeveloper((data as BadgeDef[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isDeveloper]);
+  const displayBadges = isDeveloper ? allBadgesForDeveloper : badges;
   // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
   // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
-  const visibleBadges = badges.filter((b) => b.secret_tier !== "super_secret" || earnedIds.has(b.id));
+  const visibleBadges = displayBadges.filter((b) => isDeveloper || b.secret_tier !== "super_secret" || earnedIds.has(b.id));
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -163,7 +180,7 @@ export default function MyPage() {
         <h3 className="mb-3">획득한 뱃지</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {visibleBadges.map((b) => {
-            const earned = earnedIds.has(b.id);
+            const earned = isDeveloper || earnedIds.has(b.id);
             // 시크릿(획득 전) — 뱃지가 있다는 사실은 보이되 그림자(실루엣) 처리하고
             // 이름/달성 조건은 가린다. 슈퍼시크릿은 이미 위 필터에서 목록에서 제외됨.
             const secretLocked = b.secret_tier === "secret" && !earned;
@@ -181,7 +198,9 @@ export default function MyPage() {
                       <div className="font-bold mb-0.5">{b.label}</div>
                       {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
                       <div className="text-gold mt-1 font-bold">
-                        {b.award_type === "auto"
+                        {b.condition_text
+                          ? b.condition_text
+                          : b.award_type === "auto"
                           ? `연속 ${b.streak_threshold}일 달성`
                           : b.award_type === "date"
                           ? b.date_condition === "between"

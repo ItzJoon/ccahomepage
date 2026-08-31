@@ -2966,3 +2966,115 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function claim_easter_egg_badge() to authenticated;
+
+-- ------------------------------------------------------------
+-- 74. 미스터리 인물 뱃지를 최초 5명 한정으로 제한 + developer는 모든 뱃지를 항상 보유
+-- ------------------------------------------------------------
+-- "넌 누구야"(phantom_member) 뱃지를 최초 발견한 5명에게만 지급하고, 5명이 채워지면
+-- 자동으로 비활성화(=미스터리 인물도 함께 사라짐)한다. developer(superadmin)는 실제로
+-- 지급하지 않고(진짜 user_badges 행을 만들지 않음) 그 대신 화면에서 항상 "가진 것"으로
+-- 표시되므로(mypage 쪽 처리), 5명 정원 계산에도 전혀 영향을 주지 않는다.
+create or replace function claim_easter_egg_badge()
+returns json as $$
+declare
+  v_badge_id uuid;
+  v_is_developer boolean;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id into v_badge_id from badges where code = 'phantom_member' and is_active = true;
+  if v_badge_id is null then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+
+  select (role = 'superadmin') into v_is_developer from profiles where id = auth.uid();
+  if v_is_developer then
+    return json_build_object('badge_id', v_badge_id, 'developer', true);
+  end if;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin';
+  if v_holder_count >= 5 then
+    update badges set is_active = false where id = v_badge_id;
+    raise exception '이미 정원(5명)이 마감된 뱃지입니다';
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), v_badge_id)
+  on conflict (user_id, badge_id) do nothing;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin';
+  if v_holder_count >= 5 then
+    update badges set is_active = false where id = v_badge_id;
+  end if;
+
+  return json_build_object('badge_id', v_badge_id);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- ------------------------------------------------------------
+-- 75. 뱃지 달성 조건 문구를 관리자가 직접 입력할 수 있게 함
+-- ------------------------------------------------------------
+-- 뱃지 달성 조건 문구를 관리자가 직접 자유롭게 입력할 수 있게 한다(description=설명과는
+-- 별개). 비어있으면 기존처럼 award_type별 자동 문구(auto=연속 N일, date=날짜 조건,
+-- manual/action=관리자 확인 후 지급)를 그대로 쓴다.
+alter table badges add column condition_text text;
+
+update badges set condition_text = 'Q&A에 질문하기' where code = 'first_qna';
+
+-- ------------------------------------------------------------
+-- 76. "소통하는 사람" 뱃지: 게시판 첫 글 또는 첫 댓글
+-- ------------------------------------------------------------
+-- "소통하는 사람" 뱃지: 게시판에 처음 글을 쓰거나 처음 댓글을 달면(둘 중 먼저 오는 쪽)
+-- 지급한다. board_posts/board_comments 양쪽에 각각 트리거를 두고, 두 트리거 모두
+-- 같은 뱃지를 on conflict do nothing으로 지급하므로 어느 쪽이 먼저 오든 중복 없이 1회만
+-- 지급된다.
+insert into badges (code, label, icon, description, award_type, secret_tier, order_index, is_active, condition_text)
+values (
+  'first_board_activity',
+  '소통하는 사람',
+  '💬',
+  '게시판에 처음 글을 쓰거나 처음 댓글을 달면 받는 뱃지입니다.',
+  'action',
+  'none',
+  11,
+  true,
+  '게시판에 첫 글 또는 첫 댓글 작성'
+);
+
+create or replace function grant_first_board_activity_badge()
+returns trigger as $$
+declare
+  v_badge_id uuid;
+  v_post_count int;
+  v_comment_count int;
+begin
+  select count(*) into v_post_count from board_posts where author_id = new.author_id;
+  select count(*) into v_comment_count from board_comments where author_id = new.author_id;
+  if (tg_table_name = 'board_posts' and v_post_count = 1) or (tg_table_name = 'board_comments' and v_comment_count = 1) then
+    select id into v_badge_id from badges where code = 'first_board_activity' and is_active = true;
+    if v_badge_id is not null then
+      insert into user_badges (user_id, badge_id)
+      values (new.author_id, v_badge_id)
+      on conflict (user_id, badge_id) do nothing;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_grant_first_board_post_badge on board_posts;
+create trigger trg_grant_first_board_post_badge
+  after insert on board_posts
+  for each row execute function grant_first_board_activity_badge();
+
+drop trigger if exists trg_grant_first_board_comment_badge on board_comments;
+create trigger trg_grant_first_board_comment_badge
+  after insert on board_comments
+  for each row execute function grant_first_board_activity_badge();
