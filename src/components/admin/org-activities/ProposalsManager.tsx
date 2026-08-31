@@ -191,16 +191,20 @@ export default function ProposalsManager() {
                   <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={() => castVote(p.id, "yes")}
-                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 ${
-                        myVote(p.id)?.vote === "yes" ? "bg-teal text-white border-teal" : "border-border bg-white"
+                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 cursor-pointer transition-colors ${
+                        myVote(p.id)?.vote === "yes"
+                          ? "bg-teal text-white border-teal"
+                          : "border-border bg-white hover:bg-[#E4F5EE] hover:border-teal hover:text-teal"
                       }`}
                     >
                       찬성 {voteCount(p.id, "yes")}
                     </button>
                     <button
                       onClick={() => castVote(p.id, "no")}
-                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 ${
-                        myVote(p.id)?.vote === "no" ? "bg-red text-white border-red" : "border-border bg-white"
+                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 cursor-pointer transition-colors ${
+                        myVote(p.id)?.vote === "no"
+                          ? "bg-red text-white border-red"
+                          : "border-border bg-white hover:bg-[#FDEBEC] hover:border-red hover:text-red"
                       }`}
                     >
                       반대 {voteCount(p.id, "no")}
@@ -248,16 +252,20 @@ export default function ProposalsManager() {
           <div className="flex items-center gap-2 mt-2.5">
             <button
               onClick={() => castVote(current.id, "yes")}
-              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
-                myVote(current.id)?.vote === "yes" ? "bg-teal text-white border-teal" : "border-border bg-white"
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border cursor-pointer transition-colors ${
+                myVote(current.id)?.vote === "yes"
+                  ? "bg-teal text-white border-teal"
+                  : "border-border bg-white hover:bg-[#E4F5EE] hover:border-teal hover:text-teal"
               }`}
             >
               찬성 {voteCount(current.id, "yes")}
             </button>
             <button
               onClick={() => castVote(current.id, "no")}
-              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
-                myVote(current.id)?.vote === "no" ? "bg-red text-white border-red" : "border-border bg-white"
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border cursor-pointer transition-colors ${
+                myVote(current.id)?.vote === "no"
+                  ? "bg-red text-white border-red"
+                  : "border-border bg-white hover:bg-[#FDEBEC] hover:border-red hover:text-red"
               }`}
             >
               반대 {voteCount(current.id, "no")}

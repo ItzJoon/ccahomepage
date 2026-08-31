@@ -133,18 +133,22 @@ export default function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organizatio
                 <button
                   onClick={() => castVote(p.id, "yes")}
                   disabled={!userId}
-                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
-                    mine?.vote === "yes" ? "bg-teal text-white border-teal" : "border-border bg-white"
-                  } disabled:opacity-40`}
+                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border transition-colors ${
+                    mine?.vote === "yes"
+                      ? "bg-teal text-white border-teal"
+                      : "border-border bg-white hover:bg-[#E4F5EE] hover:border-teal hover:text-teal"
+                  } disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-border disabled:hover:text-inherit cursor-pointer`}
                 >
                   찬성 {voteCount(p.id, "yes")}
                 </button>
                 <button
                   onClick={() => castVote(p.id, "no")}
                   disabled={!userId}
-                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
-                    mine?.vote === "no" ? "bg-red text-white border-red" : "border-border bg-white"
-                  } disabled:opacity-40`}
+                  className={`text-xs font-bold rounded-lg px-3 py-1.5 border transition-colors ${
+                    mine?.vote === "no"
+                      ? "bg-red text-white border-red"
+                      : "border-border bg-white hover:bg-[#FDEBEC] hover:border-red hover:text-red"
+                  } disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:border-border disabled:hover:text-inherit cursor-pointer`}
                 >
                   반대 {voteCount(p.id, "no")}
                 </button>
