@@ -2601,3 +2601,30 @@ create policy org_records_update_editor on org_records
   for update
   using (is_editor_or_above() or is_org_activities_manager())
   with check (is_editor_or_above() or is_org_activities_manager());
+
+-- ------------------------------------------------------------
+-- 68. 관리자 안건함 화면에 찬반 투표 버튼 추가 + 상태 변경은 admin 이상만
+-- ------------------------------------------------------------
+-- 안건 상태(검토중/승인/반려/완료) 변경은 admin 이상만 할 수 있어야 한다. proposals
+-- 테이블의 UPDATE RLS(proposals_update_editor)는 is_org_activities_manager()(=is_council
+-- 또는 superadmin)라 이 화면에 들어올 수 있는 모든 임원회 구성원이 그대로 상태까지 바꿀 수
+-- 있었는데, 상태 변경만 더 좁은 admin 이상 권한으로 묶는다. RLS는 row 단위라 컬럼별로
+-- 나눌 수 없으므로, status가 실제로 바뀔 때만 걸리는 트리거로 강제한다 — 클라이언트가 직접
+-- REST로 status를 바꾸려는 시도도 이 트리거가 함께 막는다(UI 제한과 별개의 실제 방어선).
+-- (찬반 투표 자체는 학생용 /org-activities 안건함과 동일하게 proposal_votes 테이블/RLS를
+-- 그대로 재사용 — role과 무관하게 인증된 사용자면 누구나 자기 표만 넣고 뺄 수 있고,
+-- unique(proposal_id, user_id) 제약이 1인 1표를 DB 레벨에서 보장하므로 별도 변경 불필요.)
+create or replace function enforce_proposal_status_admin_only()
+returns trigger as $$
+begin
+  if new.status is distinct from old.status and not is_admin() then
+    raise exception '안건 상태 변경은 admin 이상만 할 수 있습니다';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_proposal_status_admin_only on proposals;
+create trigger trg_proposal_status_admin_only
+  before update on proposals
+  for each row execute function enforce_proposal_status_admin_only();

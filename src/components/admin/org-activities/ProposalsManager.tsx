@@ -69,9 +69,32 @@ export default function ProposalsManager() {
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
   const voteCount = (proposalId: string, vote: "yes" | "no") =>
     votes.filter((v) => v.proposal_id === proposalId && v.vote === vote).length;
+  // 학생용 /org-activities 안건함(ProposalsTab)과 동일한 방식 — 같은 버튼을 다시 누르면
+  // 취소, 다른 버튼을 누르면 전환, 그 외엔 새로 투표. proposal_votes의
+  // unique(proposal_id, user_id) 제약이 DB 레벨에서 1인 1표를 보장한다.
+  const myVote = (proposalId: string) => votes.find((v) => v.proposal_id === proposalId && v.user_id === myId);
+  const castVote = async (proposalId: string, vote: "yes" | "no") => {
+    if (!myId) return;
+    const existing = myVote(proposalId);
+    if (existing && existing.vote === vote) {
+      await supabase.from("proposal_votes").delete().eq("id", existing.id);
+    } else if (existing) {
+      await supabase.from("proposal_votes").update({ vote }).eq("id", existing.id);
+    } else {
+      await supabase.from("proposal_votes").insert({ proposal_id: proposalId, user_id: myId, vote });
+    }
+  };
 
+  // 안건 상태(검토중/승인/반려/완료) 변경은 admin 이상만 할 수 있다 — 이 화면 자체는
+  // is_council(임원회)이면 role과 무관하게 들어올 수 있게 됐지만, 공식 처리 결과를
+  // 확정하는 상태 변경은 그보다 좁은 admin 이상 권한으로 유지한다(DB 트리거로도 강제됨).
   const changeStatus = async (id: string, status: Proposal["status"]) => {
-    await supabase.from("proposals").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    if (!iAmAdmin) return;
+    const { error } = await supabase.from("proposals").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
+    if (error) {
+      alert(error.message);
+      return;
+    }
     reload();
   };
 
@@ -102,8 +125,9 @@ export default function ProposalsManager() {
           </button>
         </div>
         <p className="text-muted mb-4 text-sm">
-          등록된 안건과 찬반 투표 현황을 확인하고 상태를 바꿀 수 있습니다. 숨김은 editor 이상,
-          삭제는 작성자 본인 또는 admin 이상만 가능합니다.
+          등록된 안건에 찬성/반대 투표를 하고(1인 1표, 다시 누르면 취소·다른 쪽을 누르면 전환)
+          현황을 확인할 수 있습니다. 상태 변경은 admin 이상, 숨김은 editor 이상, 삭제는 작성자
+          본인 또는 admin 이상만 가능합니다.
         </p>
         {writing && (
           <div className={`${t.adminEditPanel} flex flex-col gap-1.5 mb-4`}>
@@ -164,7 +188,24 @@ export default function ProposalsManager() {
                 </td>
                 <td className={t.adminTableCell}>{orgName(p.org_id)}</td>
                 <td className={t.adminTableCell}>
-                  {voteCount(p.id, "yes")} / {voteCount(p.id, "no")}
+                  <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      onClick={() => castVote(p.id, "yes")}
+                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 ${
+                        myVote(p.id)?.vote === "yes" ? "bg-teal text-white border-teal" : "border-border bg-white"
+                      }`}
+                    >
+                      찬성 {voteCount(p.id, "yes")}
+                    </button>
+                    <button
+                      onClick={() => castVote(p.id, "no")}
+                      className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 ${
+                        myVote(p.id)?.vote === "no" ? "bg-red text-white border-red" : "border-border bg-white"
+                      }`}
+                    >
+                      반대 {voteCount(p.id, "no")}
+                    </button>
+                  </div>
                 </td>
                 <td className={t.adminTableCell}>
                   <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLASS[p.status]}`}>
@@ -204,19 +245,43 @@ export default function ProposalsManager() {
           <h3>{current.title}</h3>
           <div className="text-xs text-muted mb-2">{orgName(current.org_id)} · {fmt(current.created_at)}</div>
           <p className="text-sm whitespace-pre-wrap">{current.summary}</p>
-          <div className="text-sm font-bold mt-2.5">
-            찬성 {voteCount(current.id, "yes")} · 반대 {voteCount(current.id, "no")}
+          <div className="flex items-center gap-2 mt-2.5">
+            <button
+              onClick={() => castVote(current.id, "yes")}
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
+                myVote(current.id)?.vote === "yes" ? "bg-teal text-white border-teal" : "border-border bg-white"
+              }`}
+            >
+              찬성 {voteCount(current.id, "yes")}
+            </button>
+            <button
+              onClick={() => castVote(current.id, "no")}
+              className={`text-xs font-bold rounded-lg px-3 py-1.5 border ${
+                myVote(current.id)?.vote === "no" ? "bg-red text-white border-red" : "border-border bg-white"
+              }`}
+            >
+              반대 {voteCount(current.id, "no")}
+            </button>
           </div>
           <label className="text-xs font-bold text-muted mt-3 block">상태 변경</label>
-          <select
-            className={`${t.adminInput} w-full`}
-            value={current.status}
-            onChange={(e) => changeStatus(current.id, e.target.value as Proposal["status"])}
-          >
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s} value={s}>{STATUS_LABEL[s]}</option>
-            ))}
-          </select>
+          {iAmAdmin ? (
+            <select
+              className={`${t.adminInput} w-full`}
+              value={current.status}
+              onChange={(e) => changeStatus(current.id, e.target.value as Proposal["status"])}
+            >
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{STATUS_LABEL[s]}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-muted" title="상태 변경은 admin 이상만 가능합니다">
+              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${STATUS_CLASS[current.status]}`}>
+                {STATUS_LABEL[current.status]}
+              </span>
+              🔒 admin 이상만 변경 가능
+            </div>
+          )}
           <div className="flex items-center gap-2 mt-3.5 flex-wrap">
             {iAmEditorUp && (
               <button
