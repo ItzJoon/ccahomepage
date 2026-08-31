@@ -8,6 +8,7 @@ import PrevPathProvider from "@/components/PrevPathProvider";
 import StudentPreviewBanner from "@/components/StudentPreviewBanner";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
+import { StudentPreviewProvider } from "@/lib/studentPreviewContext";
 
 export const dynamic = "force-dynamic";
 
@@ -112,22 +113,24 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const headerProfile = previewAsStudent ? { ...profile, role: "student", is_council: false, is_judiciary: false } : profile;
 
   return (
-    <PrevPathProvider>
-      <div className="min-h-screen flex flex-col">
-        {previewAsStudent && <StudentPreviewBanner />}
-        <Header
-          profile={headerProfile as any}
-          customPages={customPages ?? []}
-          checkInEligible={checkInEligible}
-          initialThemeKey={initialThemeKey}
-          disabledFeatures={disabledFeatures}
-        />
-        {showNotifications && <NotificationBanner initial={latestBanner as any} />}
-        {showNotifications && <NotificationPopup initial={latestPopup as any} />}
-        {showNotifications && <BadgeGrantWatcher userId={profile?.id ?? null} />}
-        <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
-        <Footer initialThemeKey={initialThemeKey} />
-      </div>
-    </PrevPathProvider>
+    <StudentPreviewProvider value={previewAsStudent}>
+      <PrevPathProvider>
+        <div className="min-h-screen flex flex-col">
+          {previewAsStudent && <StudentPreviewBanner />}
+          <Header
+            profile={headerProfile as any}
+            customPages={customPages ?? []}
+            checkInEligible={checkInEligible}
+            initialThemeKey={initialThemeKey}
+            disabledFeatures={disabledFeatures}
+          />
+          {showNotifications && <NotificationBanner initial={latestBanner as any} />}
+          {showNotifications && <NotificationPopup initial={latestPopup as any} />}
+          {showNotifications && <BadgeGrantWatcher userId={profile?.id ?? null} />}
+          <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
+          <Footer initialThemeKey={initialThemeKey} />
+        </div>
+      </PrevPathProvider>
+    </StudentPreviewProvider>
   );
 }
