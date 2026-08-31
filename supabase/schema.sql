@@ -3078,3 +3078,68 @@ drop trigger if exists trg_grant_first_board_comment_badge on board_comments;
 create trigger trg_grant_first_board_comment_badge
   after insert on board_comments
   for each row execute function grant_first_board_activity_badge();
+
+-- ------------------------------------------------------------
+-- 77. "탐험가" 뱃지: 사이트 7개 주요 메뉴를 전부 방문
+-- ------------------------------------------------------------
+-- "탐험가" 뱃지: 사이트의 7개 주요 메뉴(공지사항/뉴스/일정/생활규정/Q&A/게시판/구성원)를
+-- 한 번씩 다 방문하면 지급한다. 방문 기록 자체를 남길 DB 이벤트가 없으므로(페이지
+-- 조회는 insert/update가 아님), 클라이언트가 각 페이지에서 mark_page_visited()를
+-- 직접 호출해 방문을 기록하고, 7개가 다 채워지면 이 함수 안에서 뱃지를 지급한다.
+create table user_page_visits (
+  user_id uuid not null references profiles(id) on delete cascade,
+  page_key text not null,
+  visited_at timestamptz not null default now(),
+  primary key (user_id, page_key)
+);
+
+alter table user_page_visits enable row level security;
+create policy user_page_visits_select_self on user_page_visits for select using (auth.uid() = user_id);
+
+insert into badges (code, label, icon, description, award_type, secret_tier, order_index, is_active, condition_text)
+values (
+  'explorer',
+  '탐험가',
+  '🧭',
+  '사이트의 모든 메뉴를 한 번씩 방문하면 받는 뱃지입니다.',
+  'action',
+  'none',
+  12,
+  true,
+  '공지사항·뉴스·일정·생활규정·Q&A·게시판·구성원 전부 방문'
+);
+
+create or replace function mark_page_visited(p_page_key text)
+returns void as $$
+declare
+  v_badge_id uuid;
+  v_visited_count int;
+  required_pages text[] := array['notices', 'news', 'calendar', 'rules', 'qna', 'board', 'members'];
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+  if not (p_page_key = any(required_pages)) then
+    return;
+  end if;
+
+  insert into user_page_visits (user_id, page_key)
+  values (auth.uid(), p_page_key)
+  on conflict (user_id, page_key) do nothing;
+
+  select count(distinct page_key) into v_visited_count
+    from user_page_visits
+    where user_id = auth.uid() and page_key = any(required_pages);
+
+  if v_visited_count >= array_length(required_pages, 1) then
+    select id into v_badge_id from badges where code = 'explorer' and is_active = true;
+    if v_badge_id is not null then
+      insert into user_badges (user_id, badge_id)
+      values (auth.uid(), v_badge_id)
+      on conflict (user_id, badge_id) do nothing;
+    end if;
+  end if;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function mark_page_visited(text) to authenticated;

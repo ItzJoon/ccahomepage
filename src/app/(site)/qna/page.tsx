@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
@@ -25,6 +26,7 @@ interface QuestionWithAnswer {
 
 
 export default function QnaPage() {
+  useTrackPageVisit("qna"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [tab, setTab] = useState<"list" | "write">("list");

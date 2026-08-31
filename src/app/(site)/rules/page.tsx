@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
@@ -17,6 +18,7 @@ function scrollToRule(ruleId: string) {
 }
 
 export default function RulesPage() {
+  useTrackPageVisit("rules"); // "탐험가" 뱃지용 방문 기록
   const { rows } = useRealtimeList<RuleDoc>("rules", {
     select: "*, attachments(*)",
     orderBy: { column: "order_index" },

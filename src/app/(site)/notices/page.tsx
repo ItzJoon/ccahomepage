@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
+import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import PostManager from "@/components/admin/PostManager";
@@ -21,6 +22,7 @@ function fmt(d: string) {
 }
 
 export default function NoticesPage() {
+  useTrackPageVisit("notices"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   // 교과/학급 공지도 같이 조회한다 — RLS가 본인이 대상인 것만 돌려주므로(student_subjects
   // 수강 과목 일치 / homeroom 일치), 여기서 별도로 필터링할 필요는 없다.

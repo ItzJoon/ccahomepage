@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import type { BadgeDef, DirectoryMember, DirectoryProfileView } from "@/lib/types";
 
@@ -26,6 +27,7 @@ const PHANTOM_COMBOS: { grade: "10" | "11" | "12"; homeroom: 1 | 2 | 3 }[] = [
 const PHANTOM_ID = "__phantom_member__";
 
 export default function DirectoryPage() {
+  useTrackPageVisit("members"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();

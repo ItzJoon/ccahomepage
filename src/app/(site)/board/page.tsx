@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import ReportableName from "@/components/ReportableName";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
@@ -22,6 +23,7 @@ function fmt(d: string) {
 }
 
 export default function BoardPage() {
+  useTrackPageVisit("board"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [writing, setWriting] = useState(false);
