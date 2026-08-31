@@ -2916,3 +2916,53 @@ begin
   return new;
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- ------------------------------------------------------------
+-- 73. 구성원 조회 페이지 이스터에그 "미스터리 인물" + 셀프 클레임 뱃지
+-- ------------------------------------------------------------
+-- 구성원 조회 페이지에 숨어있는 "미스터리 인물" 이스터에그. 이 뱃지 하나(code='phantom_member')
+-- 전용 기능이라 범용 컬럼/트리거가 아니라 이 코드에만 묶어서 구현한다.
+-- easter_egg_names: 이 뱃지가 화면에 보여줄 후보 이름 목록(관리자가 여러 개 설정, 접속마다
+-- 그 중 하나를 무작위로 고름). 다른 뱃지에는 의미 없는 값이라 기본값은 빈 배열.
+alter table badges add column easter_egg_names text[] not null default '{}';
+
+insert into badges (code, label, icon, description, award_type, secret_tier, order_index, is_active, easter_egg_names)
+values (
+  'phantom_member',
+  '미스터리 인물',
+  '👻',
+  '구성원 조회 페이지에 숨어있는 미스터리 인물을 찾아 눌러보세요.',
+  'action',
+  'super_secret',
+  10,
+  true,
+  array['가가가']
+);
+
+-- 학생이 미스터리 인물을 눌러 들어간 화면에서 "???" 버튼을 눌렀을 때 자기 자신에게 지급한다
+-- (관리자 승인 없이 본인이 직접 획득하는 셀프 클레임 — 다른 action 뱃지처럼 서버 트리거가
+-- 아니라 사용자의 명시적 클릭이 트리거라 RPC로 노출한다). 뱃지가 비활성화되면(admin이 끄면)
+-- 더 이상 획득할 수 없다.
+create or replace function claim_easter_egg_badge()
+returns json as $$
+declare
+  v_badge_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id into v_badge_id from badges where code = 'phantom_member' and is_active = true;
+  if v_badge_id is null then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), v_badge_id)
+  on conflict (user_id, badge_id) do nothing;
+
+  return json_build_object('badge_id', v_badge_id);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function claim_easter_egg_badge() to authenticated;

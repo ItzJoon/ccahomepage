@@ -21,6 +21,7 @@ const empty = {
   order_index: 0,
   is_active: true,
   secret_tier: "none" as "none" | "secret" | "super_secret",
+  easter_egg_names: [] as string[],
 };
 
 const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> = {
@@ -82,6 +83,7 @@ export default function AdminBadgesPage() {
       order_index: b.order_index,
       is_active: b.is_active,
       secret_tier: b.secret_tier,
+      easter_egg_names: b.easter_egg_names ?? [],
     };
     setForm(next);
     setInitialForm(next);
@@ -106,6 +108,7 @@ export default function AdminBadgesPage() {
       order_index: form.order_index,
       is_active: form.is_active,
       secret_tier: form.secret_tier,
+      easter_egg_names: form.easter_egg_names.filter((n) => n.trim()),
     };
     if (editing === "new") await supabase.from("badges").insert(payload);
     else if (editing) await supabase.from("badges").update(payload).eq("id", editing);
@@ -402,6 +405,44 @@ export default function AdminBadgesPage() {
             <option value="secret">시크릿 (목록엔 실루엣으로 표시, 이름·조건은 획득 전까지 숨김)</option>
             <option value="super_secret">슈퍼시크릿 (획득 전까지 목록에서 존재 자체를 숨김)</option>
           </select>
+
+          {form.code === "phantom_member" && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">
+                구성원 조회 이스터에그 이름 목록 (접속할 때마다 이 중 하나를 무작위로 표시)
+              </label>
+              <div className="flex flex-col gap-1.5">
+                {form.easter_egg_names.map((name, i) => (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <input
+                      className={`${t.adminInput} flex-1`}
+                      value={name}
+                      onChange={(e) => {
+                        const next = [...form.easter_egg_names];
+                        next[i] = e.target.value;
+                        setForm({ ...form, easter_egg_names: next });
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, easter_egg_names: form.easter_egg_names.filter((_, j) => j !== i) })}
+                      className="text-red text-xs font-bold shrink-0"
+                    >
+                      삭제
+                    </button>
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => setForm({ ...form, easter_egg_names: [...form.easter_egg_names, ""] })}
+                  className={`${t.adminBtnSecondary} self-start`}
+                >
+                  + 이름 추가
+                </button>
+              </div>
+            </>
+          )}
+
           <div className="flex gap-2 mt-3.5">
             <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
             <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
