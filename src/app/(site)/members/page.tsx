@@ -174,17 +174,25 @@ export default function DirectoryPage() {
   }
 
   const renderCard = (m: DirectoryMember, sub: string) => {
+    const isPhantom = m.id === PHANTOM_ID;
+    const joined = isPhantom ? null : profilesByEmail[m.email];
+    const showMigaib = !isPhantom && !joined;
     const inner = (
       <>
         <div className="font-bold">{m.display_name}</div>
         <div className="text-blue text-sm mt-1">{sub}</div>
+        {/* "미가입" 표시가 없는 카드도 이 줄만큼 자리를 차지해야 한다 — grid는 같은 행
+            안에서만 카드 높이를 맞추므로, 어쩌다 한 행이 전부 미가입 표시가 없는(2줄)
+            카드로만 이뤄지면 그 행만 유독 짧아 보이는 문제가 있었다. 항상 같은 구조로
+            렌더링하고 필요 없을 때만 invisible로 감춰서 자리는 그대로 차지하게 한다. */}
+        <div className={`text-[11px] mt-1.5 ${showMigaib ? "text-muted" : "invisible"}`}>미가입</div>
       </>
     );
     // 카드는 grid 셀을 항상 꽉 채워야 한다(width: 100%) — 이걸 명시하지 않으면 이름
     // 길이 등 내용에 따라 카드 자체의 고유 폭(min-content)이 셀 폭보다 커지려는 경우
     // 카드마다 렌더링 폭이 달라져 격자 정렬이 흐트러질 수 있다. 세 카드 종류(미스터리
     // 인물/가입한 구성원/미가입 구성원) 전부 동일하게 적용한다.
-    if (m.id === PHANTOM_ID) {
+    if (isPhantom) {
       return (
         <Link
           key={m.id}
@@ -195,7 +203,6 @@ export default function DirectoryPage() {
         </Link>
       );
     }
-    const joined = profilesByEmail[m.email];
     if (joined) {
       return (
         <Link
@@ -214,7 +221,6 @@ export default function DirectoryPage() {
         className="w-full min-w-0 bg-[#F5F6F8] border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
       >
         {inner}
-        <div className="text-[11px] text-muted mt-1.5">미가입</div>
       </div>
     );
   };

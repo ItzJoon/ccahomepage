@@ -187,6 +187,8 @@ export default function MyPage() {
                           ? b.date_condition === "between"
                             ? `${b.date_condition_value}~${b.date_condition_value_end} 로그인`
                             : `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
+                          : b.code === "phantom_member"
+                          ? "이스터에그 발견"
                           : "관리자 확인 후 지급"}
                         {earned ? " ✓" : ""}
                       </div>
