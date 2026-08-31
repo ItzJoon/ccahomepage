@@ -20,7 +20,7 @@ const empty = {
   date_condition_value_end: "",
   order_index: 0,
   is_active: true,
-  is_secret: false,
+  secret_tier: "none" as "none" | "secret" | "super_secret",
 };
 
 const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> = {
@@ -81,7 +81,7 @@ export default function AdminBadgesPage() {
       date_condition_value_end: b.date_condition_value_end ?? "",
       order_index: b.order_index,
       is_active: b.is_active,
-      is_secret: b.is_secret,
+      secret_tier: b.secret_tier,
     };
     setForm(next);
     setInitialForm(next);
@@ -105,7 +105,7 @@ export default function AdminBadgesPage() {
       date_condition_value_end: form.award_type === "date" && form.date_condition === "between" ? form.date_condition_value_end : null,
       order_index: form.order_index,
       is_active: form.is_active,
-      is_secret: form.is_secret,
+      secret_tier: form.secret_tier,
     };
     if (editing === "new") await supabase.from("badges").insert(payload);
     else if (editing) await supabase.from("badges").update(payload).eq("id", editing);
@@ -187,7 +187,8 @@ export default function AdminBadgesPage() {
                 <td className={t.adminTableCell}>
                   <div className="font-bold flex items-center gap-1">
                     {b.label}
-                    {b.is_secret && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
+                    {b.secret_tier === "secret" && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
+                    {b.secret_tier === "super_secret" && <span className="text-[10px] font-bold text-red border border-red rounded px-1">슈퍼시크릿</span>}
                   </div>
                   <div className="text-muted text-xs">{b.description}</div>
                 </td>
@@ -391,10 +392,16 @@ export default function AdminBadgesPage() {
             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
             활성화 (지급 가능 상태로 켜기)
           </label>
-          <label className="flex items-center gap-2 text-sm mt-1">
-            <input type="checkbox" checked={form.is_secret} onChange={(e) => setForm({ ...form, is_secret: e.target.checked })} />
-            시크릿 (획득 전까지 학생에게 숨김)
-          </label>
+          <label className="text-xs font-bold text-muted mt-2">공개 범위</label>
+          <select
+            className={t.adminInput}
+            value={form.secret_tier}
+            onChange={(e) => setForm({ ...form, secret_tier: e.target.value as "none" | "secret" | "super_secret" })}
+          >
+            <option value="none">공개 (목록에 항상 표시)</option>
+            <option value="secret">시크릿 (목록엔 실루엣으로 표시, 이름·조건은 획득 전까지 숨김)</option>
+            <option value="super_secret">슈퍼시크릿 (획득 전까지 목록에서 존재 자체를 숨김)</option>
+          </select>
           <div className="flex gap-2 mt-3.5">
             <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
             <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>

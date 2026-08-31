@@ -2878,3 +2878,15 @@ drop trigger if exists trg_grant_first_qna_badge on questions;
 create trigger trg_grant_first_qna_badge
   after insert on questions
   for each row execute function grant_first_qna_badge();
+
+-- ------------------------------------------------------------
+-- 71. 시크릿 뱃지를 시크릿/슈퍼시크릿 두 단계로 분리
+-- ------------------------------------------------------------
+-- 시크릿 뱃지를 두 단계로 나눈다: "시크릿"은 목록에 실루엣(그림자)으로 보이되 이름/조건은
+-- 획득 전까지 가려지고, "슈퍼시크릿"은 기존 is_secret=true와 동일하게 획득 전까지 목록에서
+-- 아예 안 보인다(존재 자체를 숨김). 기존 is_secret=true였던 뱃지는 "시크릿"으로 이관한다
+-- (기존 동작보다 더 많이 노출되긴 하지만, 실루엣+이름/조건 숨김이라 정체는 여전히 안 보임).
+alter table badges add column secret_tier text not null default 'none'
+  check (secret_tier in ('none', 'secret', 'super_secret'));
+update badges set secret_tier = 'secret' where is_secret = true;
+alter table badges drop column is_secret;

@@ -184,7 +184,7 @@ export interface BadgeDef {
   date_condition_value_end: string | null;
   order_index: number;
   is_active: boolean;
-  is_secret: boolean;
+  secret_tier: "none" | "secret" | "super_secret";
 }
 
 export interface UserBadge {

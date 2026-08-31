@@ -1,7 +1,7 @@
 import type { BadgeDef } from "@/lib/types";
 
 export default function BadgeCelebration({ badge, onClose }: { badge: BadgeDef; onClose: () => void }) {
-  const secret = badge.is_secret;
+  const secret = badge.secret_tier !== "none";
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div

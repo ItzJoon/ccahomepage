@@ -28,7 +28,9 @@ export default function MyPage() {
 
   const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
   const { badges, earnedIds } = useBadges(userId ?? null);
-  const visibleBadges = badges.filter((b) => !b.is_secret || earnedIds.has(b.id));
+  // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 시크릿 동작과 동일).
+  // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
+  const visibleBadges = badges.filter((b) => b.secret_tier !== "super_secret" || earnedIds.has(b.id));
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -162,25 +164,34 @@ export default function MyPage() {
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {visibleBadges.map((b) => {
             const earned = earnedIds.has(b.id);
+            // 시크릿(획득 전) — 뱃지가 있다는 사실은 보이되 그림자(실루엣) 처리하고
+            // 이름/달성 조건은 가린다. 슈퍼시크릿은 이미 위 필터에서 목록에서 제외됨.
+            const secretLocked = b.secret_tier === "secret" && !earned;
             return (
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 <div className={`flex flex-col items-center gap-1 ${earned ? "" : "opacity-30 grayscale"}`}>
-                  <div className="text-3xl cursor-default">{b.icon}</div>
-                  <div className="text-[11px] text-muted leading-tight">{b.label}</div>
+                  <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
+                  <div className="text-[11px] text-muted leading-tight">{secretLocked ? "???" : b.label}</div>
                 </div>
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
-                  <div className="font-bold mb-0.5">{b.label}</div>
-                  {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
-                  <div className="text-gold mt-1 font-bold">
-                    {b.award_type === "auto"
-                      ? `연속 ${b.streak_threshold}일 달성`
-                      : b.award_type === "date"
-                      ? b.date_condition === "between"
-                        ? `${b.date_condition_value}~${b.date_condition_value_end} 로그인`
-                        : `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
-                      : "관리자 확인 후 지급"}
-                    {earned ? " ✓" : ""}
-                  </div>
+                  {secretLocked ? (
+                    <div className="font-bold">???? (히든 뱃지)</div>
+                  ) : (
+                    <>
+                      <div className="font-bold mb-0.5">{b.label}</div>
+                      {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
+                      <div className="text-gold mt-1 font-bold">
+                        {b.award_type === "auto"
+                          ? `연속 ${b.streak_threshold}일 달성`
+                          : b.award_type === "date"
+                          ? b.date_condition === "between"
+                            ? `${b.date_condition_value}~${b.date_condition_value_end} 로그인`
+                            : `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
+                          : "관리자 확인 후 지급"}
+                        {earned ? " ✓" : ""}
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             );
