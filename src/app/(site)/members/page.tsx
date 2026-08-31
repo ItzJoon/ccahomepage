@@ -177,7 +177,7 @@ export default function DirectoryPage() {
         <Link
           key={m.id}
           href="/members/mystery"
-          className="bg-white border-2 border-dashed border-gold rounded-xl p-4 text-center hover:shadow-md transition-shadow"
+          className="bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
         >
           {inner}
         </Link>
