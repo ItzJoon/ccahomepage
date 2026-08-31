@@ -144,7 +144,7 @@ export default function AdminUsersPage() {
                     </select>
                   ) : (
                     <span className="text-sm text-muted" title={lockReason}>
-                      {roleLabel(p.role)} 🔒
+                      {roleLabel(p.role)}
                     </span>
                   )}
                 </td>
