@@ -239,13 +239,16 @@ npm run dev
 ## 7. 역할별 권한 정리
 
 `role`은 낮은 순서대로 `student`/`teacher`(둘은 완전히 동일한 권한 — 아래 teacher 항목
-참고) < `sub_editor`(별도의 좁은 관리 화면 하나만 접근 가능) < `editor` < `admin` < `superadmin`
-입니다. 아래는 실제 RLS 정책과 middleware 경로 제한 기준으로 각 역할이 **위 단계에 추가로**
-할 수 있는 일만 적었습니다(위 단계 권한은 전부 포함). `role`과 별개로 `is_council`/
-`is_judiciary` boolean 플래그가 있어(아래 별도 설명) role을 바꾸지 않고도 특정 화면 접근을
-켜고 끌 수 있습니다. `viewer`는 이 서열과 무관하게 student와 동일한 권한에 사이트 잠금 모드
-예외만 추가한 특수 역할이고, `designer`는 이 서열과 무관하게 **모든 관리자 화면을 열람만**
-할 수 있는 특수 역할입니다(둘 다 아래 별도 설명).
+참고) < `sub_editor`(현재는 사실상 유명무실 — 아래 별도 설명) < `editor` < `admin` <
+`superadmin`입니다. **DB의 실제 role 값은 여전히 `superadmin`이지만, 화면에는 "developer"로
+표시됩니다**(`src/lib/roleLabel.ts`) — 권한 로직은 전혀 바뀌지 않은 순수 표시 이름이라, 아래
+설명에서도 두 이름을 같은 뜻으로 섞어 씁니다. 아래는 실제 RLS 정책과 middleware 경로 제한
+기준으로 각 역할이 **위 단계에 추가로** 할 수 있는 일만 적었습니다(위 단계 권한은 전부
+포함). `role`과 별개로 `is_council`/`is_judiciary` boolean 플래그가 있어(아래 별도 설명)
+role을 바꾸지 않고도 특정 화면 접근을 켜고 끌 수 있습니다. `viewer`는 이 서열과 무관하게
+student와 동일한 권한에 사이트 잠금 모드 예외만 추가한 특수 역할이고, `designer`는 이
+서열과 무관하게 **모든 관리자 화면에 admin 수준으로 접근**할 수 있는 특수 역할입니다(단,
+superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
 
 ### student (기본, 로그인 시)
 - **로그인하려면 학교 명단(`directory_members`)에 `is_allowed=true`로 등록돼 있어야 합니다.**
@@ -300,14 +303,18 @@ npm run dev
   섹션에서 제거한 정책들과, `admin/layout.tsx`/`middleware.ts`/`(site)/notices/page.tsx`/
   `api/send-notice-email`에서 뺀 "teacher" 항목을 되돌리면 됩니다.
 
-### sub_editor
-- `/admin/org-activities/*` **한 영역만** 접근 가능(안건함·부서 일정·활동기록 — 그 외 모든
-  `/admin` 하위 경로는 막힘). **단, role만으로는 부족하고 `is_council`(임원회) 플래그도
-  함께 있어야 합니다** — sub_editor라도 is_council이 없으면 이 화면도 못 씁니다. AdminNav
-  에도 is_council이 있을 때만 "임원회 전용" 그룹으로 보입니다.
-- 안건 상태 변경(검토중/승인/반려/완료), 부서 일정·활동기록 작성/수정/삭제 가능
-  (`is_org_activities_manager()` — `is_editor_or_above()`와 별개 함수라 다른 테이블에는
-  영향 없음, is_council 조건 포함). 안건 자체의 등록·삭제(admin 이상)는 기존 권한 그대로.
+### sub_editor (현재는 사실상 유명무실)
+- 원래는 "`/admin/org-activities/*` 한 영역만 접근 가능한 좁은 관리 역할"로 만들었지만,
+  이후 부서 활동 접근 기준이 **role과 완전히 무관하게 `is_council`(임원회) 플래그 하나로
+  통일**되면서(아래 "is_council / is_judiciary" 항목 참고) sub_editor라는 role 자체가 주는
+  고유 권한은 없어졌습니다. `is_council=true`면 role이 student/teacher여도 이 화면들에
+  접근할 수 있고, 반대로 role이 sub_editor여도 `is_council=false`면 org-activities를 포함해
+  어떤 `/admin` 화면도 열 수 없습니다. role 목록에는 하위 호환을 위해 남아 있을 뿐, 실질적인
+  역할 구분 효과는 없습니다.
+- 부서 활동 안건 상태 변경(검토중/승인/반려/완료)은 이제 admin 이상(또는 designer)만 할 수
+  있고, 안건 등록·삭제나 부서 일정·활동기록 작성/수정은 `is_org_activities_manager()`
+  (is_council=true 또는 superadmin) 기준으로 role과 무관하게 열려 있습니다 — 자세한 내용은
+  "부서 활동" 절(11) 참고.
 
 ### editor (일반 관리 화면이 열리는 최소 등급, 부장급)
 - 콘텐츠 생성·수정: 부서·구성원·일정·규정·공지/뉴스·커스텀 페이지·메뉴·메인화면 블록
@@ -356,14 +363,23 @@ npm run dev
 - **이메일 발송 이력(`/admin/notify`의 "이메일 발송 이력" 탭) 전체 열람 가능** — teacher/
   editor는 본인이 보낸 이력만 보이지만 admin 이상은 전체 발송 이력을 볼 수 있습니다
   (17절 참고)
+- **구성원 조회(`/members/[id]`)에서 다른 사람의 닉네임·자기소개를 직접 수정 가능**
+  (`useMyRole().isAdmin` 기준 — designer는 제외, RLS도 `profiles_update_admin`으로 admin
+  이상만 허용)
 - 나머지 관리 화면(부서/구성원/일정/규정/Q&A 답변/메인화면 편집/페이지 빌더 등)은 editor와 동일
 
-### superadmin
+### superadmin (화면 표시는 "developer")
 - **뱃지 관리(`/admin/badges`)**: 뱃지 추가/수정/비활성화/삭제, 학생에게 직접 부여, 이미
-  받은 뱃지 삭제(회수)
-- **회원·권한 관리(`/admin/users`)**: 모든 계정의 role을 자유롭게 변경(admin/superadmin
-  승격 포함, admin/superadmin 계정도 수정 가능), `is_council`(임원회)/`is_judiciary`
-  (사법위원회) 플래그를 계정별로 켜고 끄기
+  받은 뱃지 삭제(회수). designer는 이 화면을 열람만 할 수 있고 조작은 못 합니다(아래 designer
+  항목 참고).
+- **회원·권한 관리(`/admin/users`)**: 대부분의 계정 role을 자유롭게 변경할 수 있지만,
+  **`superadmin`으로 새로 승격시키는 것은 superadmin 본인을 포함해 아무도 이 화면에서 할 수
+  없습니다**(DB에서 직접 바꿔야 함) — `ASSIGNABLE_ROLES`에서 아예 제외되어 있고, DB 트리거
+  `protect_profile_fields()`도 같은 규칙을 서버 단에서 한 번 더 강제합니다. **이미
+  superadmin인 계정의 role도(본인 포함) 이 화면에서 바꿀 수 없습니다** — 행 자체가
+  잠겨서(회색 텍스트로만 표시) 다른 superadmin이 실수로/의도적으로 서로의 권한을 빼앗는
+  사고와, 스스로 권한을 낮춰버리는 사고를 함께 막습니다. `is_council`(임원회)/`is_judiciary`
+  (사법위원회) 플래그를 계정별로 켜고 끄는 것은 그대로 자유롭게 가능합니다.
 - **외부 계정 관리(`/admin/access-requests`)**: 명단 밖 이메일의 로그인 시도 열람,
   허용/차단 처리, **이미 허용한 계정을 다시 미승인 상태로 되돌리기**("다시 막기" —
   영구 차단이 아니라 승인 취소), 외부 계정 자동 차단 기능 자체를 켜고 끄는 스위치
@@ -390,20 +406,35 @@ npm run dev
   가능**합니다 — is_council 조건이 걸린 다른 모든 화면도 마찬가지로 superadmin은
   항상 예외입니다(관리자가 플래그 설정 실수로 스스로를 포함해 아무도 접근 못 하게
   되는 사고를 막기 위한 안전장치, 명단 예외와 같은 종류).
+- **"학생 화면 보기"(관리자 헤더의 "홈페이지로 돌아가기" 옆 버튼)**: superadmin(developer)
+  에게만 보이고, 누르면 실제 role은 그대로 둔 채 `preview_as_student` 쿠키만 심어서 헤더·
+  홈 화면을 student 권한으로 본 것처럼 렌더링합니다(임원회/사법위원회 메뉴 등이 숨겨짐).
+  서버 쪽에서 role이 superadmin인지 다시 검증하므로 다른 계정이 쿠키만으로 흉내낼 수
+  없고, 사이트 잠금(점검) 모드 중에도 superadmin은 잠금 예외 대상이라 이 미리보기를 계속
+  쓸 수 있습니다.
 
-### designer (조회 전용, role 서열과 무관한 특수 역할)
-- **admin/superadmin 전용 화면을 포함한 모든 `/admin` 탭에 접근할 수 있지만, 어떤 데이터도
-  추가/수정/삭제할 수 없습니다.** `AdminNav`의 모든 그룹(임원회 전용/admin 전용/superadmin
-  전용)이 숨김 없이 그대로 보입니다 — "탭 자체를 숨기지 않는다"는 설계 의도입니다.
-- **실제 차단은 RLS가 담당합니다**: `is_admin()`/`is_superadmin()`/`is_editor_or_above()`
-  등 기존 write 게이트 함수 어디에도 designer가 포함되지 않으므로, 모든 테이블의
-  insert/update/delete가 자동으로 막힙니다. 대신 admin 화면이 읽어야 하는 17개 테이블에
-  "select만 허용"하는 designer 전용 정책을 추가해서 admin/superadmin과 동등한 읽기 범위를
-  확보했습니다.
-- **화면상으로도 아무것도 조작할 수 없습니다**: `admin/layout.tsx`가 관리자 화면 콘텐츠
-  전체를 `DesignerModeGate` 컴포넌트로 감싸서, `inert` HTML 속성(클릭·포커스·키보드 입력을
-  한 번에 차단 — 텍스트 입력도 포함)과 흐림 효과를 한 번에 적용합니다. 개별 관리자 화면을
-  일일이 고칠 필요가 없어서 새 관리자 UI를 추가해도 자동으로 적용됩니다.
+### designer (role 서열과 무관한 특수 역할 — admin 수준 쓰기 권한, superadmin 전용 화면만 열람)
+- **원래는 완전 조회 전용으로 만들었다가, 이후 "쓰기 권한만 admin 수준으로 확장하되
+  superadmin 전용 화면은 그대로 제외"하는 방향으로 바뀌었습니다.** 그 결과 지금은:
+  - **admin 전용 화면(공지·뉴스·게시판·Q&A·부서 활동·경고/정지/차단, 급식표 관리, 신고
+    처리 등)에서는 실제로 admin과 동일하게 추가/수정/삭제까지 할 수 있습니다.**
+  - **editor 수준 화면(부서·구성원·일정·규정·페이지 빌더·메인화면 편집 등)도 마찬가지로
+    직접 조작 가능합니다.**
+  - **superadmin 전용 화면 8개(`/admin/access-requests`, `/admin/badges`, `/admin/users`,
+    `/admin/stats`, `/admin/maintenance`, `/admin/activity-logs`, `/admin/feature-flags`,
+    `/admin/theme`)만은 예외로, 화면은 열리지만(탭이 숨겨지지 않음) 여전히 열람만 가능하고
+    실제 데이터 조작은 할 수 없습니다.**
+- 구현 방식: `is_admin()`/`is_editor_or_above()` 같은 기존 권한 판정 함수 자체는 건드리지
+  않고(다른 화면에 의도치 않게 영향이 번지는 것을 막기 위해), 각 테이블·RPC의 write 정책에
+  `OR is_designer()` 조건을 하나씩 추가하는 방식으로 admin/editor 동등 권한을 부여했습니다.
+  `admin/layout.tsx`의 `DesignerModeGate`는 이제 위 superadmin 전용 8개 경로에서만 `inert`
+  (클릭·포커스·키보드 입력 차단)를 적용하고, 그 외 화면에서는 완전히 정상적으로 조작할 수
+  있습니다.
+- **예외**: 부서 활동 안건의 **상태 변경**(검토중/승인/반려/완료)은 admin 이상 또는
+  designer가 할 수 있고, **다른 사람의 닉네임·자기소개 수정**(`/members/[id]`)은 designer가
+  제외되어 admin 이상만 가능합니다 — 화면마다 개별적으로 `OR is_designer()`를 붙였기 때문에,
+  "admin과 완전히 동일"이 아니라 "admin 화면 대부분에서 admin과 동일" 정도로 이해하는 것이
+  정확합니다. 새 관리 기능을 추가할 때 designer를 포함할지는 매번 판단이 필요합니다.
 - **회원·권한 관리(`/admin/users`)의 role 선택 옵션에 "designer"는 superadmin 계정에게만
   보이고 admin 계정에게는 보이지 않습니다.**
 - `directory_members` 명단 등록 요건은 다른 일반 role과 동일하게 적용됩니다(admin/superadmin
@@ -423,6 +454,11 @@ npm run dev
   직접 호출하면 막히지 않습니다 — UI/라우팅 차단이지 RLS 차단은 아닙니다).
 - `is_council=true`인 계정은 `/org-activities`에 "임원회 캘린더" 탭이 추가로 보입니다 —
   모든 부서의 일정(`org_events`)을 부서 구분 없이 모아서 보여줍니다.
+- **관리자 헤더 로고/홈 링크가 계정에 따라 다르게 보입니다**: editor 이상(editor/admin/
+  superadmin/designer)은 "학생자치회 관리자"로 표시되고 눌렀을 때 `/admin`으로 가지만,
+  role은 student/teacher이고 `is_council`만 true인 계정은 "학생자치회 임원회"로 표시되고
+  `/admin/org-activities`로 바로 이동합니다 — 일반 관리 화면 접근 권한이 없는 임원회
+  학생에게 불필요한 "관리자" 표현을 쓰지 않기 위한 구분입니다.
 - `is_judiciary`는 현재 이 플래그를 확인하는 화면이 없습니다(사법위원회 전용 기능이
   생기면 쓸 자리로 미리 추가해둠).
 

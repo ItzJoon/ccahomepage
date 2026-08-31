@@ -233,6 +233,7 @@ export async function updateSession(request: NextRequest) {
       "/admin/maintenance",
       "/admin/activity-logs",
       "/admin/feature-flags",
+      "/admin/theme",
     ];
     if (superadminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "superadmin" && r !== "designer") {

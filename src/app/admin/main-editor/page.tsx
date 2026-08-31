@@ -37,23 +37,10 @@ export default function AdminMainEditorPage() {
     reload();
   };
 
-  // 1/2 너비는 항상 짝을 지어 한 줄을 꽉 채워야 자연스러우므로, 1/2 너비 블록의 바로
-  // 다음(순서상)에는 1/2 너비 블록만 올 수 있게 강제한다 — 앞뒤 어느 쪽에서 바꾸려 하든
-  // 이 관계가 깨지는 시도는 막는다(실제로 저장하지 않고 안내만 하고 되돌림).
+  // 이전엔 1/2 너비 블록의 바로 다음에도 1/2 너비만 오도록 강제하고 어기면 alert로 막았는데,
+  // CSS 그리드가 이미 한 줄에 남은 칸이 모자라면 자동으로 다음 줄로 넘겨주므로(grid-auto-flow
+  // 기본 동작) 그 제약을 없애고 짝이 안 맞으면 그냥 자동 줄바꿈되게 둔다.
   const changeWidth = async (b: MainBlock, col_span: number) => {
-    const idx = sorted.findIndex((x) => x.id === b.id);
-    if (col_span === HALF_WIDTH) {
-      const next = sorted[idx + 1];
-      if (next && next.col_span !== HALF_WIDTH) {
-        alert(`"${next.label}"도 먼저 1/2 너비로 바꿔야 합니다 — 1/2 너비 다음에는 1/2 너비만 올 수 있습니다.`);
-        return;
-      }
-    }
-    const prev = sorted[idx - 1];
-    if (prev?.col_span === HALF_WIDTH && col_span !== HALF_WIDTH) {
-      alert(`바로 앞의 "${prev.label}"이 1/2 너비라서, 이 블록도 1/2 너비로만 바꿀 수 있습니다.`);
-      return;
-    }
     await supabase.from("main_blocks").update({ col_span }).eq("id", b.id);
     reload();
   };
@@ -74,8 +61,8 @@ export default function AdminMainEditorPage() {
       <h2 className="text-[22px] mb-2">메인 화면 편집기</h2>
       <p className="text-muted mb-4">
         학생용 홈에 노출할 블록을 선택하고, 순서와 너비(1/3·1/2·2/3·전체)를 조정하세요. 6칸 기준
-        그리드라 너비를 조합하면 한 줄을 꽉 채울 수 있습니다(1/2 너비는 항상 다음 블록도
-        1/2 너비여야 짝이 맞습니다). 변경 사항은 Realtime을 통해 즉시 학생 화면에 반영됩니다.
+        그리드라 너비를 조합하면 한 줄을 꽉 채울 수 있고, 한 줄에 다 들어가지 않으면 자동으로
+        다음 줄로 넘어갑니다. 변경 사항은 Realtime을 통해 즉시 학생 화면에 반영됩니다.
       </p>
       <ul className="list-none m-0 p-0 max-w-xl mb-6">
         {sorted.map((b) => (
