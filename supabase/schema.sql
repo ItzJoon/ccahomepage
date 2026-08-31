@@ -2834,3 +2834,47 @@ alter policy posts_update_editor on posts using (is_editor_or_above() or is_desi
 alter policy questions_update_admin on questions using (is_editor_or_above() or is_designer());
 alter policy rules_write_admin on rules using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
 alter policy student_subjects_write_staff on student_subjects using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+
+-- ------------------------------------------------------------
+-- 70. 뱃지 자동 지급 조건에 "Q&A 처음 작성" 추가
+-- ------------------------------------------------------------
+-- 뱃지 자동 지급 조건에 "Q&A 처음 작성"을 추가한다. 기존 award_type은 auto(연속접속
+-- 일수 도달)/date(날짜 조건)/manual(관리자 수동 부여)뿐이라, "특정 행동을 하면 서버가
+-- 자동으로 지급"하는 부류를 위해 action을 새 award_type으로 추가한다. action 타입은
+-- 뱃지마다 별도 코드(트리거)로 연결해야 해서 범용 설정 UI는 없고, 이 뱃지 전용
+-- 트리거만 둔다.
+alter table badges drop constraint badges_award_type_check;
+alter table badges add constraint badges_award_type_check
+  check (award_type = any (array['auto', 'manual', 'date', 'action']));
+
+insert into badges (code, label, icon, description, award_type, order_index, is_active, is_secret)
+values ('first_qna', '궁금한 게 많아요', '❓', 'Q&A에 처음 질문을 남기면 받는 뱃지입니다.', 'action', 9, true, false);
+
+-- questions에 처음 글을 쓴 순간(그 사용자의 첫 질문일 때)에만 지급한다. user_badges의
+-- unique(user_id, badge_id) + on conflict do nothing으로 중복 지급을 막고, celebrated는
+-- 기본값(false)으로 남겨서 BadgeGrantWatcher(관리자가 뱃지를 직접 지급했을 때와 동일한
+-- realtime 감지 경로)가 그 자리에서 축하 팝업을 띄우게 한다 — Q&A 작성 화면 쪽 코드는
+-- 전혀 건드릴 필요가 없다.
+create or replace function grant_first_qna_badge()
+returns trigger as $$
+declare
+  v_badge_id uuid;
+  v_question_count int;
+begin
+  select count(*) into v_question_count from questions where user_id = new.user_id;
+  if v_question_count = 1 then
+    select id into v_badge_id from badges where code = 'first_qna' and is_active = true;
+    if v_badge_id is not null then
+      insert into user_badges (user_id, badge_id)
+      values (new.user_id, v_badge_id)
+      on conflict (user_id, badge_id) do nothing;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_grant_first_qna_badge on questions;
+create trigger trg_grant_first_qna_badge
+  after insert on questions
+  for each row execute function grant_first_qna_badge();

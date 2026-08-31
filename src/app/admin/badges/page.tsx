@@ -13,7 +13,7 @@ const empty = {
   label: "",
   description: "",
   icon: "🏅",
-  award_type: "auto" as "auto" | "manual" | "date",
+  award_type: "auto" as "auto" | "manual" | "date" | "action",
   streak_threshold: 3,
   date_condition: "before" as "before" | "after" | "on" | "between",
   date_condition_value: "",
@@ -198,6 +198,8 @@ export default function AdminBadgesPage() {
                     ? b.date_condition === "between"
                       ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
                       : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+                    : b.award_type === "action"
+                    ? "특정 행동 시 자동"
                     : "수동 부여"}
                 </td>
                 <td className={t.adminTableCell}>
@@ -299,11 +301,12 @@ export default function AdminBadgesPage() {
           <select
             className={t.adminInput}
             value={form.award_type}
-            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" })}
+            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" | "action" })}
           >
             <option value="auto">자동 (연속 접속일수 조건 도달 시)</option>
             <option value="date">날짜 조건 (특정 날짜 이전/이후/당일 로그인)</option>
             <option value="manual">수동 (자유 조건, 관리자가 확인 후 직접 부여)</option>
+            <option value="action">특정 행동 (Q&A 첫 작성 등, 코드로 직접 연결됨)</option>
           </select>
 
           <label className="text-xs font-bold text-muted mt-2">
@@ -375,6 +378,13 @@ export default function AdminBadgesPage() {
           )}
           {form.award_type === "manual" && (
             <p className="text-muted text-xs">저장 후 왼쪽 "뱃지 직접 부여"에서 학생을 골라 지급하세요.</p>
+          )}
+          {form.award_type === "action" && (
+            <p className="text-muted text-xs">
+              이 방식은 특정 행동(예: Q&A 첫 작성)을 하면 서버 코드가 자동으로 지급합니다.
+              지급 조건은 개발자가 직접 코드로 연결해야 하며, 이 화면에서는 설정할 수 없습니다
+              — 새로 만들려면 개발자에게 요청하세요.
+            </p>
           )}
 
           <label className="flex items-center gap-2 text-sm mt-2">
