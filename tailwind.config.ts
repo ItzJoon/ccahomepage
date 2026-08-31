@@ -35,6 +35,21 @@ const config: Config = {
         // "apple" 테마의 히어로 제목용 손글씨체 (Figma 디자인 그대로)
         caveat: ["'Caveat'", "cursive"],
       },
+      keyframes: {
+        // 슈퍼시크릿 뱃지 획득 연출 전용(BadgeCelebration.tsx 참고)
+        "confetti-fall": {
+          "0%": { transform: "translateY(-10px) rotate(0deg)", opacity: "1" },
+          "100%": { transform: "translateY(340px) rotate(360deg)", opacity: "0" },
+        },
+        "glow-pulse": {
+          "0%, 100%": { boxShadow: "0 0 25px 0 rgba(212,160,23,0.45)" },
+          "50%": { boxShadow: "0 0 60px 12px rgba(212,160,23,0.8)" },
+        },
+      },
+      animation: {
+        "confetti-fall": "confetti-fall 1.8s ease-in forwards",
+        "glow-pulse": "glow-pulse 1.4s ease-in-out infinite",
+      },
     },
   },
   plugins: [],

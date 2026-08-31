@@ -12,6 +12,7 @@ export interface Profile {
   is_council: boolean;
   is_judiciary: boolean;
   email_notifications: boolean;
+  badge_sound_enabled: boolean;
   warning_count: number;
   suspended_until: string | null;
   created_at: string;

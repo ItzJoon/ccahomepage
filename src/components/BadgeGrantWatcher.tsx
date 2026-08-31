@@ -18,7 +18,7 @@ import type { BadgeDef } from "@/lib/types";
  * 여전히 useAutoCheckIn 쪽에서 처리 — 그건 realtime 없이 즉시 로컬에서 처리되는
  * 별개의 경로라 이 지연 문제와 무관함).
  */
-export default function BadgeGrantWatcher({ userId }: { userId: string | null }) {
+export default function BadgeGrantWatcher({ userId, soundEnabled = true }: { userId: string | null; soundEnabled?: boolean }) {
   const [queue, setQueue] = useState<BadgeDef[]>([]);
   const badgesRef = useRef<BadgeDef[]>([]);
   // 실시간 구독(INSERT 이벤트)과 폴링(20초 주기 안전망)이 같은 badge_id를 동시에 감지할
@@ -125,5 +125,7 @@ export default function BadgeGrantWatcher({ userId }: { userId: string | null })
 
   const current = queue[0] ?? null;
   if (!current) return null;
-  return <BadgeCelebration badge={current} onClose={() => setQueue((q) => q.slice(1))} />;
+  return (
+    <BadgeCelebration badge={current} onClose={() => setQueue((q) => q.slice(1))} soundEnabled={soundEnabled} />
+  );
 }

@@ -291,7 +291,9 @@ export default function Header({
       )}
     </header>
     {toast !== null && <CheckInToast streak={toast} />}
-    {celebrate && <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} />}
+    {celebrate && (
+      <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} soundEnabled={profile?.badge_sound_enabled ?? true} />
+    )}
     {quickEditOpen && profile && (
       <ProfileQuickEditModal
         userId={profile.id}

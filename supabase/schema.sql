@@ -3162,3 +3162,10 @@ alter table main_blocks add constraint main_blocks_col_span_check check (col_spa
 -- 지급된다. order_index=0으로 두어 secret_tier가 같은(none) 다른 뱃지들보다 항상 앞에 오게 한다.
 insert into badges (code, label, description, icon, award_type, streak_threshold, order_index, is_active, secret_tier, condition_text)
 values ('first_visit', '사이트 첫 방문', '사이트에 처음 방문해 접속 기록을 남김', '👋', 'auto', 1, 0, true, 'none', '사이트 첫 방문');
+
+-- 80. 뱃지 획득 효과음 켜기/끄기 설정
+-- ------------------------------------------------------------
+-- 뱃지 등급(secret_tier)은 이미 badges 테이블에 있으므로 별도 tier 컬럼을 새로 만들지
+-- 않고 그대로 재사용한다("일반"=none, "시크릿"=secret, "슈퍼시크릿"=super_secret). 여기서는
+-- 등급과 무관하게 전체 효과음 재생 여부를 사용자별로 껐다 켰다 할 수 있는 설정만 추가한다.
+alter table profiles add column badge_sound_enabled boolean not null default true;
