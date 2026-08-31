@@ -3154,3 +3154,11 @@ grant execute on function mark_page_visited(text) to authenticated;
 alter table main_blocks drop constraint main_blocks_col_span_check;
 update main_blocks set col_span = col_span * 2;
 alter table main_blocks add constraint main_blocks_col_span_check check (col_span >= 1 and col_span <= 6);
+
+-- 79. "사이트 첫 방문" 뱃지 추가 (목록 맨 앞)
+-- ------------------------------------------------------------
+-- streak_threshold=1인 auto 뱃지 — checkMilestones가 이미 "연속 접속일 >= streak_threshold"를
+-- 기준으로 지급하므로, 1로 두면 첫 체크인(연속 접속 1일째) 시점에 별도 코드 없이 그대로
+-- 지급된다. order_index=0으로 두어 secret_tier가 같은(none) 다른 뱃지들보다 항상 앞에 오게 한다.
+insert into badges (code, label, description, icon, award_type, streak_threshold, order_index, is_active, secret_tier, condition_text)
+values ('first_visit', '사이트 첫 방문', '사이트에 처음 방문해 접속 기록을 남김', '👋', 'auto', 1, 0, true, 'none', '사이트 첫 방문');
