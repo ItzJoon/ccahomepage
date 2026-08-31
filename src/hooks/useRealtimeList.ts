@@ -47,16 +47,31 @@ export function useRealtimeList<T extends { id: string }>(
     let active = true;
     load();
 
-    const channel = supabase
-      .channel(channelNameRef.current)
-      .on("postgres_changes", { event: "*", schema: "public", table }, () => {
-        if (active) load();
-      })
-      .subscribe();
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+    (async () => {
+      // 컴포넌트가 마운트되는 시점엔 SSR 쿠키로 이미 로그인된 상태라도, 클라이언트
+      // supabase-js 인스턴스의 realtime 소켓에는 그 인증이 아직 반영되지 않았을 수 있다
+      // (@supabase/ssr가 onAuthStateChange를 통해 비동기로 반영함). 채널을 그보다 먼저
+      // 구독하면 이 연결이 미인증으로 처리돼 RLS를 통과 못 하고, 이후 이 테이블의 변경을
+      // 계속 못 받는다 — 새로고침(=완전히 새로 불러오는 load()) 전까지는 실시간 반영이
+      // 전혀 안 되는 버그의 원인이었다(예: 관리자 테마를 바꿔도 이미 열려 있던 다른 화면에는
+      // 반영이 안 되거나, 옛 값이 한동안 남아있다 사라지는 것처럼 보임). 구독 전에 세션
+      // 토큰을 realtime에 명시적으로 반영해 이 경합을 없앤다.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!active) return;
+      if (session) supabase.realtime.setAuth(session.access_token);
+
+      channel = supabase
+        .channel(channelNameRef.current)
+        .on("postgres_changes", { event: "*", schema: "public", table }, () => {
+          if (active) load();
+        })
+        .subscribe();
+    })();
 
     return () => {
       active = false;
-      supabase.removeChannel(channel);
+      if (channel) supabase.removeChannel(channel);
     };
   }, [load, table]); // eslint-disable-line react-hooks/exhaustive-deps
 

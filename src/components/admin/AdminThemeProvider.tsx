@@ -1,16 +1,17 @@
 "use client";
 
-import { createContext } from "react";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { AdminThemeContext } from "@/lib/adminThemeContext";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 
 /**
- * admin/layout.tsx가 서버에서 미리 조회해둔 site_theme 값을 관리자 화면 트리 전체에
- * 내려준다. useHomeTheme()이 이 값을 폴백으로 써서, 각 관리자 페이지가 매번
- * initialThemeKey를 직접 받지 않아도 realtime 구독 값이 도착하기 전까지 DEFAULT_HOME_THEME
- * (classic)로 렌더링됐다가 실제 테마(apple 등)로 바뀌는 깜빡임이 생기지 않는다.
+ * admin 레이아웃 전체를 대표해서 site_theme을 한 번 구독하고, 그 "살아있는" 값(테마가
+ * 바뀌면 실시간으로 갱신됨)을 컨텍스트에 담아 하위 모든 관리자 화면에 내려준다.
+ * useHomeTheme()이 initial 없이 호출됐을 때 이 값을 폴백으로 써서, 개별 관리자 페이지가
+ * 매번 initialThemeKey를 직접 받지 않아도 첫 렌더부터 최신 테마로 그려진다 — 세션 중간에
+ * 테마를 바꾼 뒤 다른 관리자 페이지로 이동해도(그 페이지의 useRealtimeList 구독은 매번
+ * 새로 시작해 빈 값에서 출발하므로) 예전 테마가 잠깐 다시 보였다 사라지지 않는다.
  */
-export const AdminThemeContext = createContext<HomeThemeKey | null>(null);
-
 export default function AdminThemeProvider({
   initialThemeKey,
   children,
@@ -18,5 +19,6 @@ export default function AdminThemeProvider({
   initialThemeKey?: HomeThemeKey;
   children: React.ReactNode;
 }) {
-  return <AdminThemeContext.Provider value={initialThemeKey ?? null}>{children}</AdminThemeContext.Provider>;
+  const resolved = useHomeTheme(initialThemeKey);
+  return <AdminThemeContext.Provider value={resolved}>{children}</AdminThemeContext.Provider>;
 }
