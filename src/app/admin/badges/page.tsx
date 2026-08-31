@@ -399,8 +399,8 @@ export default function AdminBadgesPage() {
             onChange={(e) => setForm({ ...form, secret_tier: e.target.value as "none" | "secret" | "super_secret" })}
           >
             <option value="none">공개 (목록에 항상 표시)</option>
-            <option value="secret">시크릿 (획득 전까지 목록에서 존재 자체를 숨김)</option>
-            <option value="super_secret">슈퍼시크릿 (목록엔 실루엣으로 표시, 이름·조건은 획득 전까지 숨김)</option>
+            <option value="secret">시크릿 (목록엔 실루엣으로 표시, 이름·조건은 획득 전까지 숨김)</option>
+            <option value="super_secret">슈퍼시크릿 (획득 전까지 목록에서 존재 자체를 숨김)</option>
           </select>
           <div className="flex gap-2 mt-3.5">
             <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>

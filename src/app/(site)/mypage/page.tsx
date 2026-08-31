@@ -28,9 +28,9 @@ export default function MyPage() {
 
   const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
   const { badges, earnedIds } = useBadges(userId ?? null);
-  // 시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
-  // 슈퍼시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
-  const visibleBadges = badges.filter((b) => b.secret_tier !== "secret" || earnedIds.has(b.id));
+  // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
+  // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
+  const visibleBadges = badges.filter((b) => b.secret_tier !== "super_secret" || earnedIds.has(b.id));
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -164,9 +164,9 @@ export default function MyPage() {
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {visibleBadges.map((b) => {
             const earned = earnedIds.has(b.id);
-            // 슈퍼시크릿(획득 전) — 뱃지가 있다는 사실은 보이되 그림자(실루엣) 처리하고
-            // 이름/달성 조건은 가린다. 시크릿은 이미 위 필터에서 목록에서 제외됨.
-            const secretLocked = b.secret_tier === "super_secret" && !earned;
+            // 시크릿(획득 전) — 뱃지가 있다는 사실은 보이되 그림자(실루엣) 처리하고
+            // 이름/달성 조건은 가린다. 슈퍼시크릿은 이미 위 필터에서 목록에서 제외됨.
+            const secretLocked = b.secret_tier === "secret" && !earned;
             return (
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 <div className={`flex flex-col items-center gap-1 ${earned ? "" : "opacity-30 grayscale"}`}>
