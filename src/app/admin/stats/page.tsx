@@ -1,10 +1,16 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { todayKST } from "@/lib/date";
+import { fakeName, fakeEmail } from "@/lib/fakeData";
 import StatsTabs from "@/components/admin/StatsTabs";
 
 export default async function AdminStatsPage() {
   const supabase = createClient();
   const today = todayKST();
+  const viewer = await getCurrentProfile();
+  // designer(조회 전용)는 이 화면 구조는 봐야 하지만, 실제 학생 이름/이메일이 담긴
+  // 연속 접속 순위는 개인정보라 볼 이유가 없다 — 서버에서 아예 가짜 값으로 바꿔서
+  // 내려보낸다(브라우저로 실제 이름이 전달되지 않음).
+  const maskPII = viewer?.role === "designer";
 
   const [
     { count: totalUsers },
@@ -42,7 +48,10 @@ export default async function AdminStatsPage() {
         teacherCount={teacherCount ?? 0}
         staffCount={staffCount ?? 0}
         todayVisitCount={todayAttendance?.length ?? 0}
-        topStreaks={(topStreaks as any) ?? []}
+        topStreaks={((topStreaks as any) ?? []).map((r: any) =>
+          maskPII ? { ...r, name: fakeName(r.user_id), email: fakeEmail(r.user_id) } : r
+        )}
+        maskPII={maskPII}
       />
     </div>
   );

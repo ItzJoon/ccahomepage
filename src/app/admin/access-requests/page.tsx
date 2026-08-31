@@ -6,6 +6,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
+import { fakeEmail } from "@/lib/fakeData";
 import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
@@ -26,6 +27,9 @@ export default function AdminAccessRequestsPage() {
   // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는 제외한다
   // (실제 조작 차단은 DesignerModeGate가 담당).
   const canView = isAdmin || role === "designer";
+  // designer는 이 화면 구조는 볼 수 있어야 하지만, 실제 로그인 시도 이메일(개인정보)은
+  // 볼 이유가 없다 — 항상 같은 가짜 이메일로 바꿔서 보여준다.
+  const maskPII = role === "designer";
   const [busyId, setBusyId] = useState<string | null>(null);
   const [togglingRestriction, setTogglingRestriction] = useState(false);
 
@@ -138,7 +142,7 @@ export default function AdminAccessRequestsPage() {
         <tbody>
           {pending.map((r) => (
             <tr key={r.id}>
-              <td className={t.adminTableCell}>{r.email}</td>
+              <td className={t.adminTableCell}>{maskPII ? fakeEmail(r.id) : r.email}</td>
               <td className={`${t.adminTableCell} text-muted`}>
                 {new Date(r.attempted_at).toLocaleString("ko-KR")}
               </td>
@@ -188,7 +192,7 @@ export default function AdminAccessRequestsPage() {
             const label = STATUS_LABEL[r.status];
             return (
               <tr key={r.id}>
-                <td className={t.adminTableCell}>{r.email}</td>
+                <td className={t.adminTableCell}>{maskPII ? fakeEmail(r.id) : r.email}</td>
                 <td className={`${t.adminTableCell} text-muted`}>
                   {new Date(r.attempted_at).toLocaleString("ko-KR")}
                 </td>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { fakeName, fakeEmail } from "@/lib/fakeData";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
 const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
@@ -32,6 +33,10 @@ export default function AdminUsersPage() {
   const iAmSuperadmin = me?.role === "superadmin";
   const iAmAdmin = iAmSuperadmin || me?.role === "admin";
   const iAmDesigner = me?.role === "designer";
+  // designer는 이 화면(회원·권한 관리)에 들어올 수는 있지만, 화면 구조를 보는 게 목적이지
+  // 실제 학생/교사 개인정보를 볼 이유는 없다 — 이름/이메일은 항상 같은 가짜 값으로 바꿔서
+  // 보여준다(같은 id는 항상 같은 가짜 값 — fakeName/fakeEmail이 id로 결정론적으로 생성).
+  const maskPII = iAmDesigner;
   // designer(조회 전용) 옵션은 superadmin 계정에게만 보인다 — admin은 이 역할 자체를
   // 부여할 수 없다(요건: admin에게는 안 보임).
   const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin" && r !== "designer");
@@ -101,8 +106,8 @@ export default function AdminUsersPage() {
             const dm = directoryByEmail[p.email];
             return (
               <tr key={p.id}>
-                <td className={t.adminTableCell}>{p.name || "-"}</td>
-                <td className={t.adminTableCell}>{p.email}</td>
+                <td className={t.adminTableCell}>{maskPII ? fakeName(p.id) : p.name || "-"}</td>
+                <td className={t.adminTableCell}>{maskPII ? fakeEmail(p.id) : p.email}</td>
                 <td className={`${t.adminTableCell} text-muted`}>
                   {!dm && "-"}
                   {dm?.member_type === "student" &&

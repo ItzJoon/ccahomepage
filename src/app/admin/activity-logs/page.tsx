@@ -5,6 +5,7 @@ import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { fakeName, fakeText } from "@/lib/fakeData";
 import type { AuditAction, AuditLog } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -88,6 +89,10 @@ export default function AdminActivityLogsPage() {
   // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 한다 — 실제 조작 차단은
   // DesignerModeGate(inert)가 담당하므로 여기서는 열람 자격만 함께 인정한다.
   const canView = isSuperadmin || role === "designer";
+  // 활동 로그는 "누가 누구에게 무엇을 했는지"가 그대로 담겨 있어(이름/이메일/경고 사유
+  // 원문 등) 가장 민감하다 — designer에게는 언제/어떤 테이블/어떤 행위인지 구조만
+  // 보여주고, 실제 사용자 식별 정보와 내용은 전부 가짜 값으로 바꾼다.
+  const maskPII = role === "designer";
   const { t } = useHomeTheme();
   const [rows, setRows] = useState<Row[]>([]);
   const [total, setTotal] = useState(0);
@@ -226,29 +231,39 @@ export default function AdminActivityLogsPage() {
               >
                 <td className={`${t.adminTableCell} text-muted`}>{fmtDateTime(r.created_at)}</td>
                 <td className={t.adminTableCell}>
-                  {r.profiles?.nickname || r.profiles?.name || r.profiles?.email || "시스템"}
+                  {maskPII
+                    ? r.user_id
+                      ? fakeName(r.user_id)
+                      : "시스템"
+                    : r.profiles?.nickname || r.profiles?.name || r.profiles?.email || "시스템"}
                 </td>
                 <td className={t.adminTableCell}>{TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}</td>
                 <td className={t.adminTableCell}>{actionLabel(r)}</td>
-                <td className={`${t.adminTableCell} truncate max-w-[320px]`}>{summarize(r)}</td>
+                <td className={`${t.adminTableCell} truncate max-w-[320px]`}>{maskPII ? fakeText() : summarize(r)}</td>
               </tr>
               {expandedId === r.id && (
                 <tr>
                   <td colSpan={5} className="p-3 border-b border-border bg-[#F7F8FB]">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                      <div>
-                        <div className="font-bold text-muted mb-1">변경 전</div>
-                        <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
-                          {r.before_data ? JSON.stringify(r.before_data, null, 2) : "(없음)"}
-                        </pre>
+                    {maskPII ? (
+                      <div className="text-muted text-xs p-2">
+                        🔒 designer 계정에는 변경 전/후 상세 내용이 표시되지 않습니다(개인정보 보호).
                       </div>
-                      <div>
-                        <div className="font-bold text-muted mb-1">변경 후</div>
-                        <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
-                          {r.after_data ? JSON.stringify(r.after_data, null, 2) : "(없음)"}
-                        </pre>
+                    ) : (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <div className="font-bold text-muted mb-1">변경 전</div>
+                          <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
+                            {r.before_data ? JSON.stringify(r.before_data, null, 2) : "(없음)"}
+                          </pre>
+                        </div>
+                        <div>
+                          <div className="font-bold text-muted mb-1">변경 후</div>
+                          <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
+                            {r.after_data ? JSON.stringify(r.after_data, null, 2) : "(없음)"}
+                          </pre>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </td>
                 </tr>
               )}

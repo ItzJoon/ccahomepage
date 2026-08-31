@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { fakeName, fakeEmail } from "@/lib/fakeData";
 import AdminTable from "./AdminTable";
 
 type TopStreak = { user_id: string; streak_count: number; name: string | null; email: string };
@@ -27,6 +28,7 @@ export default function StatsTabs({
   staffCount,
   todayVisitCount,
   topStreaks,
+  maskPII = false,
 }: {
   totalUsers: number;
   studentCount: number;
@@ -34,6 +36,11 @@ export default function StatsTabs({
   staffCount: number;
   todayVisitCount: number;
   topStreaks: TopStreak[];
+  // designer(조회 전용)가 이 화면을 볼 때 true — "전체 접속 기록" 탭은 서버에서 미리
+  // 가릴 수 없는(실시간 구독 + 검색이 클라이언트에서 직접 조회) 실제 이름/이메일이라
+  // 여기서 렌더링 직전에 가짜 값으로 바꾼다. topStreaks(요약 탭)는 이미 서버(stats/page.tsx)
+  // 에서 가짜 값으로 바뀐 채로 내려온다.
+  maskPII?: boolean;
 }) {
   const [tab, setTab] = useState<"log" | "summary">("log");
   const supabase = createClient();
@@ -150,8 +157,8 @@ export default function StatsTabs({
               {attendanceLog.map((row) => (
                 <tr key={row.id}>
                   <td className={t.adminTableCell}>{new Date(row.created_at).toLocaleString("ko-KR")}</td>
-                  <td className={t.adminTableCell}>{row.nickname || row.name || "-"}</td>
-                  <td className={t.adminTableCell}>{row.email}</td>
+                  <td className={t.adminTableCell}>{maskPII ? fakeName(row.id) : row.nickname || row.name || "-"}</td>
+                  <td className={t.adminTableCell}>{maskPII ? fakeEmail(row.id) : row.email}</td>
                   <td className={t.adminTableCell}>{row.streak_count}일</td>
                   <td className={t.adminTableCell}>{row.is_freeze ? "❄️" : ""}</td>
                 </tr>
