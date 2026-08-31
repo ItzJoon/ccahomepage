@@ -10,6 +10,10 @@ import { roleLabel } from "@/lib/roleLabel";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
 const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
+// developer(=superadmin)는 이 화면에서 아무도(developer 자신 포함) 새로 부여할 수 없다 —
+// 부여는 DB에서 직접 해야 한다. 그래서 선택 가능한 목록에서는 항상 제외한다(단, 이미
+// developer인 계정의 현재 값 표시는 ROLES 전체를 쓰는 잠금 표시 쪽에서 그대로 담당).
+const ASSIGNABLE_ROLES = ROLES.filter((r) => r !== "superadmin");
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
 export default function AdminUsersPage() {
@@ -39,8 +43,9 @@ export default function AdminUsersPage() {
   // 보여준다(같은 id는 항상 같은 가짜 값 — fakeName/fakeEmail이 id로 결정론적으로 생성).
   const maskPII = iAmDesigner;
   // designer(조회 전용) 옵션은 superadmin 계정에게만 보인다 — admin은 이 역할 자체를
-  // 부여할 수 없다(요건: admin에게는 안 보임).
-  const selectableRoles = iAmSuperadmin ? ROLES : ROLES.filter((r) => r !== "admin" && r !== "superadmin" && r !== "designer");
+  // 부여할 수 없다(요건: admin에게는 안 보임). superadmin(developer)은 ASSIGNABLE_ROLES에서
+  // 이미 빠져 있어 누구에게도(자기 자신 포함) 새로 부여할 수 없다.
+  const selectableRoles = iAmSuperadmin ? ASSIGNABLE_ROLES : ASSIGNABLE_ROLES.filter((r) => r !== "admin" && r !== "designer");
 
   const changeRole = async (id: string, role: string) => {
     await supabase.from("profiles").update({ role }).eq("id", id);
@@ -100,9 +105,14 @@ export default function AdminUsersPage() {
         <tbody>
           {list.map((p) => {
             const targetIsPrivileged = p.role === "admin" || p.role === "superadmin";
-            const canEdit = iAmAdmin && (iAmSuperadmin || !targetIsPrivileged);
+            // developer(=superadmin) 계정의 role은 이 화면에서 아무도 못 바꾼다(본인 포함) —
+            // DB의 protect_profile_fields 트리거가 실제로도 이 시도를 되돌리므로, UI에서도
+            // 처음부터 편집 불가로 보여준다.
+            const canEdit = iAmAdmin && (iAmSuperadmin || !targetIsPrivileged) && p.role !== "superadmin";
             const lockReason = !iAmAdmin
               ? "editor는 권한 열람만 가능합니다. 변경은 admin 이상만 할 수 있습니다."
+              : p.role === "superadmin"
+              ? "developer 권한은 이 화면에서 바꿀 수 없습니다(본인 포함) — DB에서 직접 변경해야 합니다."
               : "developer만 admin/developer 계정의 권한을 변경할 수 있습니다";
             const dm = directoryByEmail[p.email];
             return (

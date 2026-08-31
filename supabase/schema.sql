@@ -2890,3 +2890,29 @@ alter table badges add column secret_tier text not null default 'none'
   check (secret_tier in ('none', 'secret', 'super_secret'));
 update badges set secret_tier = 'secret' where is_secret = true;
 alter table badges drop column is_secret;
+
+-- ------------------------------------------------------------
+-- 72. developer(superadmin) 권한은 아무도 새로 부여할 수 없고, 본인도 자기 role을 못 바꿈
+-- ------------------------------------------------------------
+-- developer(=superadmin) 권한은 이제 이 트리거를 거치는 어떤 경로(관리자 화면 포함)로도
+-- 아무도 새로 부여할 수 없게 한다 — 부여는 DB에서 직접 해야 한다. 그리고 이미
+-- superadmin인 계정은 본인 스스로 자기 role을 바꿀 수 없다(다른 developer가 바꿔주는
+-- 것까지는 막지 않음 — 요건은 "본인 스스로"만).
+create or replace function protect_profile_fields()
+returns trigger as $$
+begin
+  if not is_admin() then
+    new.email := old.email;
+    new.role := old.role;
+  elsif new.role <> old.role then
+    if not is_superadmin() and new.role in ('admin', 'superadmin') then
+      new.role := old.role;
+    elsif new.role = 'superadmin' and old.role <> 'superadmin' then
+      new.role := old.role;
+    elsif old.role = 'superadmin' and auth.uid() = old.id then
+      new.role := old.role;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
