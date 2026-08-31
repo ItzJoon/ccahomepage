@@ -36,12 +36,17 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
   }, [profileMenuOpen]);
 
   const displayName = profile.nickname || profile.name || profile.email;
+  // is_council만 있고 관리자 role이 없는 계정(예: role=student)은 /admin(대시보드)에는
+  // 못 들어가고 /admin/org-activities/*만 볼 수 있다 — 로고를 눌렀을 때 막힌 곳으로
+  // 보내 튕겨나가지 않도록, 이 계정에게는 로고도 그리로 연결한다.
+  const hasAdminRole = ["editor", "admin", "superadmin", "designer"].includes(profile.role);
+  const homeHref = hasAdminRole ? "/admin" : "/admin/org-activities";
 
   return (
     <>
       <header className={`sticky top-0 z-20 ${t.headerBg} ${t.headerText} ${t.headerBorder}`}>
         <div className="max-w-[1280px] mx-auto flex items-center justify-between gap-3 px-5 py-3 flex-wrap">
-          <Link href="/admin" className={`font-bold text-lg flex items-center gap-2 shrink-0 ${t.logoFont}`}>
+          <Link href={homeHref} className={`font-bold text-lg flex items-center gap-2 shrink-0 ${t.logoFont}`}>
             <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
             <span className="whitespace-nowrap">학생자치회 관리자</span>
           </Link>

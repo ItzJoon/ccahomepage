@@ -75,17 +75,16 @@ export default function AdminNav({
 }) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
-  // sub_editor는 /admin/org-activities/* 외에는 middleware가 접근 자체를 막으므로, 눌러도
-  // 튕겨나가기만 하는 다른 메뉴들은 아예 보여주지 않는다. teacher는 student와 동일하게
-  // 관리 화면 접근 권한이 없어서(middleware가 /admin 진입 자체를 막음) 이 컴포넌트까지
-  // 오지 않는다. designer(조회 전용)는 "탭 자체는 숨기지 않는다"는 요건이라, 아래 모든
-  // 그룹 표시 조건에서 superadmin과 동일하게 취급해 전부 보여준다(실제 조작은 다른 곳에서
-  // DesignerModeGate가 막는다).
-  const isSubEditor = role === "sub_editor";
+  // sub_editor나 is_council만으로 /admin에 들어온 student/teacher는 /admin/org-activities/*
+  // 외에는 middleware가 접근 자체를 막으므로, 눌러도 튕겨나가기만 하는 다른 메뉴들은 아예
+  // 보여주지 않는다 — "임원회 전용" 그룹만 보인다. designer(조회 전용)는 "탭 자체는 숨기지
+  // 않는다"는 요건이라, 아래 모든 그룹 표시 조건에서 superadmin과 동일하게 취급해 전부
+  // 보여준다(실제 조작은 다른 곳에서 DesignerModeGate가 막는다).
   const isDesigner = role === "designer";
+  const hasAdminRole = !!role && ["editor", "admin", "superadmin", "designer"].includes(role);
   return (
     <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
-      {!isSubEditor && (
+      {hasAdminRole && (
         <>
           {NAV.map((n) => (
             <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />

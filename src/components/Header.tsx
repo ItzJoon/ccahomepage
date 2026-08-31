@@ -45,9 +45,15 @@ export default function Header({
   const router = useRouter();
   const supabase = createClient();
   const { t } = useHomeTheme(initialThemeKey);
-  // 이름은 isAdmin이지만 실제로는 "관리자 메뉴 버튼을 보여줄지"를 뜻한다 — designer(조회
-  // 전용)도 관리 화면에 들어갈 수 있어야 하므로 함께 포함한다.
-  const isAdmin = profile && ["editor", "admin", "superadmin", "designer"].includes(profile.role);
+  // hasAdminRole: 실제 관리자 화면 전체(대시보드 포함)에 들어갈 수 있는 role인지 —
+  // designer(조회 전용)도 관리 화면에 들어갈 수 있어야 하므로 함께 포함한다.
+  const hasAdminRole = !!profile && ["editor", "admin", "superadmin", "designer"].includes(profile.role);
+  // is_council만 있고 별도 관리자 role이 없는 학생/교사도 "관리자" 버튼을 볼 수 있어야
+  // 한다 — 다만 이런 계정은 /admin 전체가 아니라 자기 부서 활동(안건함/부서 일정/활동기록)만
+  // 다룰 수 있으므로 /admin이 아니라 바로 그 화면으로 보낸다. 이미 관리자 role이 있는
+  // 사람은 원래대로 /admin(대시보드)로 보낸다 — 거기서 임원회 전용 탭도 함께 보인다.
+  const showAdminBtn = hasAdminRole || !!profile?.is_council;
+  const adminHref = hasAdminRole ? "/admin" : "/admin/org-activities";
   // 사이트 잠금 모드는 admin/superadmin/viewer/designer가 우회하므로(middleware.ts와 동일
   // 기준, editor는 예외 아님), 연속 접속 체크인도 같은 기준으로 잠금 중 보류 여부를 판단한다.
   const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
@@ -147,8 +153,8 @@ export default function Header({
           {profile && <NotificationCenter userId={profile.id} />}
           {profile ? (
             <>
-              {isAdmin && (
-                <Link href="/admin" className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
+              {showAdminBtn && (
+                <Link href={adminHref} className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
                   관리자
                 </Link>
               )}
@@ -256,8 +262,8 @@ export default function Header({
                 >
                   닉네임 · 소개 수정
                 </button>
-                {isAdmin && (
-                  <Link href="/admin" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
+                {showAdminBtn && (
+                  <Link href={adminHref} onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
                     관리자
                   </Link>
                 )}

@@ -2568,3 +2568,36 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function unsuspend_user(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 67. 부서 활동 관리(안건함/부서 일정/활동기록) 접근을 role과 무관하게 is_council로 통일
+-- ------------------------------------------------------------
+-- 예전엔 sub_editor 이상 role이면서 is_council인 사람만 부서 활동을 관리할 수 있었는데,
+-- 관리자 버튼/탭 노출도 role과 무관하게 is_council 하나만으로 열어주기로 하면서(student/
+-- teacher도 임원이면 접근) RLS도 같은 기준으로 완화한다. superadmin은 계속 항상 허용.
+create or replace function is_org_activities_manager()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid()
+      and (role = 'superadmin' or is_council = true)
+  );
+$$;
+
+-- org_records(활동기록)는 다른 두 화면과 달리 is_editor_or_above()로 따로 막혀 있어서
+-- 위 함수 완화와 별개로 여전히 editor 이상만 쓸 수 있었다 — is_org_activities_manager()도
+-- 함께 허용해 기준을 통일한다(editor 이상 계정의 기존 권한은 그대로 유지).
+drop policy if exists org_records_insert_editor on org_records;
+create policy org_records_insert_editor on org_records
+  for insert
+  with check (is_editor_or_above() or is_org_activities_manager());
+
+drop policy if exists org_records_update_editor on org_records;
+create policy org_records_update_editor on org_records
+  for update
+  using (is_editor_or_above() or is_org_activities_manager())
+  with check (is_editor_or_above() or is_org_activities_manager());

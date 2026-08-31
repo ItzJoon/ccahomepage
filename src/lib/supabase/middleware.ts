@@ -189,30 +189,37 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url);
     }
     const r = role;
-    // sub_editor는 처음 만들 때 권한을 아무것도 안 준 상태였다(이슈 #15). "부서 활동
-    // 관리"(안건함/부서 일정/활동기록) 화면은 sub_editor 이상 중에서도 임원회
-    // (is_council=true)만 볼 수 있다 — role만으로는 부족하고 플래그도 함께 필요하다.
+    // "부서 활동 관리"(안건함/부서 일정/활동기록) 화면은 role과 무관하게 임원회
+    // (is_council=true) 소속이면 누구나 들어올 수 있다 — student/teacher처럼 다른 관리
+    // 화면 접근 권한이 전혀 없는 임원도 자기 부서 활동만은 다룰 수 있어야 하기 때문
+    // (Header의 "관리자" 버튼도 이런 계정은 /admin이 아니라 바로 여기로 연결한다).
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
     // teacher는 예전엔 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로
     // 접근할 수 있었는데, teacher 권한을 student와 동일하게 차단하면서 이 예외도 없앴다
     // (posts RLS에서도 teacher 전용 작성/수정 정책을 제거함).
-    // designer(조회 전용)는 모든 관리자 탭에 접근은 가능해야 하므로 이 아래의 모든 경로
-    // 제한에서 superadmin과 동급으로 취급한다 — 실제 쓰기 차단은 UI가 아니라 RLS(각 테이블의
-    // write 정책에 designer가 없음)가 담당하므로, 여기서 접근을 열어줘도 데이터는 안전하다.
-    const adminAllowedRoles = isOrgActivitiesPath
-      ? ["sub_editor", "editor", "admin", "superadmin", "designer"]
-      : ["editor", "admin", "superadmin", "designer"];
-    // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
-    // 관리 탭도 항상 볼 수 있어야 한다(관리자가 플래그 설정 실수로 스스로를 포함해
-    // 아무도 접근 못 하는 상황을 막기 위한 안전장치 — admin/superadmin이 명단과 무관하게
-    // 항상 로그인 가능한 것과 같은 종류의 예외). designer도 "모든 관리자 탭 접근 가능"
-    // 요건상 동일하게 예외 처리한다.
-    if (!r || !adminAllowedRoles.includes(r) || (isOrgActivitiesPath && !isCouncil && r !== "superadmin" && r !== "designer")) {
-      const url = request.nextUrl.clone();
-      url.pathname = "/";
-      url.searchParams.set("denied", "1");
-      return NextResponse.redirect(url);
+    if (isOrgActivitiesPath) {
+      // designer(조회 전용)는 모든 관리자 탭에 접근 가능해야 하므로 superadmin과 동급으로
+      // 취급한다 — 실제 쓰기 차단은 UI가 아니라 RLS(각 테이블의 write 정책에 designer가
+      // 없음)가 담당하므로 안전하다.
+      if (!isCouncil && r !== "superadmin" && r !== "designer") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        url.searchParams.set("denied", "1");
+        return NextResponse.redirect(url);
+      }
+    } else {
+      // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
+      // 관리 탭도 항상 볼 수 있어야 한다(관리자가 플래그 설정 실수로 스스로를 포함해
+      // 아무도 접근 못 하는 상황을 막기 위한 안전장치). designer도 "모든 관리자 탭 접근
+      // 가능" 요건상 동일하게 예외 처리한다.
+      const adminAllowedRoles = ["editor", "admin", "superadmin", "designer"];
+      if (!r || !adminAllowedRoles.includes(r)) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        url.searchParams.set("denied", "1");
+        return NextResponse.redirect(url);
+      }
     }
     // 아래 관리 메뉴들은 admin이 아니라 superadmin만 볼 수 있어야 한다(사이트 전체에
     // 영향을 주거나 민감한 개인정보를 다루는 화면들). 메뉴 자체는 AdminNav에서 숨기지만,
