@@ -8,6 +8,7 @@ import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { useStudentPreview } from "@/lib/studentPreviewContext";
 import { todayKST } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock, MealPlan } from "@/lib/types";
@@ -83,18 +84,31 @@ function EmptyState({ icon, title, desc, t }: { icon: string; title: string; des
 export default function HomeContent({ initialThemeKey }: { initialThemeKey?: HomeThemeKey }) {
   const [userId, setUserId] = useState<string | null>(null);
   const { t } = useHomeTheme(initialThemeKey);
+  // "학생 화면 보기" 미리보기 중에는 editor 이상에게만 보이는 숨김 처리된 공지/일정/뉴스가
+  // 실제 세션(superadmin)의 RLS 예외 때문에 그대로 딸려오므로, 진짜 학생이 보는 모습과
+  // 같아지도록 여기서 한 번 더 걸러낸다.
+  const previewAsStudent = useStudentPreview();
   const { rows: blocks } = useRealtimeList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
   const { rows: notices } = useRealtimeList<Post>("posts", {
-    filter: (q) => q.eq("type", "notice").eq("status", "published"),
+    filter: (q) => {
+      let query = q.eq("type", "notice").eq("status", "published");
+      if (previewAsStudent) query = query.eq("is_hidden", false);
+      return query;
+    },
     orderBy: { column: "created_at", ascending: false },
   });
   const { rows: events } = useRealtimeList<EventItem>("events", {
+    filter: (q) => (previewAsStudent ? q.eq("is_hidden", false) : q),
     orderBy: { column: "start_at" },
   });
   const { rows: news } = useRealtimeList<Post>("posts", {
-    filter: (q) => q.eq("type", "news").eq("status", "published"),
+    filter: (q) => {
+      let query = q.eq("type", "news").eq("status", "published");
+      if (previewAsStudent) query = query.eq("is_hidden", false);
+      return query;
+    },
     orderBy: { column: "created_at", ascending: false },
   });
   const { rows: mealPlans } = useRealtimeList<MealPlan>("meal_plans");
