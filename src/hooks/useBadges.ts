@@ -20,10 +20,14 @@ export function useBadges(userId: string | null) {
   const channelSuffixRef = useRef(Math.random().toString(36).slice(2));
 
   const load = useCallback(async () => {
+    // secret_tier는 문자열값이 마침 "none" < "secret" < "super_secret" 알파벳 순서와
+    // 정확히 일치해서, 오름차순 정렬만으로 시크릿은 뒤로, 슈퍼시크릿은 더 뒤로 보낼 수
+    // 있다 — 그 안에서는 기존처럼 streak_threshold 기준으로 정렬한다.
     const { data: badgeRows } = await supabase
       .from("badges")
       .select("*")
       .eq("is_active", true)
+      .order("secret_tier", { ascending: true })
       .order("streak_threshold", { ascending: true });
     setBadges((badgeRows as BadgeDef[]) ?? []);
 

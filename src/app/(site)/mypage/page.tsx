@@ -40,6 +40,7 @@ export default function MyPage() {
     supabase
       .from("badges")
       .select("*")
+      .order("secret_tier", { ascending: true })
       .order("order_index")
       .then(({ data }) => setAllBadgesForDeveloper((data as BadgeDef[]) ?? []));
     // eslint-disable-next-line react-hooks/exhaustive-deps

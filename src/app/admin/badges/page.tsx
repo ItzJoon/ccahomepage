@@ -32,7 +32,13 @@ const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> 
   between: "사이에 로그인",
 };
 
-const sortKey = (b: BadgeDef) => b.streak_threshold ?? Infinity;
+// 시크릿은 항상 뒤로, 슈퍼시크릿은 더 뒤로 보낸다 — secret_tier 문자열값이 마침
+// "none" < "secret" < "super_secret" 알파벳 순서와 일치해서 직접 비교로 충분하다.
+// 같은 등급 안에서는 기존처럼 streak_threshold 기준으로 정렬한다.
+const compareBadges = (a: BadgeDef, b: BadgeDef) => {
+  if (a.secret_tier !== b.secret_tier) return a.secret_tier < b.secret_tier ? -1 : 1;
+  return (a.streak_threshold ?? Infinity) - (b.streak_threshold ?? Infinity);
+};
 
 export default function AdminBadgesPage() {
   const supabase = createClient();
@@ -62,7 +68,7 @@ export default function AdminBadgesPage() {
       .then(({ data }) => setGrantUserEarnedIds(new Set((data ?? []).map((d) => d.badge_id))));
   }, [grantUser, supabase]);
 
-  const grantableBadges = [...rows].sort((a, b) => sortKey(a) - sortKey(b)).filter((b) => !grantUserEarnedIds.has(b.id));
+  const grantableBadges = [...rows].sort(compareBadges).filter((b) => !grantUserEarnedIds.has(b.id));
 
   const startNew = () => {
     const next = { ...empty, order_index: rows.length + 1 };
@@ -158,7 +164,7 @@ export default function AdminBadgesPage() {
   };
 
   const grantUserEarnedBadges = [...rows]
-    .sort((a, b) => sortKey(a) - sortKey(b))
+    .sort(compareBadges)
     .filter((b) => grantUserEarnedIds.has(b.id));
 
   return (
@@ -187,7 +193,7 @@ export default function AdminBadgesPage() {
             </tr>
           </thead>
           <tbody>
-            {[...rows].sort((a, b) => sortKey(a) - sortKey(b)).map((b) => (
+            {[...rows].sort(compareBadges).map((b) => (
               <tr key={b.id} onClick={() => startEdit(b)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === b.id ? t.adminTableRowActive : ""}`}>
                 <td className={`${t.adminTableCell} text-xl`}>{b.icon}</td>
                 <td className={t.adminTableCell}>
