@@ -80,6 +80,16 @@ function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR");
 }
 
+// 변경 전/후 원본 JSON을 펼쳐서 보여줄 때도 role 값은 화면 표시명(developer)으로 바꿔서
+// 보여준다 — 실제 DB에 저장된 값(superadmin)이나 audit_logs 원본 자체를 건드리는 건
+// 아니고, 이 화면에 그릴 때만 한 번 더 바꿔치기하는 표시용 복사본이다.
+function relabelRolesForDisplay(data: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!data) return data;
+  const clone: Record<string, unknown> = { ...data };
+  if (clone.role === "superadmin") clone.role = roleLabel("superadmin");
+  return clone;
+}
+
 interface Row extends AuditLog {
   profiles: { name: string | null; nickname: string | null; email: string } | null;
 }
@@ -254,13 +264,13 @@ export default function AdminActivityLogsPage() {
                         <div>
                           <div className="font-bold text-muted mb-1">변경 전</div>
                           <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
-                            {r.before_data ? JSON.stringify(r.before_data, null, 2) : "(없음)"}
+                            {r.before_data ? JSON.stringify(relabelRolesForDisplay(r.before_data), null, 2) : "(없음)"}
                           </pre>
                         </div>
                         <div>
                           <div className="font-bold text-muted mb-1">변경 후</div>
                           <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
-                            {r.after_data ? JSON.stringify(r.after_data, null, 2) : "(없음)"}
+                            {r.after_data ? JSON.stringify(relabelRolesForDisplay(r.after_data), null, 2) : "(없음)"}
                           </pre>
                         </div>
                       </div>
