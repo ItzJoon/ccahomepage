@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
 import DetailBackLink from "@/components/DetailBackLink";
 import ModerationPanel from "@/components/admin/ModerationPanel";
+import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import { useMyRole } from "@/hooks/useMyRole";
 import type { BadgeDef, DirectoryProfileView } from "@/lib/types";
 
@@ -18,21 +19,27 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<DirectoryProfileView | null>(null);
   const [badges, setBadges] = useState<(BadgeDef & { earned_at: string })[]>([]);
+  const [editingProfile, setEditingProfile] = useState(false);
   const { isAdmin, role } = useMyRole();
   // designer도 admin과 동일하게 프로필에서 경고/정지/영구차단 조치를 쓸 수 있다(reports
   // 페이지와 동일한 이슈 — RLS의 user_warnings_insert_admin 등이 is_designer()를 허용).
   const canModerate = isAdmin || role === "designer";
 
+  const loadProfile = async () => {
+    const { data: profileRow } = await supabase
+      .from("directory_profile_view")
+      .select("*")
+      .eq("id", params.id)
+      .maybeSingle();
+    setProfile((profileRow as DirectoryProfileView) ?? null);
+    return profileRow;
+  };
+
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data: profileRow } = await supabase
-        .from("directory_profile_view")
-        .select("*")
-        .eq("id", params.id)
-        .maybeSingle();
+      const profileRow = await loadProfile();
       if (!active) return;
-      setProfile((profileRow as DirectoryProfileView) ?? null);
 
       if (profileRow) {
         const { data: badgeRows } = await supabase
@@ -52,6 +59,7 @@ export default function MemberProfilePage() {
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, params.id]);
 
   if (loading) return null;
@@ -94,7 +102,14 @@ export default function MemberProfilePage() {
             </div>
           )}
           <div className="text-center sm:text-left">
-            <div className="text-xl font-black">{profile.nickname || profile.display_name}</div>
+            <div className="flex items-center gap-2 justify-center sm:justify-start">
+              <div className="text-xl font-black">{profile.nickname || profile.display_name}</div>
+              {isAdmin && (
+                <button onClick={() => setEditingProfile(true)} className="text-blue text-xs font-bold shrink-0">
+                  닉네임 · 소개 수정
+                </button>
+              )}
+            </div>
             <div className="text-muted text-sm mt-0.5">
               {profile.display_name} · {profile.member_type === "student" ? "학생" : "교사"} · {subLine}
             </div>
@@ -102,6 +117,18 @@ export default function MemberProfilePage() {
           </div>
         </div>
       </div>
+
+      {editingProfile && (
+        <ProfileQuickEditModal
+          userId={profile.id}
+          initialNickname={profile.nickname ?? ""}
+          initialBio={profile.bio ?? ""}
+          onClose={() => {
+            setEditingProfile(false);
+            loadProfile();
+          }}
+        />
+      )}
 
       <div className="bg-white border border-border rounded-2xl p-5">
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
