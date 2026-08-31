@@ -7,7 +7,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useBadges } from "@/hooks/useBadges";
 import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
-import type { Profile } from "@/lib/types";
+import type { Profile, UserWarning } from "@/lib/types";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -24,6 +24,7 @@ export default function MyPage() {
   const [savedMsg, setSavedMsg] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<UserWarning[]>([]);
 
   const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
   const { badges, earnedIds } = useBadges(userId ?? null);
@@ -46,6 +47,17 @@ export default function MyPage() {
   useEffect(() => {
     loadProfile();
   }, [loadProfile]);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from("user_warnings")
+      .select("*")
+      .eq("user_id", userId)
+      .is("revoked_at", null)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setWarnings((data as UserWarning[]) ?? []));
+  }, [userId, supabase]);
 
   const isProfileDirty = nickname !== (profile?.nickname ?? "") || bio !== (profile?.bio ?? "");
 
@@ -104,9 +116,20 @@ export default function MyPage() {
       <SectionTitle eyebrow="MY PAGE" title="마이페이지" />
 
       {profile && profile.warning_count > 0 && (
-        <div className="bg-[#FFF3DC] text-gold text-sm font-bold rounded-xl px-4 py-3 mb-4">
-          ⚠️ 경고 {profile.warning_count}회 누적 — 커뮤니티 이용 규칙을 위반한 활동이 감지되어
-          경고를 받았습니다. 계속될 경우 계정 이용이 제한될 수 있습니다.
+        <div className="bg-[#FFF3DC] rounded-xl px-4 py-3 mb-4">
+          <div className="text-gold text-sm font-bold mb-2">
+            ⚠️ 경고 {profile.warning_count}회 누적 — 커뮤니티 이용 규칙을 위반한 활동이 감지되어
+            경고를 받았습니다. 계속될 경우 계정 이용이 제한될 수 있습니다.
+          </div>
+          {warnings.length > 0 && (
+            <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+              {warnings.map((w) => (
+                <li key={w.id} className="text-xs text-[#8a6d1f] bg-white/60 rounded-lg px-2.5 py-1.5">
+                  <span className="font-bold">{fmt(w.created_at)}</span> — {w.reason || "사유 미기재"}
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
 

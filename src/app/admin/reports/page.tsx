@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
-import type { Report, ReportStatus, SiteSettings } from "@/lib/types";
+import type { Report, ReportStatus, SiteSettings, UserWarning } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
 const TARGET_TYPE_LABEL: Record<string, string> = { profile: "사용자", board_post: "게시글", board_comment: "댓글" };
@@ -48,6 +48,23 @@ export default function AdminReportsPage() {
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [suspendDays, setSuspendDays] = useState(3);
   const [showSettings, setShowSettings] = useState(false);
+  const [warningReason, setWarningReason] = useState("");
+  const [targetWarnings, setTargetWarnings] = useState<UserWarning[]>([]);
+
+  // 특정 계정 하나(target_author_id)의 최신 상태(경고 누적/정지 여부)를 다시 받아온다.
+  // profilesById는 reports 목록이 바뀔 때만 통째로 다시 채워지는데, 경고 부여/정지/차단은
+  // reports 목록 자체를 바꾸지 않으므로(상태만 "확인함"으로 바뀔 뿐) 그 갱신을 기다리지
+  // 않는다 — 조치 직후 이 함수를 직접 호출해서 방금 바뀐 값을 즉시 반영한다. 이게 없으면
+  // 실제로는 정상 처리됐는데도 화면에는 예전 값(경고 0회, 정지 없음)이 계속 보여서
+  // "눌러도 아무 일도 안 일어나는 것처럼" 보였다.
+  const refreshTargetProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("id, name, nickname, email, warning_count, suspended_until")
+      .eq("id", userId)
+      .maybeSingle();
+    if (data) setProfilesById((prev) => ({ ...prev, [userId]: data as TargetProfile }));
+  };
 
   // reports.target_id는 target_type에 따라 다른 대상을 가리키는 범용 컬럼이라 profiles와
   // FK로 묶여있지 않다(외래키 임베딩 불가) — 신고자/신고 대상(사용자인 경우)/게시글·댓글
@@ -110,6 +127,21 @@ export default function AdminReportsPage() {
   const currentContent = currentContentKey ? contentByKey[currentContentKey] : null;
   const currentAuthor = current?.target_author_id ? profilesById[current.target_author_id] : null;
 
+  // 상세 패널을 열 때마다 그 작성자가 지금까지 받은 경고 이력을 불러온다(철회 여부와
+  // 무관하게 전부 가져오고, 화면에서 철회된 것은 흐리게 구분해서 보여준다).
+  useEffect(() => {
+    const targetId = current?.target_author_id;
+    if (!targetId) { setTargetWarnings([]); return; }
+    setWarningReason("");
+    supabase
+      .from("user_warnings")
+      .select("*")
+      .eq("user_id", targetId)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setTargetWarnings((data as UserWarning[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.target_author_id]);
+
   const toggleHiddenContent = async () => {
     if (!current || !currentContent) return;
     const table = current.target_type === "board_post" ? "board_posts" : "board_comments";
@@ -129,14 +161,28 @@ export default function AdminReportsPage() {
     setTimeout(() => setActionMsg(null), 3000);
   };
 
+  const refreshTargetWarnings = async (userId: string) => {
+    const { data } = await supabase
+      .from("user_warnings")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+    setTargetWarnings((data as UserWarning[]) ?? []);
+  };
+
   const issueWarning = async () => {
     if (!current || !current.target_author_id) return;
+    const reason = warningReason.trim();
+    if (!reason) {
+      setActionMsg("경고 사유를 입력해 주세요.");
+      return;
+    }
     if (!confirm(`${displayUser(current.target_author_id)}님에게 경고를 부여합니다. 계속하시겠습니까?`)) return;
     setBusy(true);
     const { data, error } = await supabase.rpc("issue_user_warning", {
       target_user_id: current.target_author_id,
       p_report_id: current.id,
-      p_reason: current.reason || "신고 접수에 따른 경고",
+      p_reason: reason,
     });
     setBusy(false);
     if (error) {
@@ -149,10 +195,27 @@ export default function AdminReportsPage() {
           : result.auto_action === "suspended"
           ? " (누적 기준 초과로 자동 정지되었습니다)"
           : "";
-      setActionMsg(`경고를 부여했습니다 (누적 ${result.warning_count}회)${autoMsg}`);
+      setActionMsg(`✅ 경고를 부여했습니다 (누적 ${result.warning_count}회)${autoMsg}`);
+      setWarningReason("");
+      await refreshTargetProfile(current.target_author_id);
+      await refreshTargetWarnings(current.target_author_id);
     }
     await markReviewed(current.id);
-    setTimeout(() => setActionMsg(null), 4000);
+    setTimeout(() => setActionMsg(null), 6000);
+  };
+
+  const revokeWarning = async (warningId: string) => {
+    if (!current?.target_author_id) return;
+    if (!confirm("이 경고를 철회하시겠습니까? 누적 횟수가 1 줄어듭니다.")) return;
+    setBusy(true);
+    const { error } = await supabase.rpc("revoke_user_warning", { warning_id: warningId });
+    setBusy(false);
+    setActionMsg(error ? `철회에 실패했습니다: ${error.message}` : "✅ 경고를 철회했습니다.");
+    if (!error) {
+      await refreshTargetProfile(current.target_author_id);
+      await refreshTargetWarnings(current.target_author_id);
+    }
+    setTimeout(() => setActionMsg(null), 6000);
   };
 
   const suspendAccount = async () => {
@@ -165,9 +228,10 @@ export default function AdminReportsPage() {
       p_reason: current.reason || "신고 접수에 따른 계정 정지",
     });
     setBusy(false);
-    setActionMsg(error ? `정지 처리에 실패했습니다: ${error.message}` : `${suspendDays}일간 정지시켰습니다.`);
+    setActionMsg(error ? `정지 처리에 실패했습니다: ${error.message}` : `✅ ${suspendDays}일간 정지시켰습니다.`);
+    if (!error) await refreshTargetProfile(current.target_author_id);
     await markReviewed(current.id);
-    setTimeout(() => setActionMsg(null), 4000);
+    setTimeout(() => setActionMsg(null), 6000);
   };
 
   const banAccount = async () => {
@@ -179,9 +243,10 @@ export default function AdminReportsPage() {
       p_reason: current.reason || "신고 접수에 따른 영구 차단",
     });
     setBusy(false);
-    setActionMsg(error ? `차단에 실패했습니다: ${error.message}` : "영구 차단했습니다.");
+    setActionMsg(error ? `차단에 실패했습니다: ${error.message}` : "✅ 영구 차단했습니다.");
+    if (!error) await refreshTargetProfile(current.target_author_id);
     await markReviewed(current.id);
-    setTimeout(() => setActionMsg(null), 4000);
+    setTimeout(() => setActionMsg(null), 6000);
   };
 
   const updateThreshold = async (field: keyof SiteSettings, value: number) => {
@@ -339,10 +404,40 @@ export default function AdminReportsPage() {
 
               {isAdmin ? (
                 <>
+                  <label className="text-xs font-bold text-muted">경고 사유 (학생에게 그대로 보입니다)</label>
+                  <textarea
+                    rows={2}
+                    value={warningReason}
+                    onChange={(e) => setWarningReason(e.target.value)}
+                    placeholder="예: 게시판 비방 댓글 작성"
+                    className={t.adminInput}
+                  />
                   <button onClick={issueWarning} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50`}>
                     ⚠️ 경고 부여
                   </button>
-                  <div className="flex items-center gap-2">
+
+                  {targetWarnings.length > 0 && (
+                    <div className="flex flex-col gap-1 bg-bg rounded-lg p-2.5">
+                      <div className="text-xs font-bold text-muted">경고 이력</div>
+                      {targetWarnings.map((w) => (
+                        <div key={w.id} className={`text-xs flex items-start justify-between gap-2 ${w.revoked_at ? "opacity-40" : ""}`}>
+                          <div>
+                            <div>{w.reason || "(사유 없음)"}</div>
+                            <div className="text-muted">
+                              {fmtDateTime(w.created_at)}{w.revoked_at ? " · 철회됨" : ""}
+                            </div>
+                          </div>
+                          {!w.revoked_at && (
+                            <button onClick={() => revokeWarning(w.id)} disabled={busy} className="text-red font-bold shrink-0">
+                              철회
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-2 mt-1">
                     <input
                       type="number"
                       min={1}
@@ -365,7 +460,9 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          {actionMsg && <p className="text-sm mt-1 font-bold text-teal">{actionMsg}</p>}
+          {actionMsg && (
+            <div className="text-sm font-bold bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
+          )}
         </div>
       )}
     </div>

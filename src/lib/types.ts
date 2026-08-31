@@ -355,6 +355,17 @@ export interface BoardComment {
 export type ReportTargetType = "profile" | "board_post" | "board_comment";
 export type ReportStatus = "pending" | "reviewed" | "dismissed";
 
+export interface UserWarning {
+  id: string;
+  user_id: string;
+  report_id: string | null;
+  issued_by: string | null;
+  reason: string | null;
+  revoked_at: string | null;
+  revoked_by: string | null;
+  created_at: string;
+}
+
 export interface Report {
   id: string;
   reporter_id: string | null;

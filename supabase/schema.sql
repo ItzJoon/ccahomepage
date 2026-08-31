@@ -2487,3 +2487,36 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function ban_user_permanently(uuid, text) to authenticated;
+
+-- ------------------------------------------------------------
+-- 65. 경고 철회 기능
+-- ------------------------------------------------------------
+-- 실수로 부여했거나 이의제기로 취소해야 하는 경고를 지울 수 있어야 한다. 기록 자체를
+-- 지우지 않고(감사 목적) revoked_at/revoked_by로 소프트 삭제한다 — 마이페이지/관리자
+-- 화면 모두 revoked_at is null인 것만 "현재 유효한 경고"로 보여준다.
+alter table user_warnings add column if not exists revoked_at timestamptz;
+alter table user_warnings add column if not exists revoked_by uuid references profiles(id);
+
+create or replace function revoke_user_warning(warning_id uuid)
+returns void as $$
+declare
+  target_user_id uuid;
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 경고를 철회할 수 있습니다';
+  end if;
+
+  select user_id into target_user_id from user_warnings where id = warning_id and revoked_at is null;
+  if target_user_id is null then
+    raise exception '철회할 수 있는 경고를 찾을 수 없습니다(이미 철회됐거나 존재하지 않음)';
+  end if;
+
+  update user_warnings set revoked_at = now(), revoked_by = auth.uid() where id = warning_id;
+  update profiles set warning_count = greatest(0, warning_count - 1) where id = target_user_id;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unwarn', 'profiles', target_user_id::text, jsonb_build_object('warning_id', warning_id));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function revoke_user_warning(uuid) to authenticated;
