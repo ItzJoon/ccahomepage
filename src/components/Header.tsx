@@ -54,6 +54,10 @@ export default function Header({
   // 사람은 원래대로 /admin(대시보드)로 보낸다 — 거기서 임원회 전용 탭도 함께 보인다.
   const showAdminBtn = hasAdminRole || !!profile?.is_council;
   const adminHref = hasAdminRole ? "/admin" : "/admin/org-activities";
+  // admin 권한(editor 이상) 없이 is_council만으로 들어가는 계정은 "관리자"가 아니라
+  // "임원회"로 표시한다 — 실제로 갈 수 있는 곳도 전체 관리자 화면이 아니라 부서 활동
+  // 관리뿐이라, 버튼 이름부터 그 사실과 맞게 보여준다.
+  const adminBtnLabel = hasAdminRole ? "관리자" : "임원회";
   // 사이트 잠금 모드는 admin/superadmin/viewer/designer가 우회하므로(middleware.ts와 동일
   // 기준, editor는 예외 아님), 연속 접속 체크인도 같은 기준으로 잠금 중 보류 여부를 판단한다.
   const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
@@ -155,7 +159,7 @@ export default function Header({
             <>
               {showAdminBtn && (
                 <Link href={adminHref} className={`text-sm px-3 py-1.5 whitespace-nowrap ${t.authBtn}`}>
-                  관리자
+                  {adminBtnLabel}
                 </Link>
               )}
               <div className="relative" ref={profileMenuRef}>
@@ -264,7 +268,7 @@ export default function Header({
                 </button>
                 {showAdminBtn && (
                   <Link href={adminHref} onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
-                    관리자
+                    {adminBtnLabel}
                   </Link>
                 )}
                 <button
