@@ -132,13 +132,14 @@ export default function DirectoryPage() {
   // 오히려 티가 난다 — 뽑힌 반의 학생들 사이 구간을 찾아 그 안에서만 무작위 위치에
   // 끼운다(그 반에 실제 학생이 한 명도 없으면, 정렬 순서상 그 반이 있어야 할 자리에
   // 자동으로 들어간다). 학년 필터를 "전체"가 아니라 일부만 선택해서 인원을 줄이면
-  // 찾기 쉬워지므로, 학년 필터가 전체 선택 상태일 때만 나타난다(검색어가 있을 땐 이름이
-  // 그 검색어를 포함할 때만 보이게 해서 검색 결과 개수와 어긋나지 않게 한다).
+  // 찾기 쉬워지므로, 학년 필터가 전체 선택 상태일 때만 나타난다. 검색창에 뭔가 입력하는
+  // 순간에도(우연히 무작위 이름과 겹치는 경우까지 포함해서) 검색으로는 절대 찾을 수
+  // 없어야 하므로, 검색어가 하나라도 있으면 무조건 안 보이게 한다.
   const isAllGradesSelected = grades.size === GRADES.length;
   const gradeHomeroomKey = (grade: string | null, homeroom: number | null) => `${grade ?? ""}-${homeroom ?? 0}`;
   const studentsWithPhantom = useMemo(() => {
     if (!phantomActive || !isAllGradesSelected) return students;
-    if (q && !phantomMember.display_name.includes(q)) return students;
+    if (q) return students;
     const list = [...students];
     const phantomKey = gradeHomeroomKey(phantomMember.grade, phantomMember.homeroom);
     let start = 0;
