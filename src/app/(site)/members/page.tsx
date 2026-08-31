@@ -180,12 +180,16 @@ export default function DirectoryPage() {
         <div className="text-blue text-sm mt-1">{sub}</div>
       </>
     );
+    // 카드는 grid 셀을 항상 꽉 채워야 한다(width: 100%) — 이걸 명시하지 않으면 이름
+    // 길이 등 내용에 따라 카드 자체의 고유 폭(min-content)이 셀 폭보다 커지려는 경우
+    // 카드마다 렌더링 폭이 달라져 격자 정렬이 흐트러질 수 있다. 세 카드 종류(미스터리
+    // 인물/가입한 구성원/미가입 구성원) 전부 동일하게 적용한다.
     if (m.id === PHANTOM_ID) {
       return (
         <Link
           key={m.id}
           href="/members/mystery"
-          className="bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
+          className="w-full min-w-0 bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
         >
           {inner}
         </Link>
@@ -197,7 +201,7 @@ export default function DirectoryPage() {
         <Link
           key={m.id}
           href={`/members/${joined.id}`}
-          className="bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
+          className="w-full min-w-0 bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
         >
           {inner}
         </Link>
@@ -207,7 +211,7 @@ export default function DirectoryPage() {
       <div
         key={m.id}
         title="아직 가입하지 않은 계정입니다"
-        className="bg-[#F5F6F8] border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
+        className="w-full min-w-0 bg-[#F5F6F8] border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
       >
         {inner}
         <div className="text-[11px] text-muted mt-1.5">미가입</div>
