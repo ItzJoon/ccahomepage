@@ -143,7 +143,7 @@ export default function AdminUsersPage() {
                       {(canEdit ? selectableRoles : ROLES).map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
                     </select>
                   ) : (
-                    <span className="text-sm text-muted" title={lockReason}>
+                    <span className="text-sm text-muted px-2.5 py-2 inline-block" title={lockReason}>
                       {roleLabel(p.role)}
                     </span>
                   )}
