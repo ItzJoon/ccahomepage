@@ -58,7 +58,7 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
 
   useEffect(() => {
     if (!userId || attendance.loading || attendance.checkedToday || firedRef.current) return;
-    if (maintenanceMode === null || maintenanceMode) return; // 잠금 중이거나 확인 전이면 보류
+    if (maintenanceMode === null) return; // 아직 점검 모드 여부를 확인 전이면 보류(값이 오면 다시 판단)
     if (!checkInEligible) return; // 학교 구성원이 아닌 계정(외부 승인 계정)은 체크인하지 않음
     // badges 목록/보유 뱃지(earnedIds)가 아직 로딩 중이면 기다린다 — 여기서 바로 checkMilestones를
     // 부르면 오래된(비어있는) earnedIds를 기준으로 판단해 이미 받은 뱃지를 "새로 획득"으로 잘못
@@ -66,11 +66,18 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     if (badgesLoading) return;
     firedRef.current = true;
     (async () => {
+      // 잠금 모드 중에도 실제 접속 기록(user_attendance)은 그대로 남겨야 접속 통계가
+      // 정확하다 — 예전엔 이 블록 전체가 잠금 중에는 실행조차 안 돼서, 사전 로그인한
+      // 학생들의 방문 기록이 하나도 안 쌓이는 문제가 있었다. 축하 토스트/뱃지 팝업 같은
+      // "정식 운영 전에 보여주기 애매한" 연출만 잠금 중에는 숨기고, 체크인 자체와 날짜
+      // 조건 뱃지처럼 조용히 지급되는 것(checkMilestones)은 계속 진행한다.
       const nextStreak = await attendance.checkIn();
       if (nextStreak) {
-        setToast(nextStreak);
         const newly = await checkMilestones(nextStreak);
-        pushCelebrations(newly);
+        if (!maintenanceMode) {
+          setToast(nextStreak);
+          pushCelebrations(newly);
+        }
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
