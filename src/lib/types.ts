@@ -12,6 +12,8 @@ export interface Profile {
   is_council: boolean;
   is_judiciary: boolean;
   email_notifications: boolean;
+  warning_count: number;
+  suspended_until: string | null;
   created_at: string;
 }
 
@@ -253,6 +255,9 @@ export interface SiteSettings {
   maintenance_message: string;
   maintenance_until: string | null;
   restrict_external_checkin: boolean;
+  warning_suspend_threshold: number;
+  warning_suspend_days: number;
+  warning_ban_threshold: number;
   updated_at: string;
 }
 
@@ -355,6 +360,7 @@ export interface Report {
   reporter_id: string | null;
   target_type: ReportTargetType;
   target_id: string;
+  target_author_id: string | null;
   context: string | null;
   reason: string | null;
   status: ReportStatus;

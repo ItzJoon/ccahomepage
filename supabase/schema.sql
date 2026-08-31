@@ -2321,3 +2321,169 @@ create policy "user_badges_select_designer" on user_badges for select using (is_
 -- 보이게 했다. title(예: "제20조(생활교육의 종류)")은 "제10조"가 "제2조"보다 문자열상
 -- 앞에 오는 등 숫자 순서와 어긋나므로, 화면 표시 순서를 위한 정수 컬럼을 별도로 둔다.
 alter table rules add column if not exists order_index int not null default 0;
+
+-- ------------------------------------------------------------
+-- 64. 신고 처리 화면에서 바로 실행하는 제재 기능(경고/일시정지/영구차단)
+-- ------------------------------------------------------------
+-- reports.target_id는 target_type에 따라 다른 테이블을 가리키는 범용 컬럼이라(profile/
+-- board_post/board_comment), 신고 접수 시점에 실제 작성자(profiles.id)를 미리 계산해
+-- target_author_id에 저장해둔다. 게시글/댓글이 나중에 삭제돼도 "누구를 신고했었는지"는
+-- 계속 알 수 있어야 하므로 런타임 조인 대신 INSERT 시점 트리거로 한 번만 계산한다.
+alter table reports add column if not exists target_author_id uuid references profiles(id);
+
+create or replace function resolve_report_target_author()
+returns trigger as $$
+begin
+  if new.target_type = 'profile' then
+    new.target_author_id := new.target_id;
+  elsif new.target_type = 'board_post' then
+    select author_id into new.target_author_id from board_posts where id = new.target_id;
+  elsif new.target_type = 'board_comment' then
+    select author_id into new.target_author_id from board_comments where id = new.target_id;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_resolve_report_target_author on reports;
+create trigger trg_resolve_report_target_author
+  before insert on reports
+  for each row execute function resolve_report_target_author();
+
+-- 기존에 이미 접수된 신고에도 소급 적용(재실행해도 이미 채워진 행은 건드리지 않음)
+update reports r set target_author_id = (
+  case r.target_type
+    when 'profile' then r.target_id
+    when 'board_post' then (select author_id from board_posts where id = r.target_id)
+    when 'board_comment' then (select author_id from board_comments where id = r.target_id)
+  end
+)
+where r.target_author_id is null;
+
+-- 경고 누적 / 일시정지
+alter table profiles add column if not exists warning_count int not null default 0;
+alter table profiles add column if not exists suspended_until timestamptz;
+
+create table if not exists user_warnings (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  report_id uuid references reports(id) on delete set null,
+  issued_by uuid references profiles(id),
+  reason text,
+  created_at timestamptz not null default now()
+);
+alter table user_warnings enable row level security;
+
+drop policy if exists "user_warnings_select_self_or_admin" on user_warnings;
+create policy "user_warnings_select_self_or_admin" on user_warnings for select
+  using (auth.uid() = user_id or is_admin());
+drop policy if exists "user_warnings_insert_admin" on user_warnings;
+create policy "user_warnings_insert_admin" on user_warnings for insert with check (is_admin());
+
+-- 경고 누적 자동조치 기준값 — 코드에 하드코딩하지 않고 admin이 나중에 바꿀 수 있도록
+-- site_settings(기존 전역 설정 싱글턴)에 둔다.
+alter table site_settings add column if not exists warning_suspend_threshold int not null default 3;
+alter table site_settings add column if not exists warning_suspend_days int not null default 3;
+alter table site_settings add column if not exists warning_ban_threshold int not null default 5;
+
+-- 영구 차단 공용 로직(경고 자동조치/수동 차단이 함께 씀) — "외부 계정 관리"와 동일하게
+-- directory_members.is_allowed=false + login_access_requests 이력 기록을 재사용한다.
+create or replace function internal_ban_user_by_email(target_email text, p_reason text)
+returns void as $$
+begin
+  insert into directory_members (email, member_type, display_name, is_allowed)
+  values (target_email, 'other', target_email, false)
+  on conflict (email) do update set is_allowed = false;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'blocked', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  else
+    insert into login_access_requests (email, status, decided_by, decided_at)
+    values (target_email, 'blocked', auth.uid(), now());
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'ban', 'directory_members', target_email, jsonb_build_object('reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- 신고 화면에서 경고를 부여하고, 누적 기준을 넘으면 자동으로 정지/영구차단까지 처리한다.
+create or replace function issue_user_warning(target_user_id uuid, p_report_id uuid, p_reason text)
+returns json as $$
+declare
+  new_count int;
+  suspend_threshold int;
+  suspend_days int;
+  ban_threshold int;
+  target_email text;
+  auto_action text := null;
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 경고를 부여할 수 있습니다';
+  end if;
+
+  insert into user_warnings (user_id, report_id, issued_by, reason)
+  values (target_user_id, p_report_id, auth.uid(), p_reason);
+
+  update profiles set warning_count = warning_count + 1
+  where id = target_user_id
+  returning warning_count, email into new_count, target_email;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'warn', 'profiles', target_user_id::text, jsonb_build_object('warning_count', new_count, 'reason', p_reason));
+
+  select warning_suspend_threshold, warning_suspend_days, warning_ban_threshold
+    into suspend_threshold, suspend_days, ban_threshold
+    from site_settings where id = 'default';
+
+  if new_count >= ban_threshold then
+    perform internal_ban_user_by_email(target_email, '경고 누적(' || new_count || '회)으로 인한 영구 차단');
+    auto_action := 'banned';
+  elsif new_count >= suspend_threshold then
+    update profiles set suspended_until = now() + (suspend_days || ' days')::interval where id = target_user_id;
+    insert into audit_logs (user_id, action, target_table, target_id, after_data)
+    values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', suspend_days, 'reason', '경고 누적(' || new_count || '회)으로 인한 자동 정지'));
+    auto_action := 'suspended';
+  end if;
+
+  return json_build_object('warning_count', new_count, 'auto_action', auto_action, 'suspend_days', suspend_days);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function issue_user_warning(uuid, uuid, text) to authenticated;
+
+-- 신고 화면에서 관리자가 직접 일시정지를 거는 경로(경고 자동정지와 별개)
+create or replace function suspend_user(target_user_id uuid, days int, p_reason text)
+returns void as $$
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 계정을 정지할 수 있습니다';
+  end if;
+  update profiles set suspended_until = now() + (days || ' days')::interval where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', days, 'reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function suspend_user(uuid, int, text) to authenticated;
+
+-- 신고 화면에서 관리자가 직접 영구 차단하는 경로
+create or replace function ban_user_permanently(target_user_id uuid, p_reason text)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 계정을 차단할 수 있습니다';
+  end if;
+  select email into target_email from profiles where id = target_user_id;
+  if target_email is null then
+    raise exception '대상 계정을 찾을 수 없습니다';
+  end if;
+  perform internal_ban_user_by_email(target_email, p_reason);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function ban_user_permanently(uuid, text) to authenticated;

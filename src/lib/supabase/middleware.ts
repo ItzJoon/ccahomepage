@@ -49,6 +49,7 @@ export async function updateSession(request: NextRequest) {
     pathname === "/login" ||
     pathname === "/maintenance" ||
     pathname === "/access-restricted" ||
+    pathname === "/suspended" ||
     pathname.startsWith("/auth/callback") ||
     // 검색엔진이 사이트 잠금 중에도 robots.txt/sitemap.xml은 정상적으로 받아갈 수 있어야
     // 한다(HTML 리다이렉트 응답으로 오해하지 않도록).
@@ -67,10 +68,11 @@ export async function updateSession(request: NextRequest) {
   let isCouncil = false;
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
   let directoryAllowed = false;
+  let suspendedUntil: string | null = null;
   if (!isSpecialPageExempt) {
     if (user) {
       const [roleResult, settingsResult, directoryResult] = await Promise.all([
-        supabase.from("profiles").select("role, is_council").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, is_council, suspended_until").eq("id", user.id).single(),
         supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
         user.email
           ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
@@ -80,6 +82,7 @@ export async function updateSession(request: NextRequest) {
       isCouncil = !!roleResult.data?.is_council;
       siteSettings = settingsResult.data;
       directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
+      suspendedUntil = roleResult.data?.suspended_until ?? null;
     } else {
       // 비로그인 방문자는 role/명단 체크가 필요 없지만, 사이트 잠금 모드(maintenance_mode)는
       // 로그인 여부와 무관하게 모든 방문자에게 적용돼야 하므로 이 조회만은 건너뛰면 안 된다.
@@ -109,6 +112,21 @@ export async function updateSession(request: NextRequest) {
         url.pathname = "/access-restricted";
         return NextResponse.redirect(url);
       }
+    }
+  }
+
+  // 신고 누적 경고 또는 관리자의 직접 조치로 일시정지된 계정은 그 기간 동안 로그인은
+  // 되어도 사이트를 이용할 수 없게 막는다. 별도 배치 작업 없이 매 요청마다
+  // suspended_until을 현재 시각과 비교하는 방식이라, 기간이 지나면 다음 요청부터 자동으로
+  // 다시 이용할 수 있다. admin/superadmin은 명단 차단·잠금 모드와 동일한 이유로(관리자가
+  // 실수로 스스로를 잠그는 사고 방지) 예외로 둔다.
+  if (user && !isAccessCheckExempt) {
+    const isPrivileged = !!role && ["admin", "superadmin"].includes(role);
+    if (!isPrivileged && suspendedUntil && new Date(suspendedUntil).getTime() > Date.now()) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/suspended";
+      url.searchParams.set("until", suspendedUntil);
+      return NextResponse.redirect(url);
     }
   }
 

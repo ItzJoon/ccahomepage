@@ -103,6 +103,13 @@ export default function MyPage() {
     <div>
       <SectionTitle eyebrow="MY PAGE" title="마이페이지" />
 
+      {profile && profile.warning_count > 0 && (
+        <div className="bg-[#FFF3DC] text-gold text-sm font-bold rounded-xl px-4 py-3 mb-4">
+          ⚠️ 경고 {profile.warning_count}회 누적 — 커뮤니티 이용 규칙을 위반한 활동이 감지되어
+          경고를 받았습니다. 계속될 경우 계정 이용이 제한될 수 있습니다.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 mb-4">
         <div className="bg-white border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
