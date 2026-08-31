@@ -2628,3 +2628,209 @@ drop trigger if exists trg_proposal_status_admin_only on proposals;
 create trigger trg_proposal_status_admin_only
   before update on proposals
   for each row execute function enforce_proposal_status_admin_only();
+
+-- ------------------------------------------------------------
+-- 69. designer 역할의 쓰기 권한을 admin과 동일한 수준으로 확장 (superadmin 전용 화면 제외)
+-- ------------------------------------------------------------
+-- designer 역할의 쓰기 권한을 admin과 동일한 수준으로 올린다. 단, superadmin 전용
+-- 화면(뱃지 관리/회원·권한 관리/외부 계정 관리/접속 통계/사이트 잠금/활동 로그/기능
+-- 스위치/테마 — middleware.ts의 superadminOnlyPrefixes와 AdminNav의 SUPERADMIN_NAV에
+-- 해당하는 화면들)은 그대로 제외한다. is_admin()/is_editor_or_above()는 여러 화면에
+-- 걸쳐 재사용되는 함수라 그대로 바꾸면 위 제외 대상 화면까지 같이 열리므로, 함수는
+-- 건드리지 않고 "admin 수준으로 열어줘야 하는" 개별 정책에만 OR is_designer()를 덧붙인다.
+
+-- ===== RPC/트리거: 신고 내역·부서 활동 관련 admin 전용 조치 =====
+-- (protect_profile_fields는 /admin/users 회원·권한 관리와 직결된 email/role 변경
+-- 트리거라 의도적으로 그대로 둔다 — superadmin 전용 유지)
+
+create or replace function issue_user_warning(target_user_id uuid, p_report_id uuid, p_reason text)
+returns json as $$
+declare
+  new_count int;
+  suspend_threshold int;
+  suspend_days int;
+  ban_threshold int;
+  target_email text;
+  auto_action text := null;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 경고를 부여할 수 있습니다';
+  end if;
+
+  insert into user_warnings (user_id, report_id, issued_by, reason)
+  values (target_user_id, p_report_id, auth.uid(), p_reason);
+
+  update profiles set warning_count = warning_count + 1
+  where id = target_user_id
+  returning warning_count, email into new_count, target_email;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'warn', 'profiles', target_user_id::text, jsonb_build_object('warning_count', new_count, 'reason', p_reason));
+
+  select warning_suspend_threshold, warning_suspend_days, warning_ban_threshold
+    into suspend_threshold, suspend_days, ban_threshold
+    from site_settings where id = 'default';
+
+  if new_count >= ban_threshold then
+    perform internal_ban_user_by_email(target_email, '경고 누적(' || new_count || '회)으로 인한 영구 차단');
+    auto_action := 'banned';
+  elsif new_count >= suspend_threshold then
+    update profiles set suspended_until = now() + (suspend_days || ' days')::interval where id = target_user_id;
+    insert into audit_logs (user_id, action, target_table, target_id, after_data)
+    values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', suspend_days, 'reason', '경고 누적(' || new_count || '회)으로 인한 자동 정지'));
+    auto_action := 'suspended';
+  end if;
+
+  return json_build_object('warning_count', new_count, 'auto_action', auto_action, 'suspend_days', suspend_days);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function revoke_user_warning(warning_id uuid)
+returns void as $$
+declare
+  target_user_id uuid;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 경고를 철회할 수 있습니다';
+  end if;
+
+  select user_id into target_user_id from user_warnings where id = warning_id and revoked_at is null;
+  if target_user_id is null then
+    raise exception '철회할 수 있는 경고를 찾을 수 없습니다(이미 철회됐거나 존재하지 않음)';
+  end if;
+
+  update user_warnings set revoked_at = now(), revoked_by = auth.uid() where id = warning_id;
+  update profiles set warning_count = greatest(0, warning_count - 1) where id = target_user_id;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unwarn', 'profiles', target_user_id::text, jsonb_build_object('warning_id', warning_id));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function suspend_user(target_user_id uuid, days int, p_reason text)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 계정을 정지할 수 있습니다';
+  end if;
+  update profiles set suspended_until = now() + (days || ' days')::interval where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', days, 'reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function unsuspend_user(target_user_id uuid)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 정지를 해제할 수 있습니다';
+  end if;
+  update profiles set suspended_until = null where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unsuspend', 'profiles', target_user_id::text, jsonb_build_object('reason', '관리자가 직접 정지 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function ban_user_permanently(target_user_id uuid, p_reason text)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 계정을 차단할 수 있습니다';
+  end if;
+  select email into target_email from profiles where id = target_user_id;
+  if target_email is null then
+    raise exception '대상 계정을 찾을 수 없습니다';
+  end if;
+  perform internal_ban_user_by_email(target_email, p_reason);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function unban_user_permanently(target_user_id uuid)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 차단을 해제할 수 있습니다';
+  end if;
+  select email into target_email from profiles where id = target_user_id;
+  if target_email is null then
+    raise exception '대상 계정을 찾을 수 없습니다';
+  end if;
+
+  update directory_members set is_allowed = true where email = target_email;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'approved', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unban', 'directory_members', target_email, jsonb_build_object('reason', '관리자가 직접 차단 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function enforce_proposal_status_admin_only()
+returns trigger as $$
+begin
+  if new.status is distinct from old.status and not (is_admin() or is_designer()) then
+    raise exception '안건 상태 변경은 admin 이상만 할 수 있습니다';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- ===== is_admin() 기반 RLS: admin 전용(=superadmin 전용 아닌) 정책만 OR is_designer() =====
+alter policy board_comments_delete_own_or_admin on board_comments using ((auth.uid() = author_id) or is_admin() or is_designer());
+alter policy board_posts_delete_own_or_admin on board_posts using ((auth.uid() = author_id) or is_admin() or is_designer());
+alter policy meal_plans_write_admin on meal_plans using (is_admin() or is_designer()) with check (is_admin() or is_designer());
+alter policy meal_plans_bucket_insert_admin on storage.objects with check (bucket_id = 'meal-plans' and (is_admin() or is_designer()));
+alter policy meal_plans_bucket_update_admin on storage.objects using (bucket_id = 'meal-plans' and (is_admin() or is_designer()));
+alter policy meal_plans_bucket_delete_admin on storage.objects using (bucket_id = 'meal-plans' and (is_admin() or is_designer()));
+alter policy org_records_delete_own_or_admin on org_records using ((auth.uid() = author_id) or is_admin() or is_designer());
+alter policy posts_delete_admin on posts using (is_admin() or is_designer());
+alter policy proposals_delete_own_or_admin on proposals using ((auth.uid() = author_id) or is_admin() or is_designer());
+alter policy questions_delete_admin on questions using (is_admin() or is_designer());
+alter policy reports_update_admin on reports using (is_admin() or is_designer());
+alter policy notifications_delete_admin on notifications using (is_admin() or is_designer());
+alter policy user_warnings_insert_admin on user_warnings with check (is_admin() or is_designer());
+
+-- reports/user_warnings는 designer의 조회 정책이 이미 있었지만(reports_select_designer),
+-- user_warnings에는 없었다 — 신고 상세에서 대상자 경고 이력을 볼 수 있어야 하므로 추가.
+create policy user_warnings_select_designer on user_warnings for select using (is_designer());
+
+-- ===== is_editor_or_above() 기반 RLS: 일반 콘텐츠(공지/뉴스/일정/게시판/Q&A/규정/부서 등) =====
+-- (badges_write_admin, user_badges_insert_staff는 /admin/badges 전용 기능이라 제외 — 그대로 유지)
+alter policy answers_write_admin on answers with check (is_editor_or_above() or is_designer());
+alter policy answers_update_editor on answers using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy attachments_write_admin on attachments using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy blocks_write_admin on blocks using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy board_comments_update_staff on board_comments using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy board_posts_update_own_or_staff on board_posts using ((auth.uid() = author_id) or is_editor_or_above() or is_designer());
+alter policy events_write_admin on events using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy main_blocks_write_admin on main_blocks using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy members_write_admin on members using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy menus_write_admin on menus using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy notifications_write_admin on notifications with check (is_editor_or_above() or is_designer());
+alter policy notifications_update_admin on notifications using (is_editor_or_above() or is_designer());
+alter policy news_videos_delete_editor on storage.objects using (bucket_id = 'news-videos' and (is_editor_or_above() or is_designer()));
+alter policy news_videos_insert_editor on storage.objects with check (bucket_id = 'news-videos' and (is_editor_or_above() or is_designer()));
+alter policy news_videos_update_editor on storage.objects using (bucket_id = 'news-videos' and (is_editor_or_above() or is_designer()));
+alter policy attachments_bucket_delete_editor on storage.objects using (bucket_id = 'attachments' and (is_editor_or_above() or is_designer()));
+alter policy attachments_bucket_insert_editor on storage.objects with check (bucket_id = 'attachments' and (is_editor_or_above() or is_designer()));
+alter policy attachments_bucket_update_editor on storage.objects using (bucket_id = 'attachments' and (is_editor_or_above() or is_designer()));
+alter policy profile_photos_delete_self_or_editor on storage.objects using (bucket_id = 'profile-photos' and (is_editor_or_above() or is_designer() or (storage.foldername(name))[1] = auth.uid()::text));
+alter policy profile_photos_insert_self_or_editor on storage.objects with check (bucket_id = 'profile-photos' and (is_editor_or_above() or is_designer() or (storage.foldername(name))[1] = auth.uid()::text));
+alter policy profile_photos_update_self_or_editor on storage.objects using (bucket_id = 'profile-photos' and (is_editor_or_above() or is_designer() or (storage.foldername(name))[1] = auth.uid()::text));
+alter policy org_records_insert_editor on org_records with check (is_editor_or_above() or is_org_activities_manager() or is_designer());
+alter policy org_records_update_editor on org_records using (is_editor_or_above() or is_org_activities_manager() or is_designer()) with check (is_editor_or_above() or is_org_activities_manager() or is_designer());
+alter policy organizations_write_admin on organizations using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy pages_write_admin on pages using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy posts_insert_editor on posts with check ((type = any (array['notice','news'])) and (is_editor_or_above() or is_designer()));
+alter policy posts_update_editor on posts using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy questions_update_admin on questions using (is_editor_or_above() or is_designer());
+alter policy rules_write_admin on rules using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
+alter policy student_subjects_write_staff on student_subjects using (is_editor_or_above() or is_designer()) with check (is_editor_or_above() or is_designer());
