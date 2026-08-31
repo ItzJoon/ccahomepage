@@ -55,12 +55,12 @@ export default function AdminFeatureFlagsPage() {
       <h2 className="text-[22px] mb-2">기능 활성화 스위치</h2>
       <p className="text-muted mb-4">
         메뉴 전체를 학생 화면에서 통째로 켜고 끕니다. 끄면 메뉴 자체가 안 보이고 URL로
-        직접 들어와도 접근이 막힙니다. superadmin만 바꿀 수 있습니다.
+        직접 들어와도 접근이 막힙니다. developer만 바꿀 수 있습니다.
       </p>
 
       {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
-          이 화면은 superadmin만 이용할 수 있습니다.
+          이 화면은 developer만 이용할 수 있습니다.
         </div>
       )}
 

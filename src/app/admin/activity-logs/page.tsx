@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeText } from "@/lib/fakeData";
+import { roleLabel } from "@/lib/roleLabel";
 import type { AuditAction, AuditLog } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -59,7 +60,7 @@ function summarize(row: AuditLog): string {
   if (!data) return row.target_id ?? "-";
   switch (row.target_table) {
     case "profiles":
-      return `${data.nickname || data.name || data.email || "-"} → ${data.role}`;
+      return `${data.nickname || data.name || data.email || "-"} → ${roleLabel(data.role as string)}`;
     case "login_access_requests":
       return `${data.email ?? "-"} (${data.status})`;
     case "directory_members":
@@ -155,7 +156,7 @@ export default function AdminActivityLogsPage() {
   if (!roleLoading && !canView) {
     return (
       <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-4">
-        이 화면은 superadmin만 열람할 수 있습니다.
+        이 화면은 developer만 열람할 수 있습니다.
       </div>
     );
   }

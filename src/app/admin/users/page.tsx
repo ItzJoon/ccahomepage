@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeEmail } from "@/lib/fakeData";
+import { roleLabel } from "@/lib/roleLabel";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
 const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
@@ -65,7 +66,7 @@ export default function AdminUsersPage() {
       <p className="text-muted mb-4">
         신규 가입자는 기본적으로 <code>student</code> 권한으로 생성됩니다. 관리 권한이 필요한 인원만 아래에서 역할을 변경하세요.
         {!iAmAdmin && " editor 등급은 권한을 열람만 할 수 있고, 변경은 admin 이상만 가능합니다."}
-        {iAmAdmin && !iAmSuperadmin && " admin 등급은 다른 사용자를 admin/superadmin으로 올릴 수 없고, 이미 admin/superadmin인 계정은 superadmin만 변경할 수 있습니다."}
+        {iAmAdmin && !iAmSuperadmin && " admin 등급은 다른 사용자를 admin/developer로 올릴 수 없고, 이미 admin/developer인 계정은 developer만 변경할 수 있습니다."}
       </p>
       <div className="flex gap-2 mb-3.5">
         <input
@@ -102,7 +103,7 @@ export default function AdminUsersPage() {
             const canEdit = iAmAdmin && (iAmSuperadmin || !targetIsPrivileged);
             const lockReason = !iAmAdmin
               ? "editor는 권한 열람만 가능합니다. 변경은 admin 이상만 할 수 있습니다."
-              : "superadmin만 admin/superadmin 계정의 권한을 변경할 수 있습니다";
+              : "developer만 admin/developer 계정의 권한을 변경할 수 있습니다";
             const dm = directoryByEmail[p.email];
             return (
               <tr key={p.id}>
@@ -129,11 +130,11 @@ export default function AdminUsersPage() {
                       {/* disabled(designer 열람 전용)일 때는 표시 중인 role이 selectableRoles에
                           없어도(예: designer가 admin 계정의 행을 보는 경우) value가 옵션 목록에
                           없어서 빈 값으로 보이지 않도록 전체 ROLES를 옵션으로 쓴다. */}
-                      {(canEdit ? selectableRoles : ROLES).map((r) => <option key={r} value={r}>{r}</option>)}
+                      {(canEdit ? selectableRoles : ROLES).map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
                     </select>
                   ) : (
                     <span className="text-sm text-muted" title={lockReason}>
-                      {p.role} 🔒
+                      {roleLabel(p.role)} 🔒
                     </span>
                   )}
                 </td>

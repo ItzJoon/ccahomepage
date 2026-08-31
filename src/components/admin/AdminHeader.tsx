@@ -23,6 +23,17 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
     router.refresh();
   };
 
+  // developer(=superadmin, 화면 표시명만 바뀜 — 권한은 그대로) 전용 미리보기.
+  // 실제 role은 그대로 superadmin으로 유지한 채(로그아웃/재로그인 없이) 사이트 헤더가
+  // student 권한으로 보이는 것처럼 렌더링하는 쿠키만 심는다 — (site)/layout.tsx가 이
+  // 쿠키를 읽어 Header에 내려줄 profile을 표시용으로만 바꿔치기한다. developer는 사이트
+  // 잠금 모드 예외 대상이라(middleware.ts) 잠금 중에도 그대로 접속되므로, 이 미리보기도
+  // 잠금과 무관하게 항상 동작한다.
+  const startStudentPreview = () => {
+    document.cookie = "preview_as_student=1; path=/; max-age=86400";
+    router.push("/");
+  };
+
   // 드롭다운 바깥을 클릭하면 닫히게 한다(메인 화면 헤더의 프로필 메뉴와 동일한 동작).
   useEffect(() => {
     if (!profileMenuOpen) return;
@@ -54,6 +65,14 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
             <Link href="/" className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}>
               홈페이지로 돌아가기
             </Link>
+            {profile.role === "superadmin" && (
+              <button
+                onClick={startStudentPreview}
+                className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}
+              >
+                학생 화면 보기
+              </button>
+            )}
             <div className="relative" ref={profileMenuRef}>
               <button
                 onClick={() => setProfileMenuOpen((v) => !v)}

@@ -56,7 +56,7 @@ export default function AdminMaintenancePage() {
     <div className="max-w-xl">
       <h2 className="text-[22px] mb-2">사이트 잠금</h2>
       <p className="text-muted mb-4 text-sm">
-        켜면 admin/superadmin을 제외한 모든 사용자(비로그인 포함, editor도 포함)가 어떤 페이지에
+        켜면 admin/developer를 제외한 모든 사용자(비로그인 포함, editor도 포함)가 어떤 페이지에
         들어와도 <code>/maintenance</code> 안내 화면으로 이동합니다. admin 이상만 켜고 끌 수 있습니다.
       </p>
 

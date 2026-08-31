@@ -1,9 +1,11 @@
+import { cookies } from "next/headers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
 import BadgeGrantWatcher from "@/components/BadgeGrantWatcher";
 import NotificationPopup from "@/components/NotificationPopup";
 import PrevPathProvider from "@/components/PrevPathProvider";
+import StudentPreviewBanner from "@/components/StudentPreviewBanner";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 
@@ -101,11 +103,20 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     memberType === "student" ||
     memberType === "teacher";
 
+  // developer(=superadmin) 전용 "학생 화면 보기" 미리보기 — 실제 role/권한은 전혀 바뀌지
+  // 않고(그래서 checkInEligible/isLockdownExempt 등은 계속 실제 profile 기준), Header에
+  // 내려주는 profile만 표시용으로 role="student"인 것처럼 바꿔서 관리자 전용 버튼(관리자/
+  // 임원회)이 학생과 동일하게 안 보이게 한다. 잠금 모드도 실제 role(superadmin)이 그대로
+  // 예외 대상이라 우회되므로, 미리보기가 잠금 여부와 무관하게 항상 동작한다.
+  const previewAsStudent = !!profile && profile.role === "superadmin" && cookies().get("preview_as_student")?.value === "1";
+  const headerProfile = previewAsStudent ? { ...profile, role: "student", is_council: false, is_judiciary: false } : profile;
+
   return (
     <PrevPathProvider>
       <div className="min-h-screen flex flex-col">
+        {previewAsStudent && <StudentPreviewBanner />}
         <Header
-          profile={profile as any}
+          profile={headerProfile as any}
           customPages={customPages ?? []}
           checkInEligible={checkInEligible}
           initialThemeKey={initialThemeKey}

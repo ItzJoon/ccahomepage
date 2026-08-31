@@ -43,12 +43,12 @@ export default function AdminThemePage() {
       <h2 className="text-[22px] mb-2">테마</h2>
       <p className="text-muted mb-4">
         헤더·푸터·홈 화면의 디자인을 선택합니다. 고르는 즉시 모든 방문자 화면에 실시간으로 반영됩니다.
-        superadmin만 바꿀 수 있습니다.
+        developer만 바꿀 수 있습니다.
       </p>
 
       {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
-          이 화면은 superadmin만 이용할 수 있습니다.
+          이 화면은 developer만 이용할 수 있습니다.
         </div>
       )}
 
