@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
 import DetailBackLink from "@/components/DetailBackLink";
+import ModerationPanel from "@/components/admin/ModerationPanel";
+import { useMyRole } from "@/hooks/useMyRole";
 import type { BadgeDef, DirectoryProfileView } from "@/lib/types";
 
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
@@ -16,6 +18,7 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<DirectoryProfileView | null>(null);
   const [badges, setBadges] = useState<(BadgeDef & { earned_at: string })[]>([]);
+  const { isAdmin } = useMyRole();
 
   useEffect(() => {
     let active = true;
@@ -116,6 +119,14 @@ export default function MemberProfilePage() {
           )}
         </div>
       </div>
+
+      {isAdmin && (
+        <div className="bg-white border border-border rounded-2xl p-5 mt-4">
+          <div className="text-xs font-bold tracking-widest text-red uppercase mb-1">ADMIN</div>
+          <h3 className="mb-3">관리자 조치</h3>
+          <ModerationPanel targetUserId={profile.id} />
+        </div>
+      )}
     </div>
   );
 }

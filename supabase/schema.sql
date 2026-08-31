@@ -2520,3 +2520,51 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function revoke_user_warning(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 66. 영구 차단 해제 / 일시정지 조기 해제 + 구성원 프로필 화면에서 바로 제재
+-- ------------------------------------------------------------
+-- 영구 차단 해제 — "외부 계정 관리" 화면의 승인(approve) 로직과 동일하게
+-- directory_members.is_allowed=true로 되돌리고 login_access_requests 이력도 갱신한다.
+create or replace function unban_user_permanently(target_user_id uuid)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 차단을 해제할 수 있습니다';
+  end if;
+  select email into target_email from profiles where id = target_user_id;
+  if target_email is null then
+    raise exception '대상 계정을 찾을 수 없습니다';
+  end if;
+
+  update directory_members set is_allowed = true where email = target_email;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'approved', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unban', 'directory_members', target_email, jsonb_build_object('reason', '관리자가 직접 차단 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function unban_user_permanently(uuid) to authenticated;
+
+-- 일시정지 조기 해제(정지 기간이 남아있어도 관리자가 즉시 풀 수 있게)
+create or replace function unsuspend_user(target_user_id uuid)
+returns void as $$
+begin
+  if not is_admin() then
+    raise exception 'admin 이상만 정지를 해제할 수 있습니다';
+  end if;
+  update profiles set suspended_until = null where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unsuspend', 'profiles', target_user_id::text, jsonb_build_object('reason', '관리자가 직접 정지 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function unsuspend_user(uuid) to authenticated;
