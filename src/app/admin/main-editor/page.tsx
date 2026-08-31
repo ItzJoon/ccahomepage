@@ -5,19 +5,24 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { MainBlock } from "@/lib/types";
 
+// 6칸 기준 그리드다(2와 3의 최소공배수) — 1/3과 2/3뿐 아니라 1/2도 정수 칸 수로
+// 표현하기 위해서다(3칸 기준이면 1/2가 1.5칸이 되어 표현할 수 없었다).
+const HALF_WIDTH = 3;
 const WIDTH_OPTIONS = [
-  { value: 1, label: "1/3 너비" },
-  { value: 2, label: "2/3 너비" },
-  { value: 3, label: "전체 너비" },
+  { value: 2, label: "1/3 너비" },
+  { value: HALF_WIDTH, label: "1/2 너비" },
+  { value: 4, label: "2/3 너비" },
+  { value: 6, label: "전체 너비" },
 ];
 
-// 이 미리보기는 화면 폭과 무관하게 항상 3칸으로 고정해서 보여주므로(반응형 아님),
+// 이 미리보기는 화면 폭과 무관하게 항상 6칸으로 고정해서 보여주므로(반응형 아님),
 // HomeContent.tsx의 md: 접두어 버전과 달리 접두어 없는 완성된 클래스 문자열을 쓴다
 // (Tailwind JIT은 동적으로 이어붙인 클래스 이름을 인식하지 못한다).
 const COL_SPAN_CLASS: Record<number, string> = {
-  1: "col-span-1",
   2: "col-span-2",
   3: "col-span-3",
+  4: "col-span-4",
+  6: "col-span-6",
 };
 
 export default function AdminMainEditorPage() {
@@ -32,7 +37,23 @@ export default function AdminMainEditorPage() {
     reload();
   };
 
+  // 1/2 너비는 항상 짝을 지어 한 줄을 꽉 채워야 자연스러우므로, 1/2 너비 블록의 바로
+  // 다음(순서상)에는 1/2 너비 블록만 올 수 있게 강제한다 — 앞뒤 어느 쪽에서 바꾸려 하든
+  // 이 관계가 깨지는 시도는 막는다(실제로 저장하지 않고 안내만 하고 되돌림).
   const changeWidth = async (b: MainBlock, col_span: number) => {
+    const idx = sorted.findIndex((x) => x.id === b.id);
+    if (col_span === HALF_WIDTH) {
+      const next = sorted[idx + 1];
+      if (next && next.col_span !== HALF_WIDTH) {
+        alert(`"${next.label}"도 먼저 1/2 너비로 바꿔야 합니다 — 1/2 너비 다음에는 1/2 너비만 올 수 있습니다.`);
+        return;
+      }
+    }
+    const prev = sorted[idx - 1];
+    if (prev?.col_span === HALF_WIDTH && col_span !== HALF_WIDTH) {
+      alert(`바로 앞의 "${prev.label}"이 1/2 너비라서, 이 블록도 1/2 너비로만 바꿀 수 있습니다.`);
+      return;
+    }
     await supabase.from("main_blocks").update({ col_span }).eq("id", b.id);
     reload();
   };
@@ -52,9 +73,9 @@ export default function AdminMainEditorPage() {
     <div>
       <h2 className="text-[22px] mb-2">메인 화면 편집기</h2>
       <p className="text-muted mb-4">
-        학생용 홈에 노출할 블록을 선택하고, 순서와 너비(1/3·2/3·전체)를 조정하세요. 3칸 기준
-        그리드라 너비를 조합하면 한 줄에 최대 3개까지 나란히 배치할 수 있습니다. 변경 사항은
-        Realtime을 통해 즉시 학생 화면에 반영됩니다.
+        학생용 홈에 노출할 블록을 선택하고, 순서와 너비(1/3·1/2·2/3·전체)를 조정하세요. 6칸 기준
+        그리드라 너비를 조합하면 한 줄을 꽉 채울 수 있습니다(1/2 너비는 항상 다음 블록도
+        1/2 너비여야 짝이 맞습니다). 변경 사항은 Realtime을 통해 즉시 학생 화면에 반영됩니다.
       </p>
       <ul className="list-none m-0 p-0 max-w-xl mb-6">
         {sorted.map((b) => (
@@ -80,17 +101,17 @@ export default function AdminMainEditorPage() {
       </ul>
 
       <h3 className="text-base font-bold mb-2">미리보기</h3>
-      <div className="grid grid-cols-3 gap-2.5 max-w-xl">
+      <div className="grid grid-cols-6 gap-2.5 max-w-xl">
         {visiblePreview.map((b) => (
           <div
             key={b.id}
-            className={`${COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[3]} bg-[#EAF0FB] border border-dashed border-blue rounded-lg p-3 text-xs font-bold text-center text-blue`}
+            className={`${COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6]} bg-[#EAF0FB] border border-dashed border-blue rounded-lg p-3 text-xs font-bold text-center text-blue`}
           >
             {b.label}
           </div>
         ))}
         {visiblePreview.length === 0 && (
-          <div className="col-span-3 text-muted text-center py-6 text-sm">표시할 블록이 없습니다.</div>
+          <div className="col-span-6 text-muted text-center py-6 text-sm">표시할 블록이 없습니다.</div>
         )}
       </div>
     </div>

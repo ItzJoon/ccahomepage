@@ -3143,3 +3143,14 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function mark_page_visited(text) to authenticated;
+
+-- ------------------------------------------------------------
+-- 78. 메인화면 편집기에 1/2 너비를 추가하기 위해 6칸 기준 그리드로 이관
+-- ------------------------------------------------------------
+-- 메인화면 편집기에 1/2 너비를 추가하려면 기존 3칸 기준(1/3=1, 2/3=2, 전체=3) 그리드로는
+-- 1/2를 표현할 수 없다(1.5칸이 됨). 2와 3의 최소공배수인 6칸 기준으로 옮겨서
+-- 1/3=2, 1/2=3, 2/3=4, 전체=6으로 전부 정수로 표현되게 한다. 기존 값(1/2/3)에
+-- 그대로 2를 곱하면 같은 비율을 유지한 채 6칸 기준으로 이관된다.
+alter table main_blocks drop constraint main_blocks_col_span_check;
+update main_blocks set col_span = col_span * 2;
+alter table main_blocks add constraint main_blocks_col_span_check check (col_span >= 1 and col_span <= 6);

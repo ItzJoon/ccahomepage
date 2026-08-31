@@ -17,11 +17,12 @@ type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
 // Tailwind는 클래스 이름을 소스에서 문자열 그대로 찾아야 인식하므로(JIT), `md:col-span-${n}`
 // 처럼 동적으로 이어붙이면 실제 빌드에 포함되지 않는다. 완성된 문자열을 미리 다 적어두고
-// col_span 값으로 골라 쓴다.
+// col_span 값으로 골라 쓴다. 6칸 기준 그리드라 1/3=2, 1/2=3, 2/3=4, 전체=6이다.
 const COL_SPAN_CLASS: Record<number, string> = {
-  1: "md:col-span-1",
   2: "md:col-span-2",
   3: "md:col-span-3",
+  4: "md:col-span-4",
+  6: "md:col-span-6",
 };
 
 function fmt(d: string) {
@@ -143,9 +144,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
       <StreakBar userId={userId} initialThemeKey={initialThemeKey} />
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-[18px]">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px]">
         {visibleBlocks.map((b) => {
-          const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[3];
+          const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6];
           if (b.id === "notice")
             return (
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
