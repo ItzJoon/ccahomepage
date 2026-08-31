@@ -130,18 +130,19 @@ export default function DirectoryPage() {
 
   // 미스터리 인물을 실제 학생 목록 정렬(학년/반/이름순)과 무관하게 무작위 자리에 끼워
   // 넣는다 — 이름순 정렬에 자연스럽게 끼면 "무작위 위치"가 아니게 되므로, 정렬이 끝난
-  // 배열에 별도로 삽입한다. 검색어가 있을 땐 이름이 그 검색어를 포함할 때만 보이게 해서
-  // 검색 결과 개수와 어긋나지 않게 한다.
+  // 배열에 별도로 삽입한다. 학년 필터를 "전체"가 아니라 일부만 선택해서 인원을 줄이면
+  // 찾기 쉬워지므로, 학년 필터가 전체 선택 상태일 때만 나타난다(검색어가 있을 땐 이름이
+  // 그 검색어를 포함할 때만 보이게 해서 검색 결과 개수와 어긋나지 않게 한다).
+  const isAllGradesSelected = grades.size === GRADES.length;
   const studentsWithPhantom = useMemo(() => {
-    if (!phantomActive) return students;
-    if (!grades.has(phantomMember.grade as string)) return students;
+    if (!phantomActive || !isAllGradesSelected) return students;
     if (q && !phantomMember.display_name.includes(q)) return students;
     const list = [...students];
     const idx = Math.floor(phantomRoll.positionFrac * (list.length + 1));
     list.splice(idx, 0, phantomMember);
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [students, phantomActive, grades, q, phantomMember.display_name, phantomMember.grade]);
+  }, [students, phantomActive, isAllGradesSelected, q, phantomMember.display_name]);
 
   const teachers = useMemo(() => {
     return rows
