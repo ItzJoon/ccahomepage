@@ -29,7 +29,10 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const { isAdmin: iAmAdmin } = useMyRole();
+  const { isAdmin: iAmAdmin, role } = useMyRole();
+  // designer도 admin과 동일하게 질문 삭제를 쓸 수 있다(RLS의 questions_delete_admin이
+  // is_designer()를 허용).
+  const canDelete = iAmAdmin || role === "designer";
   const { t } = useHomeTheme();
 
   const openQ = (q: QuestionWithAnswer) => {
@@ -111,7 +114,7 @@ export default function AdminQnaPage() {
                     >
                       {q.is_hidden ? "숨김 해제" : "숨김"}
                     </button>
-                    {iAmAdmin ? (
+                    {canDelete ? (
                       <button
                         className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => {
@@ -146,7 +149,7 @@ export default function AdminQnaPage() {
           <div className="flex gap-2 mt-3.5">
             <button onClick={() => submitAnswer(current)} className={t.adminBtnPrimary}>답변 등록</button>
             <button onClick={() => setOpenId(null)} className={t.adminBtnSecondary}>닫기</button>
-            {iAmAdmin && (
+            {canDelete && (
               <button onClick={() => removeQuestion(current.id)} className="text-red text-sm font-bold ml-auto">질문 삭제</button>
             )}
           </div>

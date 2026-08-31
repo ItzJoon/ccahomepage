@@ -18,7 +18,10 @@ export default function MemberProfilePage() {
   const [loading, setLoading] = useState(true);
   const [profile, setProfile] = useState<DirectoryProfileView | null>(null);
   const [badges, setBadges] = useState<(BadgeDef & { earned_at: string })[]>([]);
-  const { isAdmin } = useMyRole();
+  const { isAdmin, role } = useMyRole();
+  // designer도 admin과 동일하게 프로필에서 경고/정지/영구차단 조치를 쓸 수 있다(reports
+  // 페이지와 동일한 이슈 — RLS의 user_warnings_insert_admin 등이 is_designer()를 허용).
+  const canModerate = isAdmin || role === "designer";
 
   useEffect(() => {
     let active = true;
@@ -120,7 +123,7 @@ export default function MemberProfilePage() {
         </div>
       </div>
 
-      {isAdmin && (
+      {canModerate && (
         <div className="bg-white border border-border rounded-2xl p-5 mt-4">
           <div className="text-xs font-bold tracking-widest text-red uppercase mb-1">ADMIN</div>
           <h3 className="mb-3">관리자 조치</h3>

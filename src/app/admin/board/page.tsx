@@ -23,7 +23,10 @@ export default function AdminBoardPage() {
     select: "*, author:profiles(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });
-  const { isAdmin: iAmAdmin } = useMyRole();
+  const { isAdmin: iAmAdmin, role } = useMyRole();
+  // designer도 admin과 동일하게 게시글 삭제를 쓸 수 있다(RLS의
+  // board_posts_delete_own_or_admin이 is_designer()를 허용).
+  const canDelete = iAmAdmin || role === "designer";
   const { t } = useHomeTheme();
 
   const remove = async (id: string) => {
@@ -74,7 +77,7 @@ export default function AdminBoardPage() {
                   <button className="text-blue text-xs font-bold shrink-0" onClick={() => toggleHidden(p.id, p.is_hidden)}>
                     {p.is_hidden ? "숨김 해제" : "숨김"}
                   </button>
-                  {iAmAdmin ? (
+                  {canDelete ? (
                     <button className={`${t.adminBtnDanger} shrink-0`} onClick={() => remove(p.id)}>삭제</button>
                   ) : (
                     <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다">🔒</span>

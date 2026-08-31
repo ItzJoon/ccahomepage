@@ -20,7 +20,10 @@ export default function AdminNotifyPage() {
     select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
   });
-  const { isAdmin: iAmAdmin } = useMyRole();
+  const { isAdmin: iAmAdmin, role } = useMyRole();
+  // designer도 admin과 동일하게 알림 삭제 및 발송 이력 전체 범위 열람을 쓸 수 있다(RLS의
+  // notifications_delete_admin이 is_designer()를 허용).
+  const canManageNotify = iAmAdmin || role === "designer";
   const { t } = useHomeTheme();
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
@@ -88,7 +91,7 @@ export default function AdminNotifyPage() {
       </div>
 
       {tab === "email" ? (
-        <EmailNotificationHistory isAdmin={iAmAdmin} />
+        <EmailNotificationHistory isAdmin={canManageNotify} />
       ) : (
         <>
       <div className={`${t.adminEditPanel} flex flex-col gap-1.5 max-w-lg`}>
@@ -149,7 +152,7 @@ export default function AdminNotifyPage() {
                 <span className="text-muted text-xs">중지됨</span>
               )
             )}
-            {iAmAdmin ? (
+            {canManageNotify ? (
               <button onClick={() => remove(n.id)} className={t.adminBtnDanger}>삭제</button>
             ) : (
               <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>

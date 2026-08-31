@@ -109,7 +109,10 @@ export default function PostManager({
         return;
       }
       const { data: me } = await supabase.from("profiles").select("role, email").eq("id", data.user.id).single();
-      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+      // designer도 admin과 동일하게 공지/뉴스 삭제 및 전체 대상 이메일 발송 범위를 쓸 수
+      // 있다(RLS의 posts_delete_admin이 is_designer()를 허용) — 이 컴포넌트는 useMyRole
+      // 대신 자체적으로 role을 조회하므로 여기서 판정 로직에 designer를 함께 넣는다.
+      setIAmAdmin(!!me && ["admin", "superadmin", "designer"].includes(me.role));
       const teacher = me?.role === "teacher";
       setIsTeacher(teacher);
       if (teacher && me?.email) {

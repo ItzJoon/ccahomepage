@@ -40,6 +40,13 @@ export default function AdminReportsPage() {
   // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 이 경고 배너에서는 제외한다
   // (실제 조작 차단은 DesignerModeGate가 담당).
   const canView = isAdmin || role === "designer";
+  // 신고 처리(콘텐츠 숨김·삭제, 경고/정지/영구차단)는 이제 designer도 admin과 동일하게 쓸 수
+  // 있다(RLS의 board_posts_delete_own_or_admin/board_comments_delete_own_or_admin,
+  // user_warnings_insert_admin 등이 is_designer()를 허용). 반면 아래 "제재 기준 설정"
+  // 패널은 site_settings_update_admin이 designer로 확장되지 않았으므로, 그 패널은 계속
+  // 순수 isAdmin(=admin/superadmin)만으로 gate해야 한다 — 이 둘을 섞어 쓰지 않도록 별도
+  // 플래그로 분리한다.
+  const canModerateReport = isAdmin || role === "designer";
   const { t } = useHomeTheme();
 
   const [openId, setOpenId] = useState<string | null>(null);
@@ -256,7 +263,7 @@ export default function AdminReportsPage() {
             </div>
           )}
 
-          {isAdmin && currentContent && (
+          {canModerateReport && currentContent && (
             <div className="flex gap-2 mt-1">
               <button onClick={toggleHiddenContent} className={t.adminBtnSecondary}>
                 {currentContent.is_hidden ? "숨김 해제" : "숨김 처리"}
@@ -268,7 +275,7 @@ export default function AdminReportsPage() {
           {current.target_author_id && (
             <div className="border-t border-border mt-2 pt-3 flex flex-col gap-2">
               <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
-              {isAdmin ? (
+              {canModerateReport ? (
                 <ModerationPanel
                   targetUserId={current.target_author_id}
                   reportId={current.id}

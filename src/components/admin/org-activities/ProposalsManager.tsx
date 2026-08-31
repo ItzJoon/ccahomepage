@@ -36,7 +36,13 @@ export default function ProposalsManager() {
   });
   const { rows: votes } = useRealtimeList<ProposalVote>("proposal_votes");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp } = useMyRole();
+  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp, role } = useMyRole();
+  // designer는 이제 admin과 동일한 수준으로 안건 상태 변경/숨김/삭제를 쓸 수 있다(RLS의
+  // proposals_delete_own_or_admin, enforce_proposal_status_admin_only 트리거가 이미
+  // is_designer()를 허용) — isAdmin/isEditorUp은 다른 화면에서도 재사용되는 값이라 그대로
+  // 두고, 이 화면에서만 쓰는 로컬 플래그를 따로 둔다.
+  const canModerateProposal = iAmAdmin || role === "designer";
+  const canHideProposal = iAmEditorUp || role === "designer";
   // 원래는 학생용 /org-activities 공개 페이지에서만 안건을 등록할 수 있었는데, 부서 활동이
   // 임원회 전용으로 바뀌면서 이 관리 화면(이 페이지에 들어올 수 있다는 것 자체가 이미
   // is_council 또는 superadmin이라는 뜻)에서도 바로 등록할 수 있게 추가했다.
@@ -89,7 +95,7 @@ export default function ProposalsManager() {
   // is_council(임원회)이면 role과 무관하게 들어올 수 있게 됐지만, 공식 처리 결과를
   // 확정하는 상태 변경은 그보다 좁은 admin 이상 권한으로 유지한다(DB 트리거로도 강제됨).
   const changeStatus = async (id: string, status: Proposal["status"]) => {
-    if (!iAmAdmin) return;
+    if (!canModerateProposal) return;
     const { error } = await supabase.from("proposals").update({ status, updated_at: new Date().toISOString() }).eq("id", id);
     if (error) {
       alert(error.message);
@@ -218,7 +224,7 @@ export default function ProposalsManager() {
                 </td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
-                    {iAmEditorUp && (
+                    {canHideProposal && (
                       <button
                         className="text-blue text-xs font-bold shrink-0"
                         onClick={(e) => { e.stopPropagation(); toggleHidden(p.id, p.is_hidden); }}
@@ -226,7 +232,7 @@ export default function ProposalsManager() {
                         {p.is_hidden ? "숨김 해제" : "숨김"}
                       </button>
                     )}
-                    {(myId === p.author_id || iAmAdmin) && (
+                    {(myId === p.author_id || canModerateProposal) && (
                       <button
                         className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => { e.stopPropagation(); remove(p.id); }}
@@ -272,7 +278,7 @@ export default function ProposalsManager() {
             </button>
           </div>
           <label className="text-xs font-bold text-muted mt-3 block">상태 변경</label>
-          {iAmAdmin ? (
+          {canModerateProposal ? (
             <select
               className={`${t.adminInput} w-full`}
               value={current.status}
@@ -291,7 +297,7 @@ export default function ProposalsManager() {
             </div>
           )}
           <div className="flex items-center gap-2 mt-3.5 flex-wrap">
-            {iAmEditorUp && (
+            {canHideProposal && (
               <button
                 onClick={() => toggleHidden(current.id, current.is_hidden)}
                 className={t.adminBtnSecondary}
@@ -299,7 +305,7 @@ export default function ProposalsManager() {
                 {current.is_hidden ? "숨김 해제" : "숨김"}
               </button>
             )}
-            {(myId === current.author_id || iAmAdmin) ? (
+            {(myId === current.author_id || canModerateProposal) ? (
               <button onClick={() => remove(current.id)} className={t.adminBtnSecondary}>
                 삭제
               </button>

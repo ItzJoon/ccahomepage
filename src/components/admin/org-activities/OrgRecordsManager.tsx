@@ -36,7 +36,12 @@ export default function OrgRecordsManager() {
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
   const [error, setError] = useState<string | null>(null);
-  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp } = useMyRole();
+  const { myId, isAdmin: iAmAdmin, isEditorUp: iAmEditorUp, role } = useMyRole();
+  // designer도 admin과 동일하게 활동기록 삭제/숨김을 쓸 수 있다(RLS의
+  // org_records_delete_own_or_admin이 is_designer()를 허용) — isAdmin/isEditorUp 원본은
+  // 다른 화면에서도 재사용되므로 그대로 두고 이 화면 전용 플래그만 따로 둔다.
+  const canModerateRecord = iAmAdmin || role === "designer";
+  const canHideRecord = iAmEditorUp || role === "designer";
   const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
@@ -117,7 +122,7 @@ export default function OrgRecordsManager() {
                 <td className={t.adminTableCell}>{fmt(r.created_at)}</td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
-                    {iAmEditorUp && (
+                    {canHideRecord && (
                       <button
                         className="text-blue text-xs font-bold shrink-0"
                         onClick={(e) => { e.stopPropagation(); toggleHidden(r.id, r.is_hidden); }}
@@ -125,7 +130,7 @@ export default function OrgRecordsManager() {
                         {r.is_hidden ? "숨김 해제" : "숨김"}
                       </button>
                     )}
-                    {(myId === r.author_id || iAmAdmin) && (
+                    {(myId === r.author_id || canModerateRecord) && (
                       <button
                         className={`${t.adminBtnDanger} shrink-0`}
                         onClick={(e) => { e.stopPropagation(); remove(r.id); }}
