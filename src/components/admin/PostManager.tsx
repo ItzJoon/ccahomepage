@@ -1,7 +1,8 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
@@ -38,6 +39,8 @@ export default function PostManager({
   onClose?: () => void;
 }) {
   const supabase = createClient();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { t } = useHomeTheme();
   // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
   // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
@@ -242,6 +245,21 @@ export default function PostManager({
     resetEmailOptions(false);
     setEditing(item.id);
   };
+
+  // 대시보드의 "최근 등록된 공지·뉴스" 목록에서 항목을 누르면 /admin/notices?edit=<id>
+  // 처럼 넘어온다 — 목록(rows)이 실시간 구독으로 채워진 뒤 해당 글을 찾아 자동으로 열고,
+  // 새로고침 시 다시 열리거나 뒤로가기가 이상해지지 않도록 URL에서 쿼리만 지운다.
+  const autoOpenedRef = useRef(false);
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (!editId || autoOpenedRef.current || editing !== null || rows.length === 0) return;
+    const item = rows.find((r) => r.id === editId);
+    if (!item) return;
+    autoOpenedRef.current = true;
+    startEdit(item);
+    router.replace(type === "notice" ? "/admin/notices" : "/admin/news");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, rows, editing]);
 
   const isAutoTarget = form.type === "subject_notice" || form.type === "homeroom_notice";
 

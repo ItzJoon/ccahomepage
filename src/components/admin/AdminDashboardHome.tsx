@@ -93,9 +93,10 @@ export default function AdminDashboardHome({
         </div>
         <div className="border-t border-border">
           {recentPosts.map((p) => (
-            <div
+            <Link
               key={p.id}
-              className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0"
+              href={`${p.type === "notice" ? "/admin/notices" : "/admin/news"}?edit=${p.id}`}
+              className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0 hover:bg-[#F7F8FB] -mx-2 px-2 rounded-md transition-colors"
             >
               <div className="flex items-center gap-4 min-w-0">
                 <span
@@ -111,7 +112,7 @@ export default function AdminDashboardHome({
                 <span>{p.author_name || "-"}</span>
                 <span>{timeAgo(p.created_at)}</span>
               </div>
-            </div>
+            </Link>
           ))}
           {recentPosts.length === 0 && (
             <div className="text-muted text-center py-8 text-sm">최근 등록된 공지/뉴스가 없습니다.</div>
