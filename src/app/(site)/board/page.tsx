@@ -12,6 +12,21 @@ import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { BoardPost } from "@/lib/types";
 
 const DRAFT_KEY = "board_new";
+const READ_IDS_CACHE_KEY = "board_read_ids_cache";
+
+// 읽은 글 id 목록을 서버에서 가져오기 전까지는(비동기라 첫 렌더 이후 한 박자 늦게 온다)
+// 안 읽음(검은 글씨)으로 잘못 보였다가 회색으로 바뀌는 깜빡임이 생긴다. 브라우저에
+// 저장해둔 이전 조회 결과로 먼저 그리면(초기 state를 lazy initializer로 동기 계산),
+// 다시 방문했을 때는 서버 응답을 기다리지 않고도 바로 맞는 색으로 보인다 — 완전히
+// 새로운 글이 그 사이에 읽은 걸로 잘못 표시될 일은 없다(캐시엔 "읽은 것"만 저장하므로).
+function loadCachedReadIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(READ_IDS_CACHE_KEY);
+    return raw ? new Set(JSON.parse(raw)) : new Set();
+  } catch {
+    return new Set();
+  }
+}
 
 interface Row extends BoardPost {
   author_name: string | null;
@@ -28,7 +43,7 @@ export default function BoardPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [iAmAdmin, setIAmAdmin] = useState(false);
-  const [readPostIds, setReadPostIds] = useState<Set<string>>(new Set());
+  const [readPostIds, setReadPostIds] = useState<Set<string>>(loadCachedReadIds);
   const [writing, setWriting] = useState(false);
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [form, setForm] = useState<{ title: string; content: string; image_url: string | null }>({
@@ -55,7 +70,14 @@ export default function BoardPage() {
       setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
       // 안 읽은 글(검은 글씨)/읽은 글(회색 글씨) 구분용 — 본인이 읽은 글 id만 가져온다.
       const { data: reads } = await supabase.from("board_post_reads").select("post_id").eq("user_id", data.user.id);
-      setReadPostIds(new Set((reads ?? []).map((r) => r.post_id)));
+      const ids = (reads ?? []).map((r) => r.post_id);
+      setReadPostIds(new Set(ids));
+      try {
+        localStorage.setItem(READ_IDS_CACHE_KEY, JSON.stringify(ids));
+      } catch {
+        // 프라이빗 브라우징 등으로 localStorage를 못 쓰면 그냥 캐시 없이 동작(다음 방문 때
+        // 다시 한 번 깜빡일 뿐 기능엔 지장 없음).
+      }
     });
   }, [supabase]);
 
