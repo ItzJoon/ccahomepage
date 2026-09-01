@@ -6,6 +6,7 @@ import BadgeGrantWatcher from "@/components/BadgeGrantWatcher";
 import NotificationPopup from "@/components/NotificationPopup";
 import PrevPathProvider from "@/components/PrevPathProvider";
 import StudentPreviewBanner from "@/components/StudentPreviewBanner";
+import SuspensionWatcher from "@/components/SuspensionWatcher";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import { StudentPreviewProvider } from "@/lib/studentPreviewContext";
@@ -129,6 +130,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           {showNotifications && (
             <BadgeGrantWatcher userId={profile?.id ?? null} soundEnabled={profile?.badge_sound_enabled ?? true} />
           )}
+          {profile && <SuspensionWatcher userId={profile.id} email={profile.email} />}
           <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
           <Footer initialThemeKey={initialThemeKey} />
         </div>

@@ -30,6 +30,7 @@ const ADMIN_ONLY_NAV = [
   { href: "/admin/reports", label: "신고 내역" },
   { href: "/admin/meal-plans", label: "급식표 관리" },
   { href: "/admin/badges", label: "뱃지 관리" },
+  { href: "/admin/moderation", label: "정지·차단 계정" },
 ];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만

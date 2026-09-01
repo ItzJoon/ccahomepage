@@ -242,9 +242,10 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
-    // 신고 내역/급식표 관리/뱃지 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin
-    // 이상만 봐야 한다. designer는 조회 전용으로 여기도 볼 수 있어야 해서 함께 예외.
-    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans", "/admin/badges"];
+    // 신고 내역/급식표 관리/뱃지 관리/정지·차단 계정은 teacher는 물론 editor(부장급)도
+    // 볼 수 없고 admin 이상만 봐야 한다. designer는 조회 전용으로 여기도 볼 수 있어야 해서
+    // 함께 예외.
+    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans", "/admin/badges", "/admin/moderation"];
     if (adminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "admin" && r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();

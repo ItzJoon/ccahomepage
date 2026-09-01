@@ -132,7 +132,7 @@ export default function ModerationPanel({
     const { error } = await runRpc("suspend_user", {
       target_user_id: targetUserId,
       days: suspendDays,
-      p_reason: "관리자 직접 정지",
+      p_reason: warningReason.trim() || "관리자 직접 정지",
     });
     flash(error ? `정지 처리에 실패했습니다: ${error.message}` : `✅ ${suspendDays}일간 정지시켰습니다.`);
     if (!error) {
@@ -155,7 +155,7 @@ export default function ModerationPanel({
     if (!confirm(`${displayName}님을 영구 차단합니다. 계속하시겠습니까?`)) return;
     const { error } = await runRpc("ban_user_permanently", {
       target_user_id: targetUserId,
-      p_reason: "관리자 직접 영구 차단",
+      p_reason: warningReason.trim() || "관리자 직접 영구 차단",
     });
     flash(error ? `차단에 실패했습니다: ${error.message}` : "✅ 영구 차단했습니다.");
     if (!error) {
