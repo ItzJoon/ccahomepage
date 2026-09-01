@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
+import { preloadBadgeSoundOverrides } from "@/lib/badgeSound";
 import type { BadgeDef } from "@/lib/types";
 
 /**
@@ -30,6 +31,7 @@ export function useBadges(userId: string | null) {
       .order("secret_tier", { ascending: true })
       .order("streak_threshold", { ascending: true });
     setBadges((badgeRows as BadgeDef[]) ?? []);
+    if (badgeRows) preloadBadgeSoundOverrides(badgeRows as BadgeDef[]);
 
     if (userId) {
       const { data: earned } = await supabase.from("user_badges").select("badge_id").eq("user_id", userId);
