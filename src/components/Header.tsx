@@ -299,6 +299,7 @@ export default function Header({
         userId={profile.id}
         initialNickname={profile.nickname ?? ""}
         initialBio={profile.bio ?? ""}
+        initialProfileImage={profile.profile_image}
         onClose={() => setQuickEditOpen(false)}
       />
     )}

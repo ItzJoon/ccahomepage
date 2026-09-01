@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import ImageUpload from "@/components/ImageUpload";
 
 /**
  * 헤더의 프로필 메뉴 "닉네임 · 소개 수정"에서 뜨는 간단 수정 모달. 마이페이지까지 이동하지
@@ -12,25 +13,28 @@ export default function ProfileQuickEditModal({
   userId,
   initialNickname,
   initialBio,
+  initialProfileImage,
   onClose,
 }: {
   userId: string;
   initialNickname: string;
   initialBio: string;
+  initialProfileImage?: string | null;
   onClose: () => void;
 }) {
   const supabase = createClient();
   const router = useRouter();
   const [nickname, setNickname] = useState(initialNickname);
   const [bio, setBio] = useState(initialBio);
+  const [profileImage, setProfileImage] = useState(initialProfileImage ?? null);
   const [saving, setSaving] = useState(false);
-  const isDirty = nickname !== initialNickname || bio !== initialBio;
+  const isDirty = nickname !== initialNickname || bio !== initialBio || profileImage !== (initialProfileImage ?? null);
 
   const save = async () => {
     setSaving(true);
     await supabase
       .from("profiles")
-      .update({ nickname: nickname.trim() || null, bio: bio.trim() || null })
+      .update({ nickname: nickname.trim() || null, bio: bio.trim() || null, profile_image: profileImage })
       .eq("id", userId);
     setSaving(false);
     onClose();
@@ -46,6 +50,12 @@ export default function ProfileQuickEditModal({
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold mb-1">닉네임 · 소개 수정</h3>
+        <label className="text-xs font-bold text-muted mt-2">프로필 사진</label>
+        <ImageUpload userId={userId} value={profileImage} onChange={setProfileImage} bucket="profile-photos" />
+        <p className="text-[11px] text-muted m-0">
+          음란물, 특정인 사칭, 혐오 표현 등 부적절한 프로필 사진은 예고 없이 관리자가 임의로
+          삭제·교체할 수 있습니다.
+        </p>
         <label className="text-xs font-bold text-muted mt-2">표시 이름 (닉네임)</label>
         <input
           autoFocus

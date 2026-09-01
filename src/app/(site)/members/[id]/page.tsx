@@ -123,6 +123,7 @@ export default function MemberProfilePage() {
           userId={profile.id}
           initialNickname={profile.nickname ?? ""}
           initialBio={profile.bio ?? ""}
+          initialProfileImage={profile.profile_image}
           onClose={() => {
             setEditingProfile(false);
             loadProfile();

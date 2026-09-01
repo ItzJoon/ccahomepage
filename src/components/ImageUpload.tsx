@@ -8,18 +8,21 @@ import ImageLightbox from "@/components/ImageLightbox";
 const MAX_SIZE = 5 * 1024 * 1024;
 
 /**
- * 게시판 글/Q&A 질문·답변에 사진 1장을 첨부하는 공용 업로더. Storage의 'board-images'
- * 버킷에 본인 폴더(userId) 아래로 올리고(profile-photos와 동일한 접근 방식) 공개 URL을
- * 부모의 image_url 상태로 돌려준다 — 실제 DB 저장은 폼 제출 시점에 호출하는 쪽이 처리한다.
+ * 게시판 글/Q&A 질문·답변에 사진 1장을 첨부하는 공용 업로더. Storage 버킷(기본값
+ * 'board-images')에 본인 폴더(userId) 아래로 올리고(profile-photos도 동일한 접근
+ * 방식이라 bucket을 지정해 프로필 사진 수정에도 그대로 재사용한다) 공개 URL을 부모의
+ * image_url 상태로 돌려준다 — 실제 DB 저장은 폼 제출 시점에 호출하는 쪽이 처리한다.
  */
 export default function ImageUpload({
   userId,
   value,
   onChange,
+  bucket = "board-images",
 }: {
   userId: string;
   value: string | null;
   onChange: (url: string | null) => void;
+  bucket?: string;
 }) {
   const supabase = createClient();
   const [uploading, setUploading] = useState(false);
@@ -38,13 +41,13 @@ export default function ImageUpload({
     setError(null);
     setUploading(true);
     const path = `${userId}/${safeStorageKey(file.name)}`;
-    const { error: uploadError } = await supabase.storage.from("board-images").upload(path, file);
+    const { error: uploadError } = await supabase.storage.from(bucket).upload(path, file);
     if (uploadError) {
       setError(uploadError.message);
       setUploading(false);
       return;
     }
-    const { data: pub } = supabase.storage.from("board-images").getPublicUrl(path);
+    const { data: pub } = supabase.storage.from(bucket).getPublicUrl(path);
     onChange(pub.publicUrl);
     setUploading(false);
   };

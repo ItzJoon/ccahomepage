@@ -23,7 +23,7 @@ export default function AdminPersonMenu({
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ nickname: string; bio: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ nickname: string; bio: string; profile_image: string | null } | null>(null);
   const [moderating, setModerating] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -38,8 +38,8 @@ export default function AdminPersonMenu({
 
   const startEdit = async () => {
     setOpen(false);
-    const { data } = await createClient().from("profiles").select("nickname, bio").eq("id", userId).single();
-    setEditTarget({ nickname: data?.nickname ?? "", bio: data?.bio ?? "" });
+    const { data } = await createClient().from("profiles").select("nickname, bio, profile_image").eq("id", userId).single();
+    setEditTarget({ nickname: data?.nickname ?? "", bio: data?.bio ?? "", profile_image: data?.profile_image ?? null });
     setEditing(true);
   };
 
@@ -76,6 +76,7 @@ export default function AdminPersonMenu({
           userId={userId}
           initialNickname={editTarget.nickname}
           initialBio={editTarget.bio}
+          initialProfileImage={editTarget.profile_image}
           onClose={() => {
             setEditing(false);
             setEditTarget(null);

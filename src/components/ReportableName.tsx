@@ -39,7 +39,7 @@ export default function ReportableName({
   const [reason, setReason] = useState("");
   const [done, setDone] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editTarget, setEditTarget] = useState<{ nickname: string; bio: string } | null>(null);
+  const [editTarget, setEditTarget] = useState<{ nickname: string; bio: string; profile_image: string | null } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,8 +65,8 @@ export default function ReportableName({
 
   const startEdit = async () => {
     setOpen(false);
-    const { data } = await createClient().from("profiles").select("nickname, bio").eq("id", targetUserId).single();
-    setEditTarget({ nickname: data?.nickname ?? "", bio: data?.bio ?? "" });
+    const { data } = await createClient().from("profiles").select("nickname, bio, profile_image").eq("id", targetUserId).single();
+    setEditTarget({ nickname: data?.nickname ?? "", bio: data?.bio ?? "", profile_image: data?.profile_image ?? null });
     setEditing(true);
   };
 
@@ -157,6 +157,7 @@ export default function ReportableName({
           userId={targetUserId}
           initialNickname={editTarget.nickname}
           initialBio={editTarget.bio}
+          initialProfileImage={editTarget.profile_image}
           onClose={() => {
             setEditing(false);
             setEditTarget(null);

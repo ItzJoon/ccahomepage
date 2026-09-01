@@ -117,6 +117,7 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
           userId={profile.id}
           initialNickname={profile.nickname || ""}
           initialBio={profile.bio || ""}
+          initialProfileImage={profile.profile_image}
           onClose={() => setQuickEditOpen(false)}
         />
       )}
