@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
@@ -57,7 +58,9 @@ export default function AdminBoardPage() {
           {rows.map((p) => (
             <tr key={p.id}>
               <td className={t.adminTableCell}>
-                <span {...truncateCellProps(p.title)}>{p.title}</span>
+                <Link href={`/board/${p.id}`} target="_blank" {...truncateCellProps(p.title)} className="block truncate text-blue hover:underline">
+                  {p.title}
+                </Link>
               </td>
               <td className={`${t.adminTableCell} text-muted`}>
                 {p.author?.nickname || p.author?.name || p.author?.email || "-"}
