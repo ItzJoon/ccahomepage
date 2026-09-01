@@ -134,6 +134,7 @@ export interface Question {
   author_display_name: string | null;
   status: "pending" | "answered";
   is_hidden: boolean;
+  reviewed_at: string | null;
   created_at: string;
 }
 
@@ -349,6 +350,7 @@ export interface BoardPost {
   view_count: number;
   like_count: number;
   is_hidden: boolean;
+  reviewed_at: string | null;
   created_at: string;
   updated_at: string;
 }

@@ -45,9 +45,21 @@ export default function AdminBoardPage() {
     reload();
   };
 
+  // 숨김/숨김 해제 어느 쪽이든 관리자가 이미 이 글을 살펴봤다는 뜻이라 함께 확인 처리한다
+  // (목록 행의 숨김 버튼은 상세를 열지 않고도 바로 누를 수 있어, 클릭 열람 처리만으로는
+  // 놓치는 경로라 따로 챙긴다).
   const toggleHidden = async (id: string, isHidden: boolean) => {
-    await supabase.from("board_posts").update({ is_hidden: !isHidden }).eq("id", id);
+    await supabase.from("board_posts").update({ is_hidden: !isHidden, reviewed_at: new Date().toISOString() }).eq("id", id);
     reload();
+  };
+
+  // 사이드바 안 읽음 뱃지 기준(reviewed_at)을 열람 시점에 채운다 — 이미 확인한 글을
+  // 다시 열 때는 굳이 다시 쓰지 않는다.
+  const openPost = (p: BoardPost) => {
+    setOpenId(p.id);
+    if (!p.reviewed_at) {
+      supabase.from("board_posts").update({ reviewed_at: new Date().toISOString() }).eq("id", p.id).then(() => reload());
+    }
   };
 
   const current = rows.find((r) => r.id === openId) ?? null;
@@ -70,7 +82,7 @@ export default function AdminBoardPage() {
             {rows.map((p) => (
               <tr
                 key={p.id}
-                onClick={() => setOpenId(p.id)}
+                onClick={() => openPost(p)}
                 className={`cursor-pointer ${t.adminTableRowHover} ${openId === p.id ? t.adminTableRowActive : ""}`}
               >
                 <td className={t.adminTableCell}>

@@ -23,6 +23,7 @@ interface QuestionWithAnswer {
   author_display_name: string | null;
   status: "pending" | "answered";
   is_hidden: boolean;
+  reviewed_at: string | null;
   created_at: string;
   answers: { id: string; content: string; image_url: string | null }[];
   asker: { name: string | null; nickname: string | null; email: string } | null;
@@ -47,6 +48,11 @@ export default function AdminQnaPage() {
     setOpenId(q.id);
     setAnswerText(q.answers?.[0]?.content || "");
     setAnswerImageUrl(q.answers?.[0]?.image_url || null);
+    // 사이드바 안 읽음 뱃지 기준(reviewed_at)을 열람 시점에 채운다 — 이미 확인한
+    // 질문을 다시 열 때는 굳이 다시 쓰지 않는다.
+    if (!q.reviewed_at) {
+      supabase.from("questions").update({ reviewed_at: new Date().toISOString() }).eq("id", q.id).then(() => reload());
+    }
   };
 
   const removeQuestion = async (id: string) => {
@@ -56,8 +62,11 @@ export default function AdminQnaPage() {
     reload();
   };
 
+  // 숨김/숨김 해제 어느 쪽이든 관리자가 이미 이 질문을 살펴봤다는 뜻이라 함께 확인
+  // 처리한다(목록 행의 숨김 버튼은 상세를 열지 않고도 바로 누를 수 있어, 클릭 열람
+  // 처리만으로는 놓치는 경로라 따로 챙긴다).
   const toggleHidden = async (id: string, isHidden: boolean) => {
-    await supabase.from("questions").update({ is_hidden: !isHidden }).eq("id", id);
+    await supabase.from("questions").update({ is_hidden: !isHidden, reviewed_at: new Date().toISOString() }).eq("id", id);
     reload();
   };
 
@@ -71,7 +80,7 @@ export default function AdminQnaPage() {
     } else {
       await supabase.from("answers").insert({ question_id: q.id, content: answerText, image_url: answerImageUrl, answered_by: user?.id });
     }
-    await supabase.from("questions").update({ status: "answered" }).eq("id", q.id);
+    await supabase.from("questions").update({ status: "answered", reviewed_at: new Date().toISOString() }).eq("id", q.id);
     setOpenId(null);
     setAnswerImageUrl(null);
     reload();

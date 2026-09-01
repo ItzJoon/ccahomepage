@@ -3524,3 +3524,12 @@ begin
   return json_build_object('warning_count', new_count, 'auto_action', auto_action, 'suspend_days', suspend_days);
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- ------------------------------------------------------------
+-- 90. 관리자 사이드바 안 읽음 뱃지(신고 내역/게시판 관리/Q&A 관리)
+-- ------------------------------------------------------------
+-- 게시판 글/Q&A 질문에 관리자가 열람했는지 저장. 신고(reports)는 이미
+-- status('pending'/'reviewed'/'dismissed')가 같은 역할을 하므로 새 컬럼 없이
+-- status='pending' 여부를 그대로 안 읽음 기준으로 재사용한다.
+alter table board_posts add column if not exists reviewed_at timestamptz;
+alter table questions add column if not exists reviewed_at timestamptz;

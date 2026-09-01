@@ -122,6 +122,13 @@ export default function AdminReportsPage() {
     reload();
   };
 
+  // 사이드바 안 읽음 뱃지 기준(status='pending')을 열람 시점에 처리한다 — 이미
+  // 확인함/기각 상태인 것은 다시 열어도 그대로 둔다(기각을 열람만으로 되돌리지 않음).
+  const openReport = (r: Report) => {
+    setOpenId(r.id);
+    if (r.status === "pending") setStatus(r.id, "reviewed");
+  };
+
   const markReviewed = async (id: string) => {
     await supabase.from("reports").update({ status: "reviewed" }).eq("id", id);
     reload();
@@ -231,7 +238,7 @@ export default function AdminReportsPage() {
             {rows.map((r) => (
               <tr
                 key={r.id}
-                onClick={() => setOpenId(r.id)}
+                onClick={() => openReport(r)}
                 className={`cursor-pointer ${t.adminTableRowHover} ${openId === r.id ? t.adminTableRowActive : ""}`}
               >
                 <td className={t.adminTableCell}><AuthorCell name={displayUser(r.reporter_id)} /></td>

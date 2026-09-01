@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { useRealtimeList } from "@/hooks/useRealtimeList";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
@@ -53,13 +54,30 @@ const ORG_ACTIVITIES_NAV = [
   { href: "/admin/org-activities/records", label: "활동기록" },
 ];
 
-function NavLink({ href, label, active, t }: { href: string; label: string; active: boolean; t: Theme }) {
+function NavLink({
+  href,
+  label,
+  active,
+  t,
+  badgeCount,
+}: {
+  href: string;
+  label: string;
+  active: boolean;
+  t: Theme;
+  badgeCount?: number;
+}) {
   return (
     <Link
       href={href}
       className={`flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-sm ${active ? t.adminNavActive : t.adminNavIdle}`}
     >
       <span className="flex-1">{label}</span>
+      {!!badgeCount && (
+        <span className="shrink-0 min-w-[18px] h-[18px] px-1 rounded-full bg-red text-white text-[10px] font-bold leading-[18px] text-center">
+          {badgeCount > 99 ? "99+" : badgeCount}
+        </span>
+      )}
       {active && <span className={t.adminNavIndicator} />}
     </Link>
   );
@@ -76,6 +94,26 @@ export default function AdminNav({
 }) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
+  // 신고/게시판/Q&A 안 읽음 개수 — 실시간 구독이라 새 항목이 들어오거나 확인 처리되면
+  // 즉시 갱신된다. 권한이 없는 역할이 /admin에 들어와도 RLS가 빈 배열을 돌려줄
+  // 뿐이라(에러 아님) 훅 자체는 항상 호출하고, 뱃지 노출만 아래에서 역할로 가른다.
+  const { rows: unreadReports } = useRealtimeList<{ id: string }>("reports", {
+    select: "id",
+    filter: (q) => q.eq("status", "pending"),
+  });
+  const { rows: unreadPosts } = useRealtimeList<{ id: string }>("board_posts", {
+    select: "id",
+    filter: (q) => q.is("reviewed_at", null).eq("is_hidden", false),
+  });
+  const { rows: unreadQuestions } = useRealtimeList<{ id: string }>("questions", {
+    select: "id",
+    filter: (q) => q.is("reviewed_at", null).eq("status", "pending").eq("is_hidden", false),
+  });
+  const BADGE_COUNTS: Record<string, number> = {
+    "/admin/reports": unreadReports.length,
+    "/admin/board": unreadPosts.length,
+    "/admin/qna": unreadQuestions.length,
+  };
   // sub_editor나 is_council만으로 /admin에 들어온 student/teacher는 /admin/org-activities/*
   // 외에는 middleware가 접근 자체를 막으므로, 눌러도 튕겨나가기만 하는 다른 메뉴들은 아예
   // 보여주지 않는다 — "임원회 전용" 그룹만 보인다. designer(조회 전용)는 "탭 자체는 숨기지
@@ -88,14 +126,14 @@ export default function AdminNav({
       {hasAdminRole && (
         <>
           {NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} />
           ))}
         </>
       )}
       {(role === "admin" || role === "superadmin" || isDesigner) && (
         <>
           {ADMIN_ONLY_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} />
           ))}
         </>
       )}
