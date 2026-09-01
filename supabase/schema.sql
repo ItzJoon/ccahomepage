@@ -3213,3 +3213,69 @@ alter table organizations add column category text not null default 'council'
   check (category in ('council', 'judiciary'));
 
 update organizations set category = 'judiciary' where slug = 'law';
+
+-- 84. is_council/is_judiciary를 수동 토글 대신 부서 구성원 등록 기준으로 자동 계산
+-- ------------------------------------------------------------
+-- profiles.is_council/is_judiciary를 더 이상 관리자가 /admin/users에서 수동으로 켜고
+-- 끄지 않고, 부서 관리(organizations/members)에서 소속 부서의 category를 기준으로
+-- 자동 계산한다. council 카테고리 부서에 계정이 연결된 구성원으로 등록돼 있으면
+-- is_council=true, judiciary 카테고리 부서면 is_judiciary=true.
+create or replace function recompute_council_judiciary_flags(p_user_ids uuid[])
+returns void as $$
+begin
+  update profiles p set
+    is_council = exists (
+      select 1 from members m join organizations o on o.id = m.org_id
+      where m.user_id = p.id and o.category = 'council'
+    ),
+    is_judiciary = exists (
+      select 1 from members m join organizations o on o.id = m.org_id
+      where m.user_id = p.id and o.category = 'judiciary'
+    )
+  where p.id = any(p_user_ids);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- members 행이 추가/수정/삭제될 때마다(계정 연결이 바뀌거나 부서가 바뀌는 경우 포함)
+-- 영향받는 계정(들)의 플래그를 다시 계산한다. UPDATE는 user_id 자체가 바뀔 수 있어
+-- 이전/이후 계정 둘 다 재계산한다.
+create or replace function trg_sync_flags_from_members()
+returns trigger as $$
+begin
+  if tg_op = 'DELETE' then
+    perform recompute_council_judiciary_flags(array[old.user_id]);
+  elsif tg_op = 'UPDATE' then
+    perform recompute_council_judiciary_flags(array[new.user_id, old.user_id]);
+  else
+    perform recompute_council_judiciary_flags(array[new.user_id]);
+  end if;
+  return coalesce(new, old);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_members_sync_council_judiciary on members;
+create trigger trg_members_sync_council_judiciary
+after insert or update or delete on members
+for each row execute function trg_sync_flags_from_members();
+
+-- 부서 자체의 소속(category)이 나중에 바뀌는 경우(예: 임원회 산하 부서를 사법위원회로
+-- 재분류), 그 부서에 연결된 모든 구성원의 플래그도 함께 다시 계산한다.
+create or replace function trg_sync_flags_from_org_category()
+returns trigger as $$
+begin
+  if new.category is distinct from old.category then
+    perform recompute_council_judiciary_flags(
+      array(select user_id from members where org_id = new.id and user_id is not null)
+    );
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_organizations_sync_council_judiciary on organizations;
+create trigger trg_organizations_sync_council_judiciary
+after update on organizations
+for each row execute function trg_sync_flags_from_org_category();
+
+-- 기존 데이터 일괄 재계산(수동으로 설정돼 있던 값을 부서 연결 기준으로 정정)
+select recompute_council_judiciary_flags(array(select id from profiles));

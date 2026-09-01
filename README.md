@@ -446,9 +446,17 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
   동일한 예외) — 관리자 화면을 항상 봐야 하는 역할이라 잠금 여부와 상관없어야 하기 때문입니다.
 
 ### is_council / is_judiciary (role과 독립적인 플래그)
-- "학생회 임원회"·"사법위원회"는 아직 role/부서 체계에 정식으로 없어서(이슈 #21, 회의로
-  확정 예정), `profiles.is_council`/`profiles.is_judiciary` boolean으로 임시 구현했습니다.
-  role을 바꾸지 않고 `/admin/users`에서 계정별로 개별 지정합니다(superadmin 전용 화면).
+- "학생회 임원회"·"사법위원회"는 아직 role 체계에 정식으로 없어서(이슈 #21, 회의로 확정
+  예정), `profiles.is_council`/`profiles.is_judiciary` boolean으로 구현했습니다. **더 이상
+  `/admin/users`에서 수동으로 켜고 끄지 않고, 부서 관리(`/admin/organizations`)에서 소속
+  부서를 기준으로 자동 계산됩니다** — `organizations.category`가 `'council'`인 부서(임원회
+  산하 부서들)에 계정이 연결된 구성원으로 등록돼 있으면 `is_council=true`, `'judiciary'`
+  부서(사법위원회)면 `is_judiciary=true`가 됩니다. `members` 행이 추가/수정/삭제되거나
+  부서의 `category`가 바뀔 때마다 DB 트리거(`trg_sync_flags_from_members`,
+  `trg_sync_flags_from_org_category`)가 영향받는 계정의 플래그를 다시 계산합니다.
+  `/admin/users`의 임원회/사법위원회 체크박스는 이제 현재 값을 보여주기만 하는 읽기 전용
+  표시입니다 — 값을 바꾸려면 부서 관리에서 그 계정을 해당 부서 구성원으로 등록/해제해야
+  합니다.
 - **부서 활동(안건함/부서 일정/활동기록)이 임원회 전용으로 바뀌었습니다.** `/org-activities`는
   더 이상 학생 헤더 메뉴에 없고 URL 직접 접근도 막힙니다 — `is_council=true`인 계정과
   superadmin만 볼 수 있습니다(`/admin/org-activities/*` 관리 화면도 동일 기준). 안건

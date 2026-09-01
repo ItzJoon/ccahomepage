@@ -52,11 +52,6 @@ export default function AdminUsersPage() {
     reload();
   };
 
-  const toggleFlag = async (id: string, field: "is_council" | "is_judiciary", value: boolean) => {
-    await supabase.from("profiles").update({ [field]: value }).eq("id", id);
-    reload();
-  };
-
   const list = rows
     .filter((p) => (p.email || "").includes(q) || (p.name || "").includes(q))
     .filter((p) => {
@@ -98,8 +93,12 @@ export default function AdminUsersPage() {
             <th className={t.adminTableHeaderCell}>이메일</th>
             <th className={t.adminTableHeaderCell}>명단 정보</th>
             <th className={`${t.adminTableHeaderCell} w-40`}>권한</th>
-            <th className={`${t.adminTableHeaderCell} w-20`}>임원회</th>
-            <th className={`${t.adminTableHeaderCell} w-20`}>사법위원회</th>
+            <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 임원회 소속 부서 구성원으로 등록하면 자동으로 켜집니다.">
+              임원회
+            </th>
+            <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 사법위원회 구성원으로 등록하면 자동으로 켜집니다.">
+              사법위원회
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -149,20 +148,10 @@ export default function AdminUsersPage() {
                   )}
                 </td>
                 <td className={`${t.adminTableCell} text-center`}>
-                  <input
-                    type="checkbox"
-                    disabled={!canEdit}
-                    checked={p.is_council}
-                    onChange={(e) => toggleFlag(p.id, "is_council", e.target.checked)}
-                  />
+                  <input type="checkbox" disabled checked={p.is_council} title="부서 관리에서 자동으로 계산됩니다." />
                 </td>
                 <td className={`${t.adminTableCell} text-center`}>
-                  <input
-                    type="checkbox"
-                    disabled={!canEdit}
-                    checked={p.is_judiciary}
-                    onChange={(e) => toggleFlag(p.id, "is_judiciary", e.target.checked)}
-                  />
+                  <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
                 </td>
               </tr>
             );
