@@ -7,6 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import ReportableName from "@/components/ReportableName";
+import ImageUpload from "@/components/ImageUpload";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { BoardPost } from "@/lib/types";
 
@@ -26,9 +27,14 @@ export default function BoardPage() {
   useTrackPageVisit("board"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
   const [writing, setWriting] = useState(false);
   const [sort, setSort] = useState<"latest" | "popular">("latest");
-  const [form, setForm] = useState({ title: "", content: "" });
+  const [form, setForm] = useState<{ title: string; content: string; image_url: string | null }>({
+    title: "",
+    content: "",
+    image_url: null,
+  });
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
 
@@ -41,13 +47,18 @@ export default function BoardPage() {
   });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUserId(data.user?.id ?? null);
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+    });
   }, [supabase]);
 
   // 글쓰기 창을 열면 저장된 임시저장이 있는지 확인해서 자동으로 불러온다.
   useEffect(() => {
     if (!writing) return;
-    const draft = loadDraft<{ title: string; content: string }>(DRAFT_KEY);
+    const draft = loadDraft<{ title: string; content: string; image_url: string | null }>(DRAFT_KEY);
     if (draft && (draft.title || draft.content)) {
       setForm(draft);
       setHasDraft(true);
@@ -67,7 +78,7 @@ export default function BoardPage() {
 
   const discardDraft = () => {
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "" });
+    setForm({ title: "", content: "", image_url: null });
     setHasDraft(false);
   };
 
@@ -82,13 +93,14 @@ export default function BoardPage() {
       author_id: userId,
       title: form.title,
       content: form.content,
+      image_url: form.image_url,
     });
     if (error) {
       setError(error.message);
       return;
     }
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "" });
+    setForm({ title: "", content: "", image_url: null });
     setHasDraft(false);
     setWriting(false);
     reload();
@@ -149,6 +161,13 @@ export default function BoardPage() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
+          {userId && (
+            <ImageUpload
+              userId={userId}
+              value={form.image_url}
+              onChange={(image_url) => setForm({ ...form, image_url })}
+            />
+          )}
           {error && <div className="text-red text-xs">{error}</div>}
           <button onClick={submit} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3 self-start">
             등록
@@ -186,6 +205,7 @@ export default function BoardPage() {
                       name={p.author_name || "이름 없음"}
                       myId={userId ?? null}
                       context={`게시판 글: ${p.title}`}
+                      canEditProfile={iAmAdmin}
                     />
                   ) : (
                     "탈퇴한 사용자"

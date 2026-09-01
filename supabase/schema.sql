@@ -3279,3 +3279,82 @@ for each row execute function trg_sync_flags_from_org_category();
 
 -- 기존 데이터 일괄 재계산(수동으로 설정돼 있던 값을 부서 연결 기준으로 정정)
 select recompute_council_judiciary_flags(array(select id from profiles));
+
+-- 85. 게시판 글 / Q&A 질문·답변에 사진 첨부 기능
+-- ------------------------------------------------------------
+-- 여러 장을 지원하는 정규화된 attachments 테이블 대신 단순 컬럼으로 두는 이유는
+-- 요청이 "사진 첨부"(1장) 수준이고, 기존 attachments 테이블/버킷은 editor 이상만
+-- 쓸 수 있게 의도적으로 잠가둔 것이라(공지/규정/일정 전용) 학생이 작성하는 이 화면들에는
+-- 재사용하지 않는다.
+alter table board_posts add column image_url text;
+alter table questions add column image_url text;
+alter table answers add column image_url text;
+
+-- 학생 본인 사진 업로드용 새 버킷. profile-photos와 동일하게 "본인 폴더(auth.uid())
+-- 안에서만" 쓰기 가능한 정책을 쓴다 — attachments/meal-plans처럼 editor 이상 전용으로
+-- 하면 학생이 직접 못 올린다.
+insert into storage.buckets (id, name, public) values ('board-images', 'board-images', true)
+on conflict (id) do nothing;
+
+create policy "board_images_bucket_public_read" on storage.objects for select
+  using (bucket_id = 'board-images');
+
+create policy "board_images_bucket_insert_self" on storage.objects for insert
+  with check (bucket_id = 'board-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "board_images_bucket_update_self" on storage.objects for update
+  using (bucket_id = 'board-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+create policy "board_images_bucket_delete_self" on storage.objects for delete
+  using (bucket_id = 'board-images' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 86. 게시판 글/댓글 좋아요
+-- ------------------------------------------------------------
+-- reports 테이블과 같은 방식으로 target_type/target_id를 범용 컬럼으로 둬서 글/댓글
+-- 두 종류를 한 테이블로 처리한다.
+create table if not exists likes (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  target_type text not null check (target_type in ('board_post', 'board_comment')),
+  target_id uuid not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, target_type, target_id)
+);
+
+alter table likes enable row level security;
+create policy "likes_select_all" on likes for select using (true);
+create policy "likes_insert_self" on likes for insert with check (auth.uid() = user_id);
+create policy "likes_delete_self" on likes for delete using (auth.uid() = user_id);
+
+-- view_count와 같은 방식으로 개수를 비정규화해서 들고 있는다 — 매번 count(*)를 조인해서
+-- 계산하지 않아도 되고, board_posts/board_comments는 이미 실시간 구독 중이라 이 컬럼이
+-- 바뀌면(트리거로 갱신) 화면에 자동으로 반영된다.
+alter table board_posts add column like_count int not null default 0;
+alter table board_comments add column like_count int not null default 0;
+
+create or replace function sync_like_count()
+returns trigger as $$
+declare
+  v_target_id uuid;
+  v_target_type text;
+  v_delta int;
+begin
+  if tg_op = 'DELETE' then
+    v_target_id := old.target_id; v_target_type := old.target_type; v_delta := -1;
+  else
+    v_target_id := new.target_id; v_target_type := new.target_type; v_delta := 1;
+  end if;
+
+  if v_target_type = 'board_post' then
+    update board_posts set like_count = greatest(0, like_count + v_delta) where id = v_target_id;
+  elsif v_target_type = 'board_comment' then
+    update board_comments set like_count = greatest(0, like_count + v_delta) where id = v_target_id;
+  end if;
+  return coalesce(new, old);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_likes_sync_count on likes;
+create trigger trg_likes_sync_count
+after insert or delete on likes
+for each row execute function sync_like_count();

@@ -8,6 +8,9 @@ import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
+import ImageUpload from "@/components/ImageUpload";
+import ImageLightbox from "@/components/ImageLightbox";
+import ReportableName from "@/components/ReportableName";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 
 const DRAFT_KEY = "qna_new";
@@ -17,11 +20,12 @@ interface QuestionWithAnswer {
   user_id: string | null;
   title: string;
   content: string;
+  image_url: string | null;
   is_private: boolean;
   author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
-  answers: { id: string; content: string; created_at: string }[];
+  answers: { id: string; content: string; image_url: string | null; created_at: string }[];
 }
 
 
@@ -29,9 +33,16 @@ export default function QnaPage() {
   useTrackPageVisit("qna"); // "탐험가" 뱃지용 방문 기록
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
+  const [iAmAdmin, setIAmAdmin] = useState(false);
   const [tab, setTab] = useState<"list" | "write">("list");
   const [openId, setOpenId] = useState<string | null>(null);
-  const [form, setForm] = useState({ title: "", content: "", isPrivate: false, revealAuthor: false });
+  const [form, setForm] = useState<{ title: string; content: string; image_url: string | null; isPrivate: boolean; revealAuthor: boolean }>({
+    title: "",
+    content: "",
+    image_url: null,
+    isPrivate: false,
+    revealAuthor: false,
+  });
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
 
@@ -41,7 +52,12 @@ export default function QnaPage() {
   });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
+    supabase.auth.getUser().then(async ({ data }) => {
+      setUserId(data.user?.id ?? null);
+      if (!data.user) return;
+      const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
+      setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+    });
   }, [supabase]);
 
   // 질문하기 탭을 열면 임시저장된 내용이 있는지 확인해 자동으로 불러온다.
@@ -65,7 +81,7 @@ export default function QnaPage() {
 
   const discardDraft = () => {
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "", isPrivate: false, revealAuthor: false });
+    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: false });
     setHasDraft(false);
   };
 
@@ -87,6 +103,7 @@ export default function QnaPage() {
       user_id: userId,
       title: form.title,
       content: form.content,
+      image_url: form.image_url,
       is_private: form.isPrivate,
       author_display_name: authorDisplayName,
     });
@@ -95,7 +112,7 @@ export default function QnaPage() {
       return;
     }
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "", isPrivate: false, revealAuthor: false });
+    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: false });
     setHasDraft(false);
     setTab("list");
     reload();
@@ -157,6 +174,13 @@ export default function QnaPage() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
+          {userId && (
+            <ImageUpload
+              userId={userId}
+              value={form.image_url}
+              onChange={(image_url) => setForm({ ...form, image_url })}
+            />
+          )}
           <label className="flex items-center gap-2 text-sm mt-2">
             <input
               type="checkbox"
@@ -189,7 +213,19 @@ export default function QnaPage() {
               <div className="flex items-center gap-2">
                 {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
                 <span className="flex-1 text-sm">{q.title}</span>
-                <span className="text-xs text-muted">{q.author_display_name || "익명"}</span>
+                {q.author_display_name && q.user_id ? (
+                  <span className="text-xs text-muted" onClick={(e) => e.stopPropagation()}>
+                    <ReportableName
+                      targetUserId={q.user_id}
+                      name={q.author_display_name}
+                      myId={userId ?? null}
+                      context={`Q&A 질문: ${q.title}`}
+                      canEditProfile={iAmAdmin}
+                    />
+                  </span>
+                ) : (
+                  <span className="text-xs text-muted">익명</span>
+                )}
                 <span
                   className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                     q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#EEF1F6] text-muted"
@@ -202,10 +238,24 @@ export default function QnaPage() {
                 <div className="pt-2.5 text-sm">
                   {/* RLS가 이미 열람 가능한 질문만 내려주므로, 내려온 행은 그대로 표시합니다 */}
                   <p><Linkify text={q.content} /></p>
+                  {q.image_url && (
+                    <ImageLightbox
+                      src={q.image_url}
+                      alt="첨부 이미지"
+                      className="max-w-full max-h-64 rounded-lg border border-border mb-2.5 object-contain"
+                    />
+                  )}
                   {q.answers && q.answers.length > 0 ? (
                     <div className="mt-2.5 bg-bg rounded-lg p-2.5">
                       <strong>학생자치회 답변</strong>
                       <p className="m-0"><Linkify text={q.answers[0].content} /></p>
+                      {q.answers[0].image_url && (
+                        <ImageLightbox
+                          src={q.answers[0].image_url}
+                          alt="첨부 이미지"
+                          className="max-w-full max-h-64 rounded-lg border border-border mt-2 object-contain"
+                        />
+                      )}
                     </div>
                   ) : (
                     <p className="text-muted">아직 답변이 등록되지 않았습니다.</p>

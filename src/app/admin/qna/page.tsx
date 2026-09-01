@@ -7,17 +7,20 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
+import ImageUpload from "@/components/ImageUpload";
+import ImageLightbox from "@/components/ImageLightbox";
 
 interface QuestionWithAnswer {
   id: string;
   title: string;
   content: string;
+  image_url: string | null;
   is_private: boolean;
   author_display_name: string | null;
   status: "pending" | "answered";
   is_hidden: boolean;
   created_at: string;
-  answers: { id: string; content: string }[];
+  answers: { id: string; content: string; image_url: string | null }[];
   asker: { name: string | null; nickname: string | null; email: string } | null;
 }
 
@@ -29,7 +32,8 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const { isAdmin: iAmAdmin, role } = useMyRole();
+  const [answerImageUrl, setAnswerImageUrl] = useState<string | null>(null);
+  const { isAdmin: iAmAdmin, role, myId } = useMyRole();
   // designer도 admin과 동일하게 질문 삭제를 쓸 수 있다(RLS의 questions_delete_admin이
   // is_designer()를 허용).
   const canDelete = iAmAdmin || role === "designer";
@@ -38,6 +42,7 @@ export default function AdminQnaPage() {
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
     setAnswerText(q.answers?.[0]?.content || "");
+    setAnswerImageUrl(q.answers?.[0]?.image_url || null);
   };
 
   const removeQuestion = async (id: string) => {
@@ -58,12 +63,13 @@ export default function AdminQnaPage() {
       data: { user },
     } = await supabase.auth.getUser();
     if (q.answers && q.answers.length > 0) {
-      await supabase.from("answers").update({ content: answerText }).eq("id", q.answers[0].id);
+      await supabase.from("answers").update({ content: answerText, image_url: answerImageUrl }).eq("id", q.answers[0].id);
     } else {
-      await supabase.from("answers").insert({ question_id: q.id, content: answerText, answered_by: user?.id });
+      await supabase.from("answers").insert({ question_id: q.id, content: answerText, image_url: answerImageUrl, answered_by: user?.id });
     }
     await supabase.from("questions").update({ status: "answered" }).eq("id", q.id);
     setOpenId(null);
+    setAnswerImageUrl(null);
     reload();
   };
 
@@ -144,8 +150,16 @@ export default function AdminQnaPage() {
             {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
           </p>
           <p className="text-sm">{current.content}</p>
+          {current.image_url && (
+            <ImageLightbox src={current.image_url} alt="첨부 이미지" className="max-w-full max-h-56 rounded-lg border border-border mb-2 object-contain" />
+          )}
           <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
           <textarea rows={5} className={`${t.adminInput} w-full mt-1`} value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
+          {myId && (
+            <div className="mt-2">
+              <ImageUpload userId={myId} value={answerImageUrl} onChange={setAnswerImageUrl} />
+            </div>
+          )}
           <div className="flex gap-2 mt-3.5">
             <button onClick={() => submitAnswer(current)} className={t.adminBtnPrimary}>답변 등록</button>
             <button onClick={() => setOpenId(null)} className={t.adminBtnSecondary}>닫기</button>

@@ -4,7 +4,10 @@ import Linkify from "@/components/Linkify";
 import BoardComments from "@/components/BoardComments";
 import BoardPostActions from "@/components/BoardPostActions";
 import ReportableName from "@/components/ReportableName";
+import ReportButton from "@/components/ReportButton";
 import DetailBackLink from "@/components/DetailBackLink";
+import ImageLightbox from "@/components/ImageLightbox";
+import LikeButton from "@/components/LikeButton";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -25,6 +28,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
   }
 
   const authorLabel = post.author_name || "탈퇴한 사용자";
+  const canEditProfile = profile?.role === "admin" || profile?.role === "superadmin";
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
@@ -45,6 +49,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
               name={authorLabel}
               myId={profile?.id ?? null}
               context={`게시판 글: ${post.title}`}
+              canEditProfile={canEditProfile}
             />
           ) : (
             authorLabel
@@ -52,11 +57,24 @@ export default async function BoardDetailPage({ params }: { params: { id: string
           · {fmt(post.created_at)} ·{" "}
           <ViewCounter postId={post.id} initialCount={post.view_count ?? 0} contentType="board_post" />
         </div>
-        <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} />
+        <div className="flex items-center gap-3">
+          <LikeButton targetType="board_post" targetId={post.id} likeCount={post.like_count ?? 0} userId={profile?.id ?? null} />
+          <ReportButton
+            targetType="board_post"
+            targetId={post.id}
+            authorId={post.author_id}
+            myId={profile?.id ?? null}
+            context={`게시판 글: ${post.title}`}
+          />
+          <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} />
+        </div>
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]">
         <Linkify text={post.content} />
       </div>
+      {post.image_url && (
+        <ImageLightbox src={post.image_url} alt="첨부 이미지" className="max-w-full rounded-lg border border-border mt-4 object-contain" />
+      )}
       <BoardComments postId={post.id} userId={profile?.id ?? null} />
     </div>
   );

@@ -128,6 +128,7 @@ export interface Question {
   user_id: string | null;
   title: string;
   content: string;
+  image_url: string | null;
   is_private: boolean;
   author_display_name: string | null;
   status: "pending" | "answered";
@@ -139,6 +140,7 @@ export interface Answer {
   id: string;
   question_id: string;
   content: string;
+  image_url: string | null;
   created_at: string;
 }
 
@@ -340,7 +342,9 @@ export interface BoardPost {
   author_id: string | null;
   title: string;
   content: string;
+  image_url: string | null;
   view_count: number;
+  like_count: number;
   is_hidden: boolean;
   created_at: string;
   updated_at: string;
@@ -352,6 +356,7 @@ export interface BoardComment {
   parent_id: string | null;
   author_id: string | null;
   content: string;
+  like_count: number;
   is_hidden: boolean;
   created_at: string;
 }

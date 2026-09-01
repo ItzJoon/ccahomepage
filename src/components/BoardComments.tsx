@@ -5,6 +5,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import Linkify from "@/components/Linkify";
 import ReportableName from "@/components/ReportableName";
+import ReportButton from "@/components/ReportButton";
+import LikeButton from "@/components/LikeButton";
 import type { BoardComment } from "@/lib/types";
 
 interface Row extends BoardComment {
@@ -96,7 +98,14 @@ export default function BoardComments({ postId, userId }: { postId: string; user
             </span>
           )}
           {node.author_id ? (
-            <ReportableName targetUserId={node.author_id} name={authorLabel} myId={userId} context="게시판 댓글" className="font-bold" />
+            <ReportableName
+              targetUserId={node.author_id}
+              name={authorLabel}
+              myId={userId}
+              context="게시판 댓글"
+              className="font-bold"
+              canEditProfile={iAmAdmin}
+            />
           ) : (
             <strong>{authorLabel}</strong>
           )}
@@ -109,6 +118,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
           <Linkify text={node.content} />
         </p>
         <div className="flex items-center gap-2.5 text-xs whitespace-nowrap">
+          <LikeButton targetType="board_comment" targetId={node.id} likeCount={node.like_count ?? 0} userId={userId} />
           {userId && (
             <button onClick={() => setReplyTo(replyTo === node.id ? null : node.id)} className="text-blue font-bold shrink-0">
               답글
@@ -124,6 +134,13 @@ export default function BoardComments({ postId, userId }: { postId: string; user
               삭제
             </button>
           )}
+          <ReportButton
+            targetType="board_comment"
+            targetId={node.id}
+            authorId={node.author_id}
+            myId={userId}
+            context="게시판 댓글"
+          />
         </div>
         {replyTo === node.id && (
           <div className="flex gap-2 mt-1.5">

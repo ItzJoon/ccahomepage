@@ -1,12 +1,20 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 
 /**
  * 게시판 등에서 다른 사람의 닉네임을 눌렀을 때 뜨는 작은 메뉴(헤더의 "{이름} ▾" 프로필
- * 드롭다운과 같은 UI 패턴) — 지금은 "신고" 한 항목뿐이다. 닉네임 옆에 별도 버튼을
- * 두지 않고 닉네임 자체를 누르면 뜨도록 요청받았다.
+ * 드롭다운과 같은 UI 패턴) — "프로필 보기"/"신고", admin 이상이면 "닉네임·소개 수정"까지.
+ * 닉네임 옆에 별도 버튼을 두지 않고 닉네임 자체를 누르면 뜨도록 요청받았다. 여기 표시되는
+ * 이름은 항상 작성자가 공개하기로 한(또는 원래 공개인) 경우에만 호출하는 쪽에서
+ * 렌더링하므로, 프로필 링크를 추가해도 익명 게시물의 작성자를 드러내는 문제는 없다.
+ *
+ * canEditProfile은 호출하는 쪽(페이지)에서 한 번만 role을 조회해 넘겨준다 — 목록에
+ * 이 컴포넌트가 여러 개(댓글마다 등) 있을 수 있어서, 각 인스턴스가 각자 role을
+ * 조회하면 같은 조회가 중복된다.
  */
 export default function ReportableName({
   targetUserId,
@@ -14,17 +22,21 @@ export default function ReportableName({
   myId,
   context,
   className,
+  canEditProfile,
 }: {
   targetUserId: string;
   name: string;
   myId: string | null;
   context?: string;
   className?: string;
+  canEditProfile?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
   const [reason, setReason] = useState("");
   const [done, setDone] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editTarget, setEditTarget] = useState<{ nickname: string; bio: string } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -43,6 +55,13 @@ export default function ReportableName({
   if (myId && myId === targetUserId) {
     return <span className={className}>{name}</span>;
   }
+
+  const startEdit = async () => {
+    setOpen(false);
+    const { data } = await createClient().from("profiles").select("nickname, bio").eq("id", targetUserId).single();
+    setEditTarget({ nickname: data?.nickname ?? "", bio: data?.bio ?? "" });
+    setEditing(true);
+  };
 
   const submitReport = async () => {
     if (!myId) return;
@@ -69,6 +88,22 @@ export default function ReportableName({
       </button>
       {open && !reporting && (
         <div className="absolute left-0 top-full mt-1 w-32 py-1.5 z-30 bg-white border border-border rounded-lg shadow-md">
+          <Link
+            href={`/members/${targetUserId}`}
+            onClick={() => setOpen(false)}
+            className="block w-full text-left px-3 py-1.5 text-xs hover:bg-bg"
+          >
+            프로필 보기
+          </Link>
+          {canEditProfile && (
+            <button
+              type="button"
+              onClick={startEdit}
+              className="block w-full text-left px-3 py-1.5 text-xs hover:bg-bg"
+            >
+              닉네임·소개 수정
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setReporting(true)}
@@ -103,6 +138,17 @@ export default function ReportableName({
             </>
           )}
         </div>
+      )}
+      {editing && editTarget && (
+        <ProfileQuickEditModal
+          userId={targetUserId}
+          initialNickname={editTarget.nickname}
+          initialBio={editTarget.bio}
+          onClose={() => {
+            setEditing(false);
+            setEditTarget(null);
+          }}
+        />
       )}
     </div>
   );
