@@ -7,6 +7,7 @@ import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
+import { adminDisplayName } from "@/lib/displayName";
 import type { NotificationItem } from "@/lib/types";
 
 interface NotificationWithSender extends NotificationItem {
@@ -141,7 +142,7 @@ export default function AdminNotifyPage() {
           <li key={n.id} className="border-b border-border py-2.5 flex items-center gap-2 flex-wrap">
             {n.level === "urgent" && <Badge color="red">긴급</Badge>}
             <span className="flex-1 text-sm">{n.title}</span>
-            <span className="text-xs text-muted">{n.sender?.nickname || n.sender?.name || n.sender?.email || "-"}</span>
+            <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
             <span className="text-xs text-muted">{n.display_type === "popup" ? "팝업" : "배너"}</span>
             <span className="text-xs text-muted">{n.display_type === "popup" ? "확인 시 닫힘" : durationLabel(n.duration_minutes)}</span>
             <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>

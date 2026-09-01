@@ -8,11 +8,14 @@ import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import AuthorCell from "@/components/admin/AuthorCell";
+import AdminPersonMenu from "@/components/admin/AdminPersonMenu";
+import { adminDisplayName } from "@/lib/displayName";
 import ImageUpload from "@/components/ImageUpload";
 import ImageLightbox from "@/components/ImageLightbox";
 
 interface QuestionWithAnswer {
   id: string;
+  user_id: string | null;
   title: string;
   content: string;
   image_url: string | null;
@@ -96,8 +99,12 @@ export default function AdminQnaPage() {
                 <td className={t.adminTableCell}>
                   <span {...truncateCellProps(q.title)}>{q.title}</span>
                 </td>
-                <td className={t.adminTableCell}>
-                  <AuthorCell name={q.asker?.nickname || q.asker?.name || q.asker?.email || "-"} />
+                <td className={t.adminTableCell} onClick={(e) => q.user_id && e.stopPropagation()}>
+                  {q.user_id ? (
+                    <AdminPersonMenu userId={q.user_id} name={adminDisplayName(q.asker)} />
+                  ) : (
+                    <AuthorCell name={adminDisplayName(q.asker)} />
+                  )}
                 </td>
                 <td className={t.adminTableCell}>{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
                 <td className={t.adminTableCell}>
@@ -145,8 +152,13 @@ export default function AdminQnaPage() {
       {current && (
         <div className={`${t.adminEditPanel} sticky top-20`}>
           <h3>{current.title}</h3>
-          <p className="text-xs text-muted mb-1">
-            질문자: {current.asker?.nickname || current.asker?.name || current.asker?.email || "알 수 없음"}
+          <p className="text-xs text-muted mb-1 flex items-center gap-1 flex-wrap">
+            질문자:
+            {current.user_id ? (
+              <AdminPersonMenu userId={current.user_id} name={adminDisplayName(current.asker, "알 수 없음")} />
+            ) : (
+              <span>{adminDisplayName(current.asker, "알 수 없음")}</span>
+            )}
             {" · "}
             {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
           </p>

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeEmail } from "@/lib/fakeData";
+import { adminDisplayName } from "@/lib/displayName";
 import AdminTable from "./AdminTable";
 
 type TopStreak = { user_id: string; streak_count: number; name: string | null; email: string };
@@ -157,7 +158,7 @@ export default function StatsTabs({
               {attendanceLog.map((row) => (
                 <tr key={row.id}>
                   <td className={t.adminTableCell}>{new Date(row.created_at).toLocaleString("ko-KR")}</td>
-                  <td className={t.adminTableCell}>{maskPII ? fakeName(row.id) : row.nickname || row.name || "-"}</td>
+                  <td className={t.adminTableCell}>{maskPII ? fakeName(row.id) : adminDisplayName(row)}</td>
                   <td className={t.adminTableCell}>{maskPII ? fakeEmail(row.id) : row.email}</td>
                   <td className={t.adminTableCell}>{row.streak_count}일</td>
                   <td className={t.adminTableCell}>{row.is_freeze ? "❄️" : ""}</td>

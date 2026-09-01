@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { adminDisplayName } from "@/lib/displayName";
 import type { Profile, DirectoryMember } from "@/lib/types";
 
 function fmtDateTime(iso: string) {
@@ -78,7 +79,7 @@ export default function AdminModerationPage() {
             <tr key={p.id}>
               <td className={t.adminTableCell}>
                 <Link href={`/members/${p.id}`} className="text-blue font-bold">
-                  {p.nickname || p.name || "이름 없음"}
+                  {adminDisplayName(p, "이름 없음")}
                 </Link>
               </td>
               <td className={t.adminTableCell}>{p.email}</td>
@@ -116,7 +117,7 @@ export default function AdminModerationPage() {
                 <td className={t.adminTableCell}>
                   {linkedProfile ? (
                     <Link href={`/members/${linkedProfile.id}`} className="text-blue font-bold">
-                      {linkedProfile.nickname || linkedProfile.name || d.display_name}
+                      {adminDisplayName(linkedProfile, d.display_name)}
                     </Link>
                   ) : (
                     d.display_name

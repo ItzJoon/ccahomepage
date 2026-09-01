@@ -7,6 +7,7 @@ import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeText } from "@/lib/fakeData";
 import { roleLabel } from "@/lib/roleLabel";
+import { adminDisplayName } from "@/lib/displayName";
 import type { AuditAction, AuditLog } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -60,7 +61,7 @@ function summarize(row: AuditLog): string {
   if (!data) return row.target_id ?? "-";
   switch (row.target_table) {
     case "profiles":
-      return `${data.nickname || data.name || data.email || "-"} → ${roleLabel(data.role as string)}`;
+      return `${adminDisplayName(data as { nickname?: string | null; name?: string | null; email?: string | null })} → ${roleLabel(data.role as string)}`;
     case "login_access_requests":
       return `${data.email ?? "-"} (${data.status})`;
     case "directory_members":
@@ -246,7 +247,7 @@ export default function AdminActivityLogsPage() {
                     ? r.user_id
                       ? fakeName(r.user_id)
                       : "시스템"
-                    : r.profiles?.nickname || r.profiles?.name || r.profiles?.email || "시스템"}
+                    : adminDisplayName(r.profiles, "시스템")}
                 </td>
                 <td className={t.adminTableCell}>{TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}</td>
                 <td className={t.adminTableCell}>{actionLabel(r)}</td>

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
+import { adminDisplayName } from "@/lib/displayName";
 import type { EventItem } from "@/lib/types";
 
 interface EventWithAttachments extends EventItem {
@@ -114,7 +115,7 @@ export default function AdminEventsPage() {
                 </td>
                 <td className={t.adminTableCell}>{e.start_at}</td>
                 <td className={`${t.adminTableCell} text-muted`}>
-                  {e.profiles?.nickname || e.profiles?.name || "등록자 정보 없음"}
+                  {adminDisplayName(e.profiles, "등록자 정보 없음")}
                 </td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>

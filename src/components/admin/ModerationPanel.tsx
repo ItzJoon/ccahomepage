@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { adminDisplayName } from "@/lib/displayName";
 import type { UserWarning } from "@/lib/types";
 
 interface TargetInfo {
@@ -45,7 +46,7 @@ export default function ModerationPanel({
   const [busy, setBusy] = useState(false);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
 
-  const displayName = target ? target.nickname || target.name || target.email : "";
+  const displayName = target ? adminDisplayName(target) : "";
 
   const refresh = async () => {
     const { data } = await supabase

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
+import { adminDisplayName } from "@/lib/displayName";
 import type { BadgeDef, Profile } from "@/lib/types";
 
 const empty = {
@@ -264,7 +265,7 @@ export default function AdminBadgesPage() {
               </select>
               {grantUser && (
                 <p className="text-muted text-[11px] mt-1">
-                  {grantUser.nickname || grantUser.name || grantUser.email}님이 아직 못 받은 뱃지만 표시됩니다.
+                  {adminDisplayName(grantUser)}님이 아직 못 받은 뱃지만 표시됩니다.
                 </p>
               )}
             </div>
@@ -281,7 +282,7 @@ export default function AdminBadgesPage() {
           {grantUser && (
             <div className="mt-4 pt-4 border-t border-border">
               <h4 className="text-sm font-bold mb-2">
-                {grantUser.nickname || grantUser.name || grantUser.email}님이 보유한 뱃지
+                {adminDisplayName(grantUser)}님이 보유한 뱃지
               </h4>
               {grantUserEarnedBadges.length === 0 ? (
                 <p className="text-muted text-xs">아직 획득한 뱃지가 없습니다.</p>

@@ -41,7 +41,7 @@ export default function QnaPage() {
     content: "",
     image_url: null,
     isPrivate: false,
-    revealAuthor: false,
+    revealAuthor: true,
   });
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
@@ -81,7 +81,7 @@ export default function QnaPage() {
 
   const discardDraft = () => {
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: false });
+    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: true });
     setHasDraft(false);
   };
 
@@ -112,7 +112,7 @@ export default function QnaPage() {
       return;
     }
     clearDraft(DRAFT_KEY);
-    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: false });
+    setForm({ title: "", content: "", image_url: null, isPrivate: false, revealAuthor: true });
     setHasDraft(false);
     setTab("list");
     reload();

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import { adminDisplayName } from "@/lib/displayName";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { Profile } from "@/lib/types";
 
@@ -46,7 +47,7 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
     return () => document.removeEventListener("mousedown", onClickOutside);
   }, [profileMenuOpen]);
 
-  const displayName = profile.nickname || profile.name || profile.email;
+  const displayName = adminDisplayName(profile);
   // is_council만 있고 관리자 role이 없는 계정(예: role=student)은 /admin(대시보드)에는
   // 못 들어가고 /admin/org-activities/*만 볼 수 있다 — 로고를 눌렀을 때 막힌 곳으로
   // 보내 튕겨나가지 않도록, 이 계정에게는 로고도 그리로 연결한다.

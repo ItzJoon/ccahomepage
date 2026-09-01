@@ -2,6 +2,7 @@
 
 import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import AuthorCell from "./AuthorCell";
+import { adminDisplayName } from "@/lib/displayName";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -772,7 +773,7 @@ export default function PostManager({
                   </div>
                 </td>
                 <td className={`${t.adminTableCell} text-muted`}>
-                  <AuthorCell name={n.author?.nickname || n.author?.name || n.author?.email || "-"} />
+                  <AuthorCell name={adminDisplayName(n.author)} />
                 </td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>

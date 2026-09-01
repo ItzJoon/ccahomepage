@@ -9,6 +9,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { adminDisplayName } from "@/lib/displayName";
 import type { Report, ReportStatus, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
@@ -102,7 +103,7 @@ export default function AdminReportsPage() {
   const displayUser = (id: string | null) => {
     if (!id) return "-";
     const p = profilesById[id];
-    return p ? p.nickname || p.name || p.email : "(알 수 없음)";
+    return adminDisplayName(p, "(알 수 없음)");
   };
 
   // 닉네임·소개 수정 모달은 profiles를 직접 update하고, reports 테이블은 안 바뀌므로
