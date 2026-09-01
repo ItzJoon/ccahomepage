@@ -7,6 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
+import WeatherWidget from "@/components/WeatherWidget";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { useStudentPreview } from "@/lib/studentPreviewContext";
 import { todayKST } from "@/lib/date";
@@ -129,8 +130,13 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   return (
     <div>
       <div className={t.heroCard}>
-        <div className={t.heroEyebrow}>{t.heroEyebrowText}</div>
-        <h1 className={t.heroHeadingClass}>{t.heroTitleText}</h1>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className={t.heroEyebrow}>{t.heroEyebrowText}</div>
+            <h1 className={t.heroHeadingClass}>{t.heroTitleText}</h1>
+          </div>
+          <WeatherWidget />
+        </div>
         <p className={t.heroSubtextClass}>{t.heroSubtitleText}</p>
         <div className="flex gap-2.5 flex-wrap">
           <Link href="/notices" className={t.heroPrimaryBtn}>

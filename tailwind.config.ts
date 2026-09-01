@@ -45,10 +45,25 @@ const config: Config = {
           "0%, 100%": { boxShadow: "0 0 25px 0 rgba(212,160,23,0.45)" },
           "50%": { boxShadow: "0 0 60px 12px rgba(212,160,23,0.8)" },
         },
+        // 홈 화면 날씨 위젯 전용(WeatherWidget.tsx 참고) — 은은하게 헤더에 어울리는
+        // 정도로만 움직이도록 각도/거리를 작게 잡았다.
+        "weather-spin": { to: { transform: "rotate(360deg)" } },
+        "weather-drift": {
+          "0%, 100%": { transform: "translateX(-3px)" },
+          "50%": { transform: "translateX(3px)" },
+        },
+        "weather-drop": {
+          "0%": { transform: "translateY(-2px)", opacity: "0" },
+          "30%": { opacity: "1" },
+          "100%": { transform: "translateY(9px)", opacity: "0" },
+        },
       },
       animation: {
         "confetti-fall": "confetti-fall 1.8s ease-in forwards",
         "glow-pulse": "glow-pulse 1.4s ease-in-out infinite",
+        "weather-spin": "weather-spin 12s linear infinite",
+        "weather-drift": "weather-drift 3.5s ease-in-out infinite",
+        "weather-drop": "weather-drop 1.1s ease-in infinite",
       },
     },
   },
