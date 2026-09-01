@@ -3183,3 +3183,22 @@ create policy "badges_write_admin" on badges for all using (is_admin()) with che
 
 drop policy if exists "user_badges_insert_staff" on user_badges;
 create policy "user_badges_insert_staff" on user_badges for insert with check (is_admin());
+
+-- 82. 일반 학생도 다른 학생 프로필에서 뱃지를 볼 수 있도록 RLS 버그 수정
+-- ------------------------------------------------------------
+-- user_badges_select_public_directory(29번 섹션)가 profiles 테이블을 직접 조인해서 조회
+-- 대상이 명단상 학생/교사인지 확인했는데, profiles 자체의 select RLS(profiles_select_self_or_admin
+-- 등)는 "본인 또는 admin 이상"만 허용한다 — 정책의 EXISTS 서브쿼리 안에서도 RLS가 그대로
+-- 적용되므로, 일반 학생이 조회하면 그 서브쿼리의 profiles 조회 결과가 자기 자신 외엔 항상
+-- 0건이 되어 조건이 절대 참이 될 수 없었다. 그 결과 실제로는 뱃지를 가진 학생인데도 다른
+-- 학생이 보면 "아직 획득한 뱃지가 없습니다"로 보이는 버그가 있었다.
+-- directory_profile_view(같은 섹션)는 이미 같은 목적(다른 사람 이름/학년 등을 학생도 볼
+-- 수 있게)으로 만들어져 있고 view owner 권한으로 동작해 이 RLS 벽을 우회하므로, profiles를
+-- 직접 조인하는 대신 이 view를 참조하도록 바꿔서 우회한다.
+drop policy if exists "user_badges_select_public_directory" on user_badges;
+create policy "user_badges_select_public_directory" on user_badges for select
+  using (
+    exists (
+      select 1 from directory_profile_view dpv where dpv.id = user_badges.user_id
+    )
+  );
