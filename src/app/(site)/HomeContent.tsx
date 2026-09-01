@@ -144,78 +144,84 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
       <StreakBar userId={userId} initialThemeKey={initialThemeKey} />
 
-      <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px] items-start">
+      <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px]">
         {visibleBlocks.map((b) => {
           const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6];
           if (b.id === "notice")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
-                <ul className="list-none m-0 p-0">
-                  {notices.slice(0, 5).map((n) => (
-                    <li key={n.id} className="border-b border-border py-2.5">
-                      <Link href={`/notices/${n.id}`} className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}>
-                        {n.is_pinned && <Pin />}
-                        <span className="flex-1 text-sm">{n.title}</span>
-                        <span className="text-xs text-muted">{fmt(n.publish_at)}</span>
-                      </Link>
-                    </li>
-                  ))}
-                  {notices.length === 0 && (
-                    <li>
-                      <EmptyState icon="🔕" title="등록된 공지글이 없습니다" desc="최근에 작성된 공지사항이 이곳에 표시됩니다." t={t} />
-                    </li>
-                  )}
-                </ul>
+                <div className="flex-1 flex flex-col justify-center">
+                  <ul className="list-none m-0 p-0">
+                    {notices.slice(0, 5).map((n) => (
+                      <li key={n.id} className="border-b border-border py-2.5">
+                        <Link href={`/notices/${n.id}`} className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}>
+                          {n.is_pinned && <Pin />}
+                          <span className="flex-1 text-sm">{n.title}</span>
+                          <span className="text-xs text-muted">{fmt(n.publish_at)}</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {notices.length === 0 && (
+                      <li>
+                        <EmptyState icon="🔕" title="등록된 공지글이 없습니다" desc="최근에 작성된 공지사항이 이곳에 표시됩니다." t={t} />
+                      </li>
+                    )}
+                  </ul>
+                </div>
               </div>
             );
           if (b.id === "event")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
                 <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
-                <div className="flex flex-col gap-2.5">
-                  {upcoming.map((e) => (
-                    <Link
-                      href={`/events/${e.id}`}
-                      key={e.id}
-                      className={`flex gap-3 items-center p-1.5 rounded-lg ${t.noticeHover}`}
-                    >
-                      <div className={`${t.eventDateBg} text-white px-2.5 py-1.5 text-xs font-bold whitespace-nowrap`}>
-                        {fmt(e.start_at).slice(5)}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm">{e.title}</div>
-                        <div className="text-xs text-muted">{e.location || "장소 미정"}</div>
-                      </div>
-                    </Link>
-                  ))}
-                  {upcoming.length === 0 && (
-                    <EmptyState icon="📅" title="다가오는 예정된 일정이 없습니다" desc="학사 일정 및 자치회 행사 정보가 등록되면 업데이트됩니다." t={t} />
-                  )}
+                <div className="flex-1 flex flex-col justify-center">
+                  <div className="flex flex-col gap-2.5">
+                    {upcoming.map((e) => (
+                      <Link
+                        href={`/events/${e.id}`}
+                        key={e.id}
+                        className={`flex gap-3 items-center p-1.5 rounded-lg ${t.noticeHover}`}
+                      >
+                        <div className={`${t.eventDateBg} text-white px-2.5 py-1.5 text-xs font-bold whitespace-nowrap`}>
+                          {fmt(e.start_at).slice(5)}
+                        </div>
+                        <div>
+                          <div className="font-semibold text-sm">{e.title}</div>
+                          <div className="text-xs text-muted">{e.location || "장소 미정"}</div>
+                        </div>
+                      </Link>
+                    ))}
+                    {upcoming.length === 0 && (
+                      <EmptyState icon="📅" title="다가오는 예정된 일정이 없습니다" desc="학사 일정 및 자치회 행사 정보가 등록되면 업데이트됩니다." t={t} />
+                    )}
+                  </div>
                 </div>
               </div>
             );
           if (b.id === "news")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
                 <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {news.slice(0, 3).map((n) => (
-                    <Link
-                      href={`/news/${n.id}`}
-                      key={n.id}
-                      className={`border border-border rounded-xl p-4 ${t.newsHoverBorder} block`}
-                    >
-                      <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
-                      <div className="font-bold mb-2">{n.title}</div>
-                      <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>
-                    </Link>
-                  ))}
-                  {news.length === 0 && (
-                    <div className="md:col-span-3">
-                      <EmptyState icon="📰" title="발행된 뉴스가 존재하지 않습니다" desc="자치회 활동 소식지와 행사 리뷰를 준비 중입니다." t={t} />
-                    </div>
-                  )}
+                <div className="flex-1 flex flex-col justify-center">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {news.slice(0, 3).map((n) => (
+                      <Link
+                        href={`/news/${n.id}`}
+                        key={n.id}
+                        className={`border border-border rounded-xl p-4 ${t.newsHoverBorder} block`}
+                      >
+                        <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
+                        <div className="font-bold mb-2">{n.title}</div>
+                        <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>
+                      </Link>
+                    ))}
+                    {news.length === 0 && (
+                      <div className="md:col-span-3">
+                        <EmptyState icon="📰" title="발행된 뉴스가 존재하지 않습니다" desc="자치회 활동 소식지와 행사 리뷰를 준비 중입니다." t={t} />
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             );
