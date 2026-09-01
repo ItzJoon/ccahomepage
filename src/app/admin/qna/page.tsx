@@ -7,6 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
+import AuthorCell from "@/components/admin/AuthorCell";
 import ImageUpload from "@/components/ImageUpload";
 import ImageLightbox from "@/components/ImageLightbox";
 
@@ -96,7 +97,7 @@ export default function AdminQnaPage() {
                   <span {...truncateCellProps(q.title)}>{q.title}</span>
                 </td>
                 <td className={t.adminTableCell}>
-                  {q.asker?.nickname || q.asker?.name || q.asker?.email || "-"}
+                  <AuthorCell name={q.asker?.nickname || q.asker?.name || q.asker?.email || "-"} />
                 </td>
                 <td className={t.adminTableCell}>{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
                 <td className={t.adminTableCell}>

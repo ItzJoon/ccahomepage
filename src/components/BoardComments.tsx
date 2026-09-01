@@ -89,9 +89,9 @@ export default function BoardComments({ postId, userId }: { postId: string; user
     const authorLabel = node.author_name || "탈퇴한 사용자";
     return (
       <div key={node.id} className={depth > 0 ? "ml-6 mt-2.5 border-l-2 border-border pl-3" : "mt-3.5 pt-3.5 border-t border-border first:border-t-0 first:pt-0"}>
-        <div className="flex items-center gap-1.5 text-sm">
+        <div className="flex items-center gap-1.5 text-sm min-w-0">
           {node.author_avatar ? (
-            <img src={node.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+            <img src={node.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
           ) : (
             <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
               {authorLabel[0]}
@@ -107,9 +107,9 @@ export default function BoardComments({ postId, userId }: { postId: string; user
               canEditProfile={iAmAdmin}
             />
           ) : (
-            <strong>{authorLabel}</strong>
+            <strong className="truncate max-w-[120px]" title={authorLabel}>{authorLabel}</strong>
           )}
-          <span className="text-muted text-xs">{fmtDateTime(node.created_at)}</span>
+          <span className="text-muted text-xs shrink-0">{fmtDateTime(node.created_at)}</span>
           {node.is_hidden && (
             <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
           )}

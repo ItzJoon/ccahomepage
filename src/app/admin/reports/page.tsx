@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import AuthorCell from "@/components/admin/AuthorCell";
 import ModerationPanel from "@/components/admin/ModerationPanel";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import { useEffect, useState } from "react";
@@ -222,11 +223,11 @@ export default function AdminReportsPage() {
                 onClick={() => setOpenId(r.id)}
                 className={`cursor-pointer ${t.adminTableRowHover} ${openId === r.id ? t.adminTableRowActive : ""}`}
               >
-                <td className={t.adminTableCell}>{displayUser(r.reporter_id)}</td>
+                <td className={t.adminTableCell}><AuthorCell name={displayUser(r.reporter_id)} /></td>
                 <td className={`${t.adminTableCell} text-muted`}>{TARGET_TYPE_LABEL[r.target_type] ?? r.target_type}</td>
                 <td className={t.adminTableCell}>
-                  {r.target_type === "profile" ? displayUser(r.target_id) : displayUser(r.target_author_id)}
-                  {r.context && <div className="text-muted text-xs mt-0.5">{r.context}</div>}
+                  <AuthorCell name={r.target_type === "profile" ? displayUser(r.target_id) : displayUser(r.target_author_id)} />
+                  {r.context && <div className="text-muted text-xs mt-0.5 truncate max-w-[160px]" title={r.context}>{r.context}</div>}
                 </td>
                 <td className={t.adminTableCell}>
                   <span {...truncateCellProps(r.reason || "-")}>{r.reason || "-"}</span>

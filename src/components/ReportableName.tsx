@@ -23,6 +23,7 @@ export default function ReportableName({
   context,
   className,
   canEditProfile,
+  maxWidthClass = "max-w-[120px]",
 }: {
   targetUserId: string;
   name: string;
@@ -30,6 +31,8 @@ export default function ReportableName({
   context?: string;
   className?: string;
   canEditProfile?: boolean;
+  /** 닉네임이 길 때 말줄임 처리할 최대 너비(Tailwind 클래스) — 쓰는 화면의 칸 폭에 맞게 조정 가능. */
+  maxWidthClass?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [reporting, setReporting] = useState(false);
@@ -53,7 +56,11 @@ export default function ReportableName({
 
   // 본인 이름은 신고 메뉴를 띄울 필요가 없다.
   if (myId && myId === targetUserId) {
-    return <span className={className}>{name}</span>;
+    return (
+      <span className={`inline-block truncate align-bottom ${maxWidthClass} ${className ?? ""}`} title={name}>
+        {name}
+      </span>
+    );
   }
 
   const startEdit = async () => {
@@ -82,9 +89,15 @@ export default function ReportableName({
   };
 
   return (
-    <div className="relative inline-block" ref={ref}>
-      <button type="button" onClick={() => setOpen((v) => !v)} className={className}>
-        {name} ▾
+    <div className="relative inline-flex max-w-full" ref={ref}>
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={name}
+        className={`inline-flex items-center gap-0.5 max-w-full ${className ?? ""}`}
+      >
+        <span className={`truncate ${maxWidthClass}`}>{name}</span>
+        <span className="shrink-0">▾</span>
       </button>
       {open && !reporting && (
         <div className="absolute left-0 top-full mt-1 w-32 py-1.5 z-30 bg-white border border-border rounded-lg shadow-md">

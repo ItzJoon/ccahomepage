@@ -205,11 +205,11 @@ export default function BoardPage() {
                 </Link>
               </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                   {p.author_avatar ? (
-                    <img src={p.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+                    <img src={p.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
                   ) : (
-                    <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold">
+                    <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
                       {(p.author_name || "?")[0]}
                     </span>
                   )}

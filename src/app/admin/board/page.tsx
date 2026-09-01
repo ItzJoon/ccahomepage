@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import AuthorCell from "@/components/admin/AuthorCell";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -63,7 +64,7 @@ export default function AdminBoardPage() {
                 </Link>
               </td>
               <td className={`${t.adminTableCell} text-muted`}>
-                {p.author?.nickname || p.author?.name || p.author?.email || "-"}
+                <AuthorCell name={p.author?.nickname || p.author?.name || p.author?.email || "-"} />
               </td>
               <td className={t.adminTableCell}>
                 <span

@@ -35,11 +35,11 @@ export default async function BoardDetailPage({ params }: { params: { id: string
       <DetailBackLink href="/board" label="게시판으로" />
       <h1 className="text-2xl my-2">{post.title}</h1>
       <div className="flex items-center justify-between flex-wrap gap-2 text-muted text-sm mb-[18px]">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 min-w-0">
           {post.author_avatar ? (
-            <img src={post.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover" />
+            <img src={post.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
           ) : (
-            <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold">
+            <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
               {authorLabel[0]}
             </span>
           )}
@@ -50,6 +50,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
               myId={profile?.id ?? null}
               context={`게시판 글: ${post.title}`}
               canEditProfile={canEditProfile}
+              maxWidthClass="max-w-[200px]"
             />
           ) : (
             authorLabel
