@@ -166,6 +166,41 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // 사이트 제한(수업시간 등): 켜져 있고 지금이 그 시간대면 학생 계정은 Q&A/게시판을
+  // 아예 열람도 못 하게 막는다(작성 제한은 각 테이블 RLS의 is_student_restricted_now()가
+  // 담당 — supabase/schema.sql 92번). 열람은 미들웨어에서 미리 안내 화면으로 돌려보내는
+  // 게, 페이지가 뜬 다음에야 빈 목록만 보이는 것보다 자연스럽다.
+  const RESTRICTABLE_VIEW_PREFIXES = ["/qna", "/board"];
+  if (
+    user &&
+    role === "student" &&
+    RESTRICTABLE_VIEW_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
+  ) {
+    const { data: restriction } = await supabase
+      .from("site_restrictions")
+      .select("is_enabled, windows")
+      .eq("id", "default")
+      .maybeSingle();
+    if (restriction?.is_enabled) {
+      const nowHM = new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Asia/Seoul",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).format(new Date());
+      const activeWindow = (restriction.windows as { start: string; end: string }[]).find(
+        (w) => nowHM >= w.start && nowHM <= w.end
+      );
+      if (activeWindow) {
+        const url = request.nextUrl.clone();
+        url.pathname = "/restricted";
+        url.searchParams.set("start", activeWindow.start);
+        url.searchParams.set("end", activeWindow.end);
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   // 부서 활동(안건함/부서 일정/활동기록)이 임원회 전용으로 바뀌면서, 학생 메뉴에서
   // 링크를 지운 것과 별개로 URL을 직접 입력해 들어오는 것도 막는다 — /admin/org-activities/*
   // 와 동일한 기준(is_council, superadmin은 예외)을 그대로 적용한다.
@@ -239,6 +274,7 @@ export async function updateSession(request: NextRequest) {
       "/admin/activity-logs",
       "/admin/feature-flags",
       "/admin/theme",
+      "/admin/site-restrictions",
     ];
     if (superadminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "superadmin" && r !== "designer") {

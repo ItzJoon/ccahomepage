@@ -3556,3 +3556,118 @@ create policy "board_post_reads_insert_own" on board_post_reads for insert with 
 
 drop policy if exists "board_post_reads_update_own" on board_post_reads;
 create policy "board_post_reads_update_own" on board_post_reads for update using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- 92. 사이트 제한(수업시간 등 지정 시간대 학생 글쓰기/열람 제한)
+-- ------------------------------------------------------------
+-- 설정은 하나뿐인 singleton row(site_settings와 동일한 패턴)로 두되, 나중에
+-- 교시별 여러 구간으로 확장할 수 있도록 windows를 jsonb 배열로 저장한다
+-- (지금은 관리자 화면에서 배열의 첫 항목 하나만 편집한다).
+create table if not exists site_restrictions (
+  id text primary key default 'default',
+  is_enabled boolean not null default false,
+  windows jsonb not null default '[{"start":"09:00","end":"16:30"}]'::jsonb,
+  updated_by uuid references profiles(id),
+  updated_at timestamptz not null default now()
+);
+insert into site_restrictions (id) values ('default') on conflict (id) do nothing;
+
+alter table site_restrictions enable row level security;
+
+drop policy if exists "site_restrictions_select_all" on site_restrictions;
+create policy "site_restrictions_select_all" on site_restrictions for select using (true);
+
+drop policy if exists "site_restrictions_update_superadmin" on site_restrictions;
+create policy "site_restrictions_update_superadmin" on site_restrictions for update
+  using (is_superadmin()) with check (is_superadmin());
+
+-- 지금 이 순간(KST)이 설정된 제한 구간 중 하나에 들어가는지.
+create or replace function is_now_in_restricted_window()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select coalesce(
+    (
+      select sr.is_enabled and exists (
+        select 1 from jsonb_array_elements(sr.windows) w
+        where (timezone('Asia/Seoul', now()))::time
+          between (w->>'start')::time and (w->>'end')::time
+      )
+      from site_restrictions sr where sr.id = 'default'
+    ), false
+  );
+$$;
+
+-- 제한 대상은 role='student'뿐이다(teacher/editor/admin/superadmin은 항상 예외).
+-- Q&A/게시판 열람 차단과 Q&A/게시판/안건함/투표 작성 차단에 공통으로 쓴다.
+create or replace function is_student_restricted_now()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select is_now_in_restricted_window()
+    and coalesce((select role = 'student' from profiles where id = auth.uid()), false);
+$$;
+
+-- 열람 제한: Q&A(질문/답변), 게시판(글/댓글) — 기존 조건에 AND로 덧붙여서 제한
+-- 시간대의 학생에게만 추가로 숨긴다(다른 역할·시간대는 기존 동작 그대로).
+drop policy if exists "questions_read" on questions;
+create policy "questions_read" on questions for select
+  using (
+    ((is_private = false and not is_hidden) or auth.uid() = user_id or is_admin())
+    and not is_student_restricted_now()
+  );
+
+drop policy if exists "answers_read" on answers;
+create policy "answers_read" on answers for select
+  using (
+    exists (
+      select 1 from questions q
+      where q.id = question_id
+      and (q.is_private = false or q.user_id = auth.uid() or is_admin())
+    )
+    and not is_student_restricted_now()
+  );
+
+drop policy if exists "board_posts_read" on board_posts;
+create policy "board_posts_read" on board_posts for select
+  using (
+    (not is_hidden or is_editor_or_above() or auth.uid() = author_id)
+    and not is_student_restricted_now()
+  );
+
+drop policy if exists "board_comments_read" on board_comments;
+create policy "board_comments_read" on board_comments for select
+  using (
+    exists (
+      select 1 from board_posts bp
+      where bp.id = board_comments.post_id
+        and (not bp.is_hidden or is_editor_or_above() or auth.uid() = bp.author_id)
+    )
+    and (not is_hidden or is_editor_or_above() or auth.uid() = author_id)
+    and not is_student_restricted_now()
+  );
+
+-- 작성 제한: Q&A 질문, 게시판 글/댓글, 안건함 안건/투표.
+drop policy if exists "questions_insert_own" on questions;
+create policy "questions_insert_own" on questions for insert
+  with check (auth.uid() = user_id and not is_student_restricted_now());
+
+drop policy if exists "board_posts_insert_own" on board_posts;
+create policy "board_posts_insert_own" on board_posts for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now());
+
+drop policy if exists "board_comments_insert_own" on board_comments;
+create policy "board_comments_insert_own" on board_comments for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now());
+
+drop policy if exists "proposals_insert_own" on proposals;
+create policy "proposals_insert_own" on proposals for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now());
+
+drop policy if exists "proposal_votes_insert_own" on proposal_votes;
+create policy "proposal_votes_insert_own" on proposal_votes for insert
+  with check (auth.uid() = user_id and not is_student_restricted_now());

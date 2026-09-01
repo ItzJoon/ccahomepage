@@ -270,6 +270,19 @@ export interface SiteSettings {
   updated_at: string;
 }
 
+export interface SiteRestrictionWindow {
+  start: string;
+  end: string;
+}
+
+export interface SiteRestriction {
+  id: string;
+  is_enabled: boolean;
+  windows: SiteRestrictionWindow[];
+  updated_by: string | null;
+  updated_at: string;
+}
+
 export interface SiteTheme {
   id: string;
   theme: string;

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useWriteRestriction } from "@/hooks/useWriteRestriction";
 import Linkify from "@/components/Linkify";
 import { STATUS_CLASS, STATUS_LABEL, fmt } from "./helpers";
 import type { Organization, Proposal, ProposalVote } from "@/lib/types";
@@ -13,6 +14,7 @@ export default function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organizatio
   const [writing, setWriting] = useState(false);
   const [form, setForm] = useState({ org_id: "", title: "", summary: "" });
   const [error, setError] = useState<string | null>(null);
+  const { isRestricted, message } = useWriteRestriction();
 
   const { rows: proposals } = useRealtimeList<Proposal>("proposals", {
     orderBy: { column: "updated_at", ascending: false },
@@ -35,6 +37,10 @@ export default function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organizatio
 
   const castVote = async (proposalId: string, vote: "yes" | "no") => {
     if (!userId) return;
+    if (isRestricted) {
+      alert(message);
+      return;
+    }
     const existing = myVote(proposalId);
     if (existing && existing.vote === vote) {
       await supabase.from("proposal_votes").delete().eq("id", existing.id);
@@ -49,6 +55,10 @@ export default function ProposalsTab({ orgs, orgFilter, q }: { orgs: Organizatio
     setError(null);
     if (!userId) {
       setError("로그인 후 안건을 등록할 수 있습니다.");
+      return;
+    }
+    if (isRestricted) {
+      setError(message);
       return;
     }
     if (!form.org_id || !form.title.trim() || !form.summary.trim()) {

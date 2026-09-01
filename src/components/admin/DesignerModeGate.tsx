@@ -25,6 +25,7 @@ const SUPERADMIN_ONLY_PREFIXES = [
   "/admin/activity-logs",
   "/admin/feature-flags",
   "/admin/theme",
+  "/admin/site-restrictions",
 ];
 
 /**
