@@ -99,7 +99,7 @@ export default function AdminQnaPage() {
                 <td className={t.adminTableCell}>
                   <span {...truncateCellProps(q.title)}>{q.title}</span>
                 </td>
-                <td className={t.adminTableCell} onClick={(e) => q.user_id && e.stopPropagation()}>
+                <td className={`${t.adminTableCell} text-muted`} onClick={(e) => q.user_id && e.stopPropagation()}>
                   {q.user_id ? (
                     <AdminPersonMenu userId={q.user_id} name={adminDisplayName(q.asker)} />
                   ) : (

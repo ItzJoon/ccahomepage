@@ -2,8 +2,11 @@
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import AuthorCell from "@/components/admin/AuthorCell";
+import AdminPersonMenu from "@/components/admin/AdminPersonMenu";
+import ImageLightbox from "@/components/ImageLightbox";
 import { adminDisplayName } from "@/lib/displayName";
 import Link from "next/link";
+import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
@@ -31,10 +34,14 @@ export default function AdminBoardPage() {
   // board_posts_delete_own_or_admin이 is_designer()를 허용).
   const canDelete = iAmAdmin || role === "designer";
   const { t } = useHomeTheme();
+  // 예전엔 제목을 누르면 새 탭으로 실제 게시글 페이지가 열렸는데, 관리자 화면을 벗어나지
+  // 않고 그 자리에서 바로 볼 수 있게 상세 패널(신고 내역/Q&A 관리와 동일한 패턴)로 바꿨다.
+  const [openId, setOpenId] = useState<string | null>(null);
 
   const remove = async (id: string) => {
     if (!confirm("이 글을 삭제하시겠습니까? 댓글도 함께 삭제됩니다.")) return;
     await supabase.from("board_posts").delete().eq("id", id);
+    if (openId === id) setOpenId(null);
     reload();
   };
 
@@ -43,59 +50,111 @@ export default function AdminBoardPage() {
     reload();
   };
 
+  const current = rows.find((r) => r.id === openId) ?? null;
+
   return (
-    <div>
-      <h2 className="text-[22px] mb-4">게시판 관리</h2>
-      <AdminTable>
-        <thead>
-          <tr>
-            <th className={t.adminTableHeaderCell}>제목</th>
-            <th className={`${t.adminTableHeaderCell} w-28`}>작성자</th>
-            <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
-            <th className={`${t.adminTableHeaderCell} w-24`}>날짜</th>
-            <th className={`${t.adminTableHeaderCell} w-32`} />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((p) => (
-            <tr key={p.id}>
-              <td className={t.adminTableCell}>
-                <Link href={`/board/${p.id}`} target="_blank" {...truncateCellProps(p.title)} className="block truncate text-blue hover:underline">
-                  {p.title}
-                </Link>
-              </td>
-              <td className={`${t.adminTableCell} text-muted`}>
-                <AuthorCell name={adminDisplayName(p.author)} />
-              </td>
-              <td className={t.adminTableCell}>
-                <span
-                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                    p.is_hidden ? "bg-[#EEF1F6] text-muted" : "bg-[#E4F5EE] text-teal"
-                  }`}
-                >
-                  {p.is_hidden ? "숨김" : "공개"}
-                </span>
-              </td>
-              <td className={t.adminTableCell}>{fmt(p.created_at)}</td>
-              <td className={t.adminTableCell}>
-                <div className={actionCellClass}>
-                  <button className="text-blue text-xs font-bold shrink-0" onClick={() => toggleHidden(p.id, p.is_hidden)}>
-                    {p.is_hidden ? "숨김 해제" : "숨김"}
-                  </button>
-                  {canDelete ? (
-                    <button className={`${t.adminBtnDanger} shrink-0`} onClick={() => remove(p.id)}>삭제</button>
-                  ) : (
-                    <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다">🔒</span>
-                  )}
-                </div>
-              </td>
+    <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_380px]" : ""}`}>
+      <div className="min-w-0">
+        <h2 className="text-[22px] mb-4">게시판 관리</h2>
+        <AdminTable>
+          <thead>
+            <tr>
+              <th className={t.adminTableHeaderCell}>제목</th>
+              <th className={`${t.adminTableHeaderCell} w-28`}>작성자</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>날짜</th>
+              <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
-          ))}
-          {rows.length === 0 && (
-            <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
+          </thead>
+          <tbody>
+            {rows.map((p) => (
+              <tr
+                key={p.id}
+                onClick={() => setOpenId(p.id)}
+                className={`cursor-pointer ${t.adminTableRowHover} ${openId === p.id ? t.adminTableRowActive : ""}`}
+              >
+                <td className={t.adminTableCell}>
+                  <span {...truncateCellProps(p.title)} className="block truncate">
+                    {p.title}
+                  </span>
+                </td>
+                <td className={`${t.adminTableCell} text-muted`} onClick={(e) => e.stopPropagation()}>
+                  {p.author_id ? (
+                    <AdminPersonMenu userId={p.author_id} name={adminDisplayName(p.author)} />
+                  ) : (
+                    <AuthorCell name={adminDisplayName(p.author)} />
+                  )}
+                </td>
+                <td className={t.adminTableCell}>
+                  <span
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                      p.is_hidden ? "bg-[#EEF1F6] text-muted" : "bg-[#E4F5EE] text-teal"
+                    }`}
+                  >
+                    {p.is_hidden ? "숨김" : "공개"}
+                  </span>
+                </td>
+                <td className={t.adminTableCell}>{fmt(p.created_at)}</td>
+                <td className={t.adminTableCell} onClick={(e) => e.stopPropagation()}>
+                  <div className={actionCellClass}>
+                    <button className="text-blue text-xs font-bold shrink-0" onClick={() => toggleHidden(p.id, p.is_hidden)}>
+                      {p.is_hidden ? "숨김 해제" : "숨김"}
+                    </button>
+                    {canDelete ? (
+                      <button className={`${t.adminBtnDanger} shrink-0`} onClick={() => remove(p.id)}>삭제</button>
+                    ) : (
+                      <span className="text-muted text-xs shrink-0" title="삭제는 admin 이상만 가능합니다">🔒</span>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
+            )}
+          </tbody>
+        </AdminTable>
+      </div>
+
+      {current && (
+        <div className={`${t.adminEditPanel} sticky top-20`}>
+          <div className="flex items-center justify-between gap-2 mb-2">
+            <h3 className="m-0">{current.title}</h3>
+            <button type="button" onClick={() => setOpenId(null)} className="text-muted text-xl leading-none shrink-0">
+              ✕
+            </button>
+          </div>
+          <div className="flex items-center gap-1.5 text-xs text-muted mb-3 flex-wrap">
+            {current.author_id ? (
+              <AdminPersonMenu userId={current.author_id} name={adminDisplayName(current.author)} />
+            ) : (
+              <span>{adminDisplayName(current.author)}</span>
+            )}
+            <span>· {fmt(current.created_at)}</span>
+            <Link href={`/board/${current.id}`} target="_blank" className="text-blue font-bold ml-auto">
+              실제 페이지에서 보기 ↗
+            </Link>
+          </div>
+          <p className="text-sm whitespace-pre-wrap">{current.content}</p>
+          {current.image_url && (
+            <ImageLightbox
+              src={current.image_url}
+              alt="첨부 이미지"
+              className="max-w-full rounded-lg border border-border mt-2 object-contain"
+            />
           )}
-        </tbody>
-      </AdminTable>
+          <div className="flex gap-2 mt-3.5">
+            <button onClick={() => toggleHidden(current.id, current.is_hidden)} className={t.adminBtnSecondary}>
+              {current.is_hidden ? "숨김 해제" : "숨김"}
+            </button>
+            {canDelete && (
+              <button onClick={() => remove(current.id)} className={t.adminBtnDanger}>
+                삭제
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
