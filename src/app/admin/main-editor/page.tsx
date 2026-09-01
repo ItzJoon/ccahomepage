@@ -45,6 +45,14 @@ export default function AdminMainEditorPage() {
     reload();
   };
 
+  // 입력할 때마다 저장하면 숫자를 한 자리씩 지울 때도 계속 DB에 쓰기가 발생하므로, 다른
+  // 숫자 입력(예: 신고 제재 기준)과 같은 방식으로 포커스를 벗어날 때만 저장한다.
+  const changeHeight = async (b: MainBlock, value: string) => {
+    const height_px = value.trim() === "" ? null : Number(value);
+    await supabase.from("main_blocks").update({ height_px }).eq("id", b.id);
+    reload();
+  };
+
   const move = async (b: MainBlock, dir: number) => {
     const idx = sorted.findIndex((x) => x.id === b.id);
     const swap = sorted[idx + dir];
@@ -60,9 +68,11 @@ export default function AdminMainEditorPage() {
     <div>
       <h2 className="text-[22px] mb-2">메인 화면 편집기</h2>
       <p className="text-muted mb-4">
-        학생용 홈에 노출할 블록을 선택하고, 순서와 너비(1/3·1/2·2/3·전체)를 조정하세요. 6칸 기준
-        그리드라 너비를 조합하면 한 줄을 꽉 채울 수 있고, 한 줄에 다 들어가지 않으면 자동으로
-        다음 줄로 넘어갑니다. 변경 사항은 Realtime을 통해 즉시 학생 화면에 반영됩니다.
+        학생용 홈에 노출할 블록을 선택하고, 순서·너비(1/3·1/2·2/3·전체)·높이를 조정하세요.
+        6칸 기준 그리드라 너비를 조합하면 한 줄을 꽉 채울 수 있고, 한 줄에 다 들어가지
+        않으면 자동으로 다음 줄로 넘어갑니다. 높이는 비워두면 내용에 맞게 자동으로 정해지고,
+        값을 넣으면 그 픽셀 이상으로 늘어납니다(급식표처럼 이미지가 있는 블록은 그 안에서
+        스크롤됩니다). 변경 사항은 Realtime을 통해 즉시 학생 화면에 반영됩니다.
       </p>
       <ul className="list-none m-0 p-0 max-w-xl mb-6">
         {sorted.map((b) => (
@@ -81,6 +91,18 @@ export default function AdminMainEditorPage() {
                 </option>
               ))}
             </select>
+            <input
+              type="number"
+              min={100}
+              max={1200}
+              step={10}
+              placeholder="자동"
+              title="높이(px) — 비워두면 자동"
+              defaultValue={b.height_px ?? ""}
+              key={`${b.id}-${b.height_px}`}
+              onBlur={(e) => changeHeight(b, e.target.value)}
+              className={`${t.adminInput} text-xs w-20`}
+            />
             <button className="text-blue text-xs font-bold" onClick={() => move(b, -1)}>▲</button>
             <button className="text-blue text-xs font-bold" onClick={() => move(b, 1)}>▼</button>
           </li>

@@ -3358,3 +3358,10 @@ drop trigger if exists trg_likes_sync_count on likes;
 create trigger trg_likes_sync_count
 after insert or delete on likes
 for each row execute function sync_like_count();
+
+-- 87. 메인화면 블록별 높이를 관리자가 직접 지정
+-- ------------------------------------------------------------
+-- null이면 기존처럼 자동(콘텐츠/그리드에 맞춰 자연스럽게 결정)이고, 값을 넣으면 그
+-- 픽셀만큼 최소 높이로 쓴다(급식표처럼 이미지가 긴 블록은 그 안에서 스크롤되게 처리).
+alter table main_blocks add column height_px int
+  check (height_px is null or (height_px >= 100 and height_px <= 1200));

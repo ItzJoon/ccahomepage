@@ -153,9 +153,10 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
       <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px]">
         {visibleBlocks.map((b) => {
           const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6];
+          const heightStyle = b.height_px ? { minHeight: `${b.height_px}px` } : undefined;
           if (b.id === "notice")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <div className="flex-1 flex flex-col justify-center">
                   <ul className="list-none m-0 p-0">
@@ -179,7 +180,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "event")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
                 <div className="flex-1 flex flex-col justify-center">
                   <div className="flex flex-col gap-2.5">
@@ -207,7 +208,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "news")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
                 <div className="flex-1 flex flex-col justify-center">
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -233,14 +234,19 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "meal")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="MEAL" title="이번 달 급식표" />
                 {thisMonth ? (
-                  <ImageLightbox
-                    src={thisMonth.image_url}
-                    alt={`${thisMonth.year}년 ${thisMonth.month}월 급식표`}
-                    className="w-full rounded-lg border border-border object-contain"
-                  />
+                  // 높이가 지정돼 있으면 이미지가 그 안에서 스크롤되게 해서(그 값이 없을 땐
+                  // 기존처럼 이미지 원본 크기만큼 카드가 늘어남), 세로로 긴 급식표 이미지가
+                  // 옆 카드까지 억지로 늘리지 않게 한다.
+                  <div style={b.height_px ? { maxHeight: `${b.height_px - 60}px`, overflowY: "auto" } : undefined}>
+                    <ImageLightbox
+                      src={thisMonth.image_url}
+                      alt={`${thisMonth.year}년 ${thisMonth.month}월 급식표`}
+                      className="w-full rounded-lg border border-border object-contain"
+                    />
+                  </div>
                 ) : (
                   <EmptyState icon="🍽️" title="등록된 이번 달 급식표가 없습니다" desc="관리자가 급식표를 업로드하면 이곳에 표시됩니다." t={t} />
                 )}
@@ -248,7 +254,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             );
           if (b.id === "quick")
             return (
-              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`}>
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="QUICK MENU" title="빠른 메뉴" />
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-2.5">
                   {QUICK_MENU.map(([icon, label, href]) => (

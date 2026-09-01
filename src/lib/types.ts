@@ -162,6 +162,7 @@ export interface MainBlock {
   is_visible: boolean;
   order_index: number;
   col_span: number;
+  height_px: number | null;
 }
 
 export interface MealPlan {
