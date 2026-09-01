@@ -28,9 +28,9 @@ const NAV = [
 // teacher/editor도 본인이 보낸 발송 이력은 볼 수 있어야 하므로 여기 목록에 넣지 않는다.)
 const ADMIN_ONLY_NAV = [
   { href: "/admin/reports", label: "신고 내역" },
+  { href: "/admin/moderation", label: "정지·차단 계정" },
   { href: "/admin/meal-plans", label: "급식표 관리" },
   { href: "/admin/badges", label: "뱃지 관리" },
-  { href: "/admin/moderation", label: "정지·차단 계정" },
 ];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
@@ -90,21 +90,20 @@ export default function AdminNav({
           {NAV.map((n) => (
             <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
           ))}
-          <div className={`border-t ${t.adminAsideBorder} my-2`} />
-        </>
-      )}
-      {(isCouncil || role === "superadmin" || isDesigner) && (
-        <>
-          <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
-          {ORG_ACTIVITIES_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
-          ))}
         </>
       )}
       {(role === "admin" || role === "superadmin" || isDesigner) && (
         <>
-          <div className={`border-t ${t.adminAsideBorder} my-2`} />
           {ADMIN_ONLY_NAV.map((n) => (
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+          ))}
+        </>
+      )}
+      {hasAdminRole && <div className={`border-t ${t.adminAsideBorder} my-2`} />}
+      {(isCouncil || role === "superadmin" || isDesigner) && (
+        <>
+          <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
+          {ORG_ACTIVITIES_NAV.map((n) => (
             <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
           ))}
         </>
