@@ -66,7 +66,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
             myId={profile?.id ?? null}
             context={`게시판 글: ${post.title}`}
           />
-          <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} />
+          <BoardPostActions postId={post.id} authorId={post.author_id} myId={profile?.id ?? null} isAdmin={canEditProfile} />
         </div>
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]">

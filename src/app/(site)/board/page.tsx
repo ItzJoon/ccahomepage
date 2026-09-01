@@ -106,6 +106,12 @@ export default function BoardPage() {
     reload();
   };
 
+  const removePost = async (id: string) => {
+    if (!confirm("이 글을 삭제하시겠습니까? 댓글도 함께 삭제됩니다.")) return;
+    await supabase.from("board_posts").delete().eq("id", id);
+    reload();
+  };
+
   return (
     <div>
       <SectionTitle
@@ -182,6 +188,7 @@ export default function BoardPage() {
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">작성자</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">날짜</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">조회</th>
+            {iAmAdmin && <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />}
           </tr>
         </thead>
         <tbody>
@@ -214,10 +221,17 @@ export default function BoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
               <td className="p-2.5 border-b border-border text-sm">{p.view_count}</td>
+              {iAmAdmin && (
+                <td className="p-2.5 border-b border-border text-sm">
+                  <button onClick={() => removePost(p.id)} className="text-red text-xs font-bold">
+                    삭제
+                  </button>
+                </td>
+              )}
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
+            <tr><td colSpan={iAmAdmin ? 5 : 4} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
           )}
         </tbody>
       </table>
