@@ -227,7 +227,6 @@ export async function updateSession(request: NextRequest) {
     // 볼 수 있어야 하므로(요건: "super admin 전용 탭을 포함한 모든 관리자 탭") 함께 예외.
     const superadminOnlyPrefixes = [
       "/admin/access-requests",
-      "/admin/badges",
       "/admin/users",
       "/admin/stats",
       "/admin/maintenance",
@@ -243,9 +242,9 @@ export async function updateSession(request: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
-    // 신고 내역/급식표 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin 이상만 봐야
-    // 한다. designer는 조회 전용으로 여기도 볼 수 있어야 해서 함께 예외.
-    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans"];
+    // 신고 내역/급식표 관리/뱃지 관리는 teacher는 물론 editor(부장급)도 볼 수 없고 admin
+    // 이상만 봐야 한다. designer는 조회 전용으로 여기도 볼 수 있어야 해서 함께 예외.
+    const adminOnlyPrefixes = ["/admin/reports", "/admin/meal-plans", "/admin/badges"];
     if (adminOnlyPrefixes.some((p) => pathname === p || pathname.startsWith(`${p}/`))) {
       if (r !== "admin" && r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();

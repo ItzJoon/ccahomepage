@@ -29,13 +29,13 @@ const NAV = [
 const ADMIN_ONLY_NAV = [
   { href: "/admin/reports", label: "신고 내역" },
   { href: "/admin/meal-plans", label: "급식표 관리" },
+  { href: "/admin/badges", label: "뱃지 관리" },
 ];
 
 // 사이트 전체에 영향을 주거나 민감한 개인정보를 다루는 메뉴라 admin이 아니라 superadmin만
 // 볼 수 있어야 한다(직접 URL 접근은 middleware.ts에서 별도로 막는다). 다른 메뉴들과
 // 섞이지 않도록 탭 목록 제일 아래에 별도 그룹으로 모아서 보여준다.
 const SUPERADMIN_NAV = [
-  { href: "/admin/badges", label: "뱃지 관리" },
   { href: "/admin/users", label: "회원·권한 관리" },
   { href: "/admin/access-requests", label: "외부 계정 관리" },
   { href: "/admin/stats", label: "접속 통계" },

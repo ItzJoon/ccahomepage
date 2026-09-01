@@ -12,7 +12,10 @@ export function useDesignerMode() {
 
 // middleware.ts의 superadminOnlyPrefixes와 AdminNav의 SUPERADMIN_NAV(+테마)에 해당하는
 // 화면 목록 — designer의 쓰기 권한이 admin과 동일해진 뒤에도 이 화면들만은 superadmin
-// 전용으로 남겨야 해서 그대로 조회 전용 잠금을 유지한다.
+// 전용으로 남겨야 해서 그대로 조회 전용 잠금을 유지한다. /admin/badges는 이제 admin
+// 역할은 실제로 접근/조작할 수 있게 됐지만(middleware.ts의 adminOnlyPrefixes로 이동),
+// designer에게는 계속 조회 전용으로 남겨두기로 해서(뱃지는 RLS도 is_designer() 예외를
+// 안 넣었다) 이 목록에는 그대로 둔다 — 두 목록이 완전히 같지 않은 게 정상이다.
 const SUPERADMIN_ONLY_PREFIXES = [
   "/admin/access-requests",
   "/admin/badges",

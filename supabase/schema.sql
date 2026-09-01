@@ -3169,3 +3169,17 @@ values ('first_visit', '사이트 첫 방문', '사이트에 처음 방문해 �
 -- 않고 그대로 재사용한다("일반"=none, "시크릿"=secret, "슈퍼시크릿"=super_secret). 여기서는
 -- 등급과 무관하게 전체 효과음 재생 여부를 사용자별로 껐다 켰다 할 수 있는 설정만 추가한다.
 alter table profiles add column badge_sound_enabled boolean not null default true;
+
+-- 81. 뱃지 관리(/admin/badges)를 superadmin 전용에서 admin 이상 가능하도록 완화
+-- ------------------------------------------------------------
+-- 화면(middleware.ts의 superadminOnlyPrefixes -> adminOnlyPrefixes로 이동, AdminNav의
+-- SUPERADMIN_NAV -> ADMIN_ONLY_NAV로 이동)은 admin이 접근할 수 있게 됐지만, RLS는 원래도
+-- is_editor_or_above()라 editor까지 직접 API 호출로는 이미 쓸 수 있었다("admin부터"라는
+-- 요구와 맞지 않는 기존 허점) — 이 참에 is_admin()으로 좁혀 editor를 확실히 제외한다.
+-- designer는 이 두 정책에 원래부터 is_designer() 예외가 없었고(69번 섹션에서 의도적으로
+-- badges만 제외) 지금도 마찬가지라, 여전히 조회만 가능하고 실제 부여/수정은 못 한다.
+drop policy if exists "badges_write_admin" on badges;
+create policy "badges_write_admin" on badges for all using (is_admin()) with check (is_admin());
+
+drop policy if exists "user_badges_insert_staff" on user_badges;
+create policy "user_badges_insert_staff" on user_badges for insert with check (is_admin());

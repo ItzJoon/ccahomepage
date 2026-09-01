@@ -344,13 +344,14 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
   조건(role + is_council)이지만, editor는 이 화면 외에 위에 적힌 다른 관리 화면들도 함께
   접근 가능
 - 첨부파일 업로드/삭제
-- **뱃지 관리(`/admin/badges`), 회원·권한 관리(`/admin/users`), 외부 계정 관리
-  (`/admin/access-requests`), 접속 통계(`/admin/stats`), 사이트 잠금(`/admin/maintenance`),
-  활동 로그(`/admin/activity-logs`)는 admin이 아니라 superadmin 전용입니다** — editor는 물론
-  admin도 메뉴 자체가 안 보이고, URL을 직접 입력해도 middleware가 `/admin`으로 돌려보냅니다.
+- **회원·권한 관리(`/admin/users`), 외부 계정 관리(`/admin/access-requests`), 접속 통계
+  (`/admin/stats`), 사이트 잠금(`/admin/maintenance`), 활동 로그(`/admin/activity-logs`)는
+  admin이 아니라 superadmin 전용입니다** — editor는 물론 admin도 메뉴 자체가 안 보이고,
+  URL을 직접 입력해도 middleware가 `/admin`으로 돌려보냅니다. (뱃지 관리는 예전엔 이
+  목록에 있었지만 지금은 admin도 접근 가능합니다 — 아래 admin 항목 참고.)
 
 ### admin
-- 위 6개 superadmin 전용 화면(뱃지/회원 권한/외부 계정/접속 통계/사이트 잠금/활동 로그)에
+- 위 5개 superadmin 전용 화면(회원 권한/외부 계정/접속 통계/사이트 잠금/활동 로그)에
   **admin도 접근 불가** — editor와 동일하게 막혀 있습니다. (RLS 자체는 일부 테이블에서
   `is_admin()`을 여전히 허용하는 경우가 있지만, 화면 자체가 없어 실질적으로 이용할 수 없습니다.)
 - 공지·뉴스, 알림 발송 기록, **게시판 글/댓글 삭제 가능**(다른 사람 글도)
@@ -360,6 +361,10 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
   `is_admin()`으로 editor를 제외)
 - **급식표 관리(`/admin/meal-plans`) 업로드·삭제 가능**(editor는 메뉴 자체가 안 보이고
   RLS도 `is_admin()`으로 editor를 제외 — Storage 버킷 `meal-plans`도 동일 기준)
+- **뱃지 관리(`/admin/badges`) 가능**: 뱃지 추가/수정/비활성화/삭제, 학생에게 직접 부여,
+  이미 받은 뱃지 삭제(회수) — 원래 superadmin 전용이었다가 admin도 가능하도록 완화했습니다
+  (RLS도 `is_admin()`으로 editor를 제외, designer는 여전히 조회만 가능). superadmin이 이
+  화면에서 admin보다 더 할 수 있는 일은 없습니다.
 - **이메일 발송 이력(`/admin/notify`의 "이메일 발송 이력" 탭) 전체 열람 가능** — teacher/
   editor는 본인이 보낸 이력만 보이지만 admin 이상은 전체 발송 이력을 볼 수 있습니다
   (17절 참고)
@@ -369,9 +374,6 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
 - 나머지 관리 화면(부서/구성원/일정/규정/Q&A 답변/메인화면 편집/페이지 빌더 등)은 editor와 동일
 
 ### superadmin (화면 표시는 "developer")
-- **뱃지 관리(`/admin/badges`)**: 뱃지 추가/수정/비활성화/삭제, 학생에게 직접 부여, 이미
-  받은 뱃지 삭제(회수). designer는 이 화면을 열람만 할 수 있고 조작은 못 합니다(아래 designer
-  항목 참고).
 - **회원·권한 관리(`/admin/users`)**: 대부분의 계정 role을 자유롭게 변경할 수 있지만,
   **`superadmin`으로 새로 승격시키는 것은 superadmin 본인을 포함해 아무도 이 화면에서 할 수
   없습니다**(DB에서 직접 바꿔야 함) — `ASSIGNABLE_ROLES`에서 아예 제외되어 있고, DB 트리거
@@ -420,16 +422,17 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
     처리 등)에서는 실제로 admin과 동일하게 추가/수정/삭제까지 할 수 있습니다.**
   - **editor 수준 화면(부서·구성원·일정·규정·페이지 빌더·메인화면 편집 등)도 마찬가지로
     직접 조작 가능합니다.**
-  - **superadmin 전용 화면 8개(`/admin/access-requests`, `/admin/badges`, `/admin/users`,
-    `/admin/stats`, `/admin/maintenance`, `/admin/activity-logs`, `/admin/feature-flags`,
-    `/admin/theme`)만은 예외로, 화면은 열리지만(탭이 숨겨지지 않음) 여전히 열람만 가능하고
-    실제 데이터 조작은 할 수 없습니다.**
+  - **superadmin 전용 화면 7개(`/admin/access-requests`, `/admin/users`, `/admin/stats`,
+    `/admin/maintenance`, `/admin/activity-logs`, `/admin/feature-flags`, `/admin/theme`)
+    만은 예외로, 화면은 열리지만(탭이 숨겨지지 않음) 여전히 열람만 가능하고 실제 데이터
+    조작은 할 수 없습니다. `/admin/badges`는 admin에게는 열렸지만(아래 admin 항목 참고)
+    designer에게는 이 예외 목록에 그대로 남아 있어 여전히 조회만 가능합니다.**
 - 구현 방식: `is_admin()`/`is_editor_or_above()` 같은 기존 권한 판정 함수 자체는 건드리지
   않고(다른 화면에 의도치 않게 영향이 번지는 것을 막기 위해), 각 테이블·RPC의 write 정책에
   `OR is_designer()` 조건을 하나씩 추가하는 방식으로 admin/editor 동등 권한을 부여했습니다.
-  `admin/layout.tsx`의 `DesignerModeGate`는 이제 위 superadmin 전용 8개 경로에서만 `inert`
-  (클릭·포커스·키보드 입력 차단)를 적용하고, 그 외 화면에서는 완전히 정상적으로 조작할 수
-  있습니다.
+  `admin/layout.tsx`의 `DesignerModeGate`는 이제 위 7개 경로 + `/admin/badges`에서만
+  `inert`(클릭·포커스·키보드 입력 차단)를 적용하고, 그 외 화면에서는 완전히 정상적으로
+  조작할 수 있습니다.
 - **예외**: 부서 활동 안건의 **상태 변경**(검토중/승인/반려/완료)은 admin 이상 또는
   designer가 할 수 있고, **다른 사람의 닉네임·자기소개 수정**(`/members/[id]`)은 designer가
   제외되어 admin 이상만 가능합니다 — 화면마다 개별적으로 `OR is_designer()`를 붙였기 때문에,
