@@ -3202,3 +3202,14 @@ create policy "user_badges_select_public_directory" on user_badges for select
       select 1 from directory_profile_view dpv where dpv.id = user_badges.user_id
     )
   );
+
+-- 83. 학생자치회 소개 페이지에서 임원회/사법위원회를 나눠서 표시
+-- ------------------------------------------------------------
+-- organizations 테이블에는 그동안 소속을 구분할 방법이 없어서 "학생자치회 소개"
+-- (/organizations)에 임원회 산하 부서(학생회장단/소통홍보부/행사기획부/학습지원부/
+-- 재정기획부)와 사법위원회가 구분 없이 한 목록에 섞여 있었다. category 컬럼을 추가해
+-- 'council'(기본값, 임원회 산하)/'judiciary'(사법위원회) 두 그룹으로 나눈다.
+alter table organizations add column category text not null default 'council'
+  check (category in ('council', 'judiciary'));
+
+update organizations set category = 'judiciary' where slug = 'law';

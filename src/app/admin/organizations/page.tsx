@@ -13,7 +13,11 @@ import type { Member, Organization, Profile } from "@/lib/types";
 type MemberRow = Member & { profile: { profile_image: string | null } | null };
 
 const COLORS = ["navy", "teal", "red", "gold"];
-const empty = { name: "", slug: "", color: "navy", description: "", role_description: "", order_index: 0 };
+const CATEGORIES: { value: Organization["category"]; label: string }[] = [
+  { value: "council", label: "학생자치회 (임원회)" },
+  { value: "judiciary", label: "사법위원회" },
+];
+const empty = { name: "", slug: "", color: "navy", description: "", role_description: "", order_index: 0, category: "council" as Organization["category"] };
 const emptyMember = { user_id: "", name: "", position: "" };
 
 export default function AdminOrganizationsPage() {
@@ -44,7 +48,7 @@ export default function AdminOrganizationsPage() {
     setEditing("new");
   };
   const startEdit = (o: Organization) => {
-    const next = { name: o.name, slug: o.slug, color: o.color, description: o.description || "", role_description: o.role_description || "", order_index: o.order_index };
+    const next = { name: o.name, slug: o.slug, color: o.color, description: o.description || "", role_description: o.role_description || "", order_index: o.order_index, category: o.category };
     setForm(next);
     setInitialForm(next);
     setAddingMember(false);
@@ -143,7 +147,12 @@ export default function AdminOrganizationsPage() {
                       <button className="text-xs text-blue mr-1" onClick={(e) => { e.stopPropagation(); move(o, -1); }}>▲</button>
                       <button className="text-xs text-blue" onClick={(e) => { e.stopPropagation(); move(o, 1); }}>▼</button>
                     </td>
-                    <td className={t.adminTableCell}><Badge color={o.color}>{o.name}</Badge></td>
+                    <td className={t.adminTableCell}>
+                      <Badge color={o.color}>{o.name}</Badge>
+                      <span className="text-muted text-xs ml-2">
+                        {o.category === "judiciary" ? "사법위원회" : "학생자치회"}
+                      </span>
+                    </td>
                     <td className={t.adminTableCell}>
                       <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(o.id); }}>삭제</button>
                     </td>
@@ -159,6 +168,14 @@ export default function AdminOrganizationsPage() {
               <input className={t.adminInput} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
               <label className="text-xs font-bold text-muted mt-2">슬러그 (URL, 영문)</label>
               <input className={t.adminInput} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="예: exec" />
+              <label className="text-xs font-bold text-muted mt-2">소속</label>
+              <select
+                className={t.adminInput}
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value as Organization["category"] })}
+              >
+                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+              </select>
               <label className="text-xs font-bold text-muted mt-2">색상 태그</label>
               <select className={t.adminInput} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}>
                 {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}

@@ -28,6 +28,25 @@ export default function OrganizationsPage() {
         (o.description ?? "").includes(q) ||
         (o.role_description ?? "").includes(q)
     );
+  const councilList = list.filter((o) => o.category !== "judiciary");
+  const judiciaryList = list.filter((o) => o.category === "judiciary");
+
+  const renderGrid = (items: Organization[]) => (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {items.map((o) => (
+        <Link
+          href={`/organizations/${o.slug}`}
+          key={o.id}
+          className="bg-white border border-border rounded-xl p-5 block hover:shadow-md"
+          style={{ borderTop: `5px solid ${COLOR_VAR[o.color] || COLOR_VAR.navy}` }}
+        >
+          <div className="font-bold text-lg mb-2">{o.name}</div>
+          <p className="text-muted text-sm">{o.description}</p>
+          <span className="text-blue font-bold text-sm">자세히 보기 →</span>
+        </Link>
+      ))}
+    </div>
+  );
 
   return (
     <div>
@@ -43,25 +62,26 @@ export default function OrganizationsPage() {
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {list.map((o) => (
-          <Link
-            href={`/organizations/${o.slug}`}
-            key={o.id}
-            className="bg-white border border-border rounded-xl p-5 block hover:shadow-md"
-            style={{ borderTop: `5px solid ${COLOR_VAR[o.color] || COLOR_VAR.navy}` }}
-          >
-            <div className="font-bold text-lg mb-2">{o.name}</div>
-            <p className="text-muted text-sm">{o.description}</p>
-            <span className="text-blue font-bold text-sm">자세히 보기 →</span>
-          </Link>
-        ))}
-        {list.length === 0 && (
-          <div className="text-muted text-center py-8 text-sm col-span-2">
-            {q.trim() ? "검색 결과가 없습니다." : "등록된 부서가 없습니다."}
-          </div>
-        )}
-      </div>
+      {list.length === 0 ? (
+        <div className="text-muted text-center py-8 text-sm">
+          {q.trim() ? "검색 결과가 없습니다." : "등록된 부서가 없습니다."}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-8">
+          {councilList.length > 0 && (
+            <div>
+              <h3 className="text-base font-bold mb-3">학생자치회 (임원회)</h3>
+              {renderGrid(councilList)}
+            </div>
+          )}
+          {judiciaryList.length > 0 && (
+            <div>
+              <h3 className="text-base font-bold mb-3">사법위원회</h3>
+              {renderGrid(judiciaryList)}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

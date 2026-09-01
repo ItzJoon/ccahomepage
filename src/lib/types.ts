@@ -57,6 +57,7 @@ export interface Organization {
   role_description: string | null;
   order_index: number;
   is_active: boolean;
+  category: "council" | "judiciary";
 }
 
 export interface Member {
