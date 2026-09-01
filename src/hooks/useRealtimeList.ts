@@ -29,19 +29,33 @@ export function useRealtimeList<T extends { id: string }>(
     `${table}-${Math.random().toString(36).slice(2)}-${Date.now()}`
   );
 
+  // orderBy/select 등은 호출하는 쪽에서 매 렌더마다 새 객체 리터럴로 넘기는 경우가
+  // 많아서(예: board 페이지의 정렬 토글이 orderBy: sort==="latest" ? {...} : {...}로
+  // 매번 새 객체를 만듦) options 객체 자체를 의존성으로 두면 값이 그대로여도 매번
+  // load가 재생성돼 버린다. 그래서 실제로 쿼리에 영향을 주는 원시값만 뽑아서
+  // 의존성으로 쓴다 — 문자열/숫자/불린은 값이 같으면 재생성되지 않고, 값이 바뀌면
+  // (예: 정렬 기준 컬럼 변경) 정확히 그때만 load가 새로 만들어진다. 이전엔 options가
+  // 아예 의존성에 없어서 orderBy를 바꿔도(정렬 토글 등) 항상 최초 마운트 시점 값으로
+  // 고정돼 정렬이 안 바뀌는 버그가 있었다.
+  const orderColumn = options?.orderBy?.column;
+  const orderAscending = options?.orderBy?.ascending;
+  const selectStr = options?.select;
+  const selectFromStr = options?.selectFrom;
+  const limitNum = options?.limit;
+  const filterFn = options?.filter;
+
   const load = useCallback(async () => {
-    let query = supabase.from(options?.selectFrom ?? table).select(options?.select ?? "*");
-    if (options?.filter) query = options.filter(query);
-    if (options?.orderBy) {
-      query = query.order(options.orderBy.column, {
-        ascending: options.orderBy.ascending ?? true,
-      });
+    let query = supabase.from(selectFromStr ?? table).select(selectStr ?? "*");
+    if (filterFn) query = filterFn(query);
+    if (orderColumn) {
+      query = query.order(orderColumn, { ascending: orderAscending ?? true });
     }
-    if (options?.limit) query = query.limit(options.limit);
+    if (limitNum) query = query.limit(limitNum);
     const { data } = await query;
     setRows((data as unknown as T[]) ?? []);
     setLoading(false);
-  }, [table]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [table, selectStr, selectFromStr, orderColumn, orderAscending, limitNum]);
 
   useEffect(() => {
     let active = true;
