@@ -106,7 +106,14 @@ export default function AdminQnaPage() {
             {rows.map((q) => (
               <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer ${t.adminTableRowHover} ${openId === q.id ? t.adminTableRowActive : ""}`}>
                 <td className={t.adminTableCell}>
-                  <span {...truncateCellProps(q.title)}>{q.title}</span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {!q.reviewed_at && (
+                      <span className="shrink-0 w-2 h-2 rounded-full bg-red" title="관리자 미확인" />
+                    )}
+                    <span {...truncateCellProps(q.title)} className={`flex-1 min-w-0 truncate ${!q.reviewed_at ? "font-bold" : ""}`}>
+                      {q.title}
+                    </span>
+                  </div>
                 </td>
                 <td className={`${t.adminTableCell} text-muted`} onClick={(e) => q.user_id && e.stopPropagation()}>
                   {q.user_id ? (

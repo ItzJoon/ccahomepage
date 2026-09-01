@@ -3533,3 +3533,26 @@ $$ language plpgsql security definer set search_path = public;
 -- status='pending' 여부를 그대로 안 읽음 기준으로 재사용한다.
 alter table board_posts add column if not exists reviewed_at timestamptz;
 alter table questions add column if not exists reviewed_at timestamptz;
+
+-- ------------------------------------------------------------
+-- 91. 게시판 글 개인별 읽음 여부(안 읽음=검은 글씨/읽음=회색 글씨 구분용)
+-- ------------------------------------------------------------
+-- content_view_events(조회수 집계용, 익명 방문자 포함, 하루 단위 버킷)와는 목적이
+-- 달라 별도 테이블로 둔다 — 이건 로그인 사용자 전용이고 한 번 읽으면 계속 유지된다.
+create table if not exists board_post_reads (
+  post_id uuid not null references board_posts(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+
+alter table board_post_reads enable row level security;
+
+drop policy if exists "board_post_reads_select_own" on board_post_reads;
+create policy "board_post_reads_select_own" on board_post_reads for select using (auth.uid() = user_id);
+
+drop policy if exists "board_post_reads_insert_own" on board_post_reads;
+create policy "board_post_reads_insert_own" on board_post_reads for insert with check (auth.uid() = user_id);
+
+drop policy if exists "board_post_reads_update_own" on board_post_reads;
+create policy "board_post_reads_update_own" on board_post_reads for update using (auth.uid() = user_id);

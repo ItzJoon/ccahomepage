@@ -26,7 +26,10 @@ export default function AdminBoardPage() {
   const supabase = createClient();
   // is_editor_or_above()가 board_posts_read를 통과시켜주므로, 관리자는 숨김 글도 함께 본다.
   const { rows, reload } = useRealtimeList<Row>("board_posts", {
-    select: "*, author:profiles(name, nickname, email)",
+    // board_post_reads가 board_posts와 profiles 양쪽에 FK를 걸면서 board_posts→profiles
+    // 임베딩 경로가 author_id 경유/board_post_reads 경유 둘로 늘어나 PostgREST가 어느 쪽인지
+    // 못 정해 에러(PGRST201)를 낸다 — FK 이름을 명시해서 author_id 경로로 고정한다.
+    select: "*, author:profiles!board_posts_author_id_fkey(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });
   const { isAdmin: iAmAdmin, role } = useMyRole();
@@ -86,9 +89,14 @@ export default function AdminBoardPage() {
                 className={`cursor-pointer ${t.adminTableRowHover} ${openId === p.id ? t.adminTableRowActive : ""}`}
               >
                 <td className={t.adminTableCell}>
-                  <span {...truncateCellProps(p.title)} className="block truncate">
-                    {p.title}
-                  </span>
+                  <div className="flex items-center gap-1.5 min-w-0">
+                    {!p.reviewed_at && (
+                      <span className="shrink-0 w-2 h-2 rounded-full bg-red" title="관리자 미확인" />
+                    )}
+                    <span {...truncateCellProps(p.title)} className={`flex-1 min-w-0 truncate ${!p.reviewed_at ? "font-bold" : ""}`}>
+                      {p.title}
+                    </span>
+                  </div>
                 </td>
                 <td className={`${t.adminTableCell} text-muted`} onClick={(e) => e.stopPropagation()}>
                   {p.author_id ? (

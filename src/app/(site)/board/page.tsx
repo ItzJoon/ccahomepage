@@ -28,6 +28,7 @@ export default function BoardPage() {
   const supabase = createClient();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [readPostIds, setReadPostIds] = useState<Set<string>>(new Set());
   const [writing, setWriting] = useState(false);
   const [sort, setSort] = useState<"latest" | "popular">("latest");
   const [form, setForm] = useState<{ title: string; content: string; image_url: string | null }>({
@@ -52,6 +53,9 @@ export default function BoardPage() {
       if (!data.user) return;
       const { data: me } = await supabase.from("profiles").select("role").eq("id", data.user.id).single();
       setIAmAdmin(!!me && ["admin", "superadmin"].includes(me.role));
+      // 안 읽은 글(검은 글씨)/읽은 글(회색 글씨) 구분용 — 본인이 읽은 글 id만 가져온다.
+      const { data: reads } = await supabase.from("board_post_reads").select("post_id").eq("user_id", data.user.id);
+      setReadPostIds(new Set((reads ?? []).map((r) => r.post_id)));
     });
   }, [supabase]);
 
@@ -195,7 +199,7 @@ export default function BoardPage() {
           {rows.map((p) => (
             <tr key={p.id} className="hover:bg-[#F2F4F8]">
               <td className="p-2.5 border-b border-border">
-                <Link href={`/board/${p.id}`}>
+                <Link href={`/board/${p.id}`} className={readPostIds.has(p.id) ? "text-muted" : ""}>
                   {p.title}
                   {p.image_url && (
                     <span className="ml-1 text-muted" title="사진 첨부됨">

@@ -30,6 +30,15 @@ export default async function BoardDetailPage({ params }: { params: { id: string
   const authorLabel = post.author_name || "탈퇴한 사용자";
   const canEditProfile = profile?.role === "admin" || profile?.role === "superadmin";
 
+  // 게시판 목록에서 안 읽은 글(검은 글씨)/읽은 글(회색 글씨)을 구분하기 위한 개인별
+  // 읽음 기록 — 상세를 열람하는 시점에 남긴다. upsert라 다시 방문해도 read_at만
+  // 갱신될 뿐 문제없다.
+  if (profile) {
+    await supabase
+      .from("board_post_reads")
+      .upsert({ post_id: post.id, user_id: profile.id }, { onConflict: "post_id,user_id" });
+  }
+
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
       <DetailBackLink href="/board" label="게시판으로" />
