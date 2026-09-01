@@ -70,6 +70,7 @@ export default function AdminModerationPage() {
             <th className={t.adminTableHeaderCell}>이름</th>
             <th className={t.adminTableHeaderCell}>이메일</th>
             <th className={`${t.adminTableHeaderCell} w-24`}>경고 횟수</th>
+            <th className={t.adminTableHeaderCell}>사유</th>
             <th className={`${t.adminTableHeaderCell} w-48`}>정지 해제 시각</th>
             <th className={`${t.adminTableHeaderCell} w-24`} />
           </tr>
@@ -84,6 +85,7 @@ export default function AdminModerationPage() {
               </td>
               <td className={t.adminTableCell}>{p.email}</td>
               <td className={t.adminTableCell}>{p.warning_count}</td>
+              <td className={`${t.adminTableCell} text-muted`}>{p.suspended_reason || "-"}</td>
               <td className={t.adminTableCell}>{fmtDateTime(p.suspended_until!)}</td>
               <td className={t.adminTableCell}>
                 {canModerate && (
@@ -95,7 +97,7 @@ export default function AdminModerationPage() {
             </tr>
           ))}
           {suspended.length === 0 && (
-            <tr><td colSpan={5} className="text-muted text-center py-6 text-sm">현재 일시정지 중인 계정이 없습니다.</td></tr>
+            <tr><td colSpan={6} className="text-muted text-center py-6 text-sm">현재 일시정지 중인 계정이 없습니다.</td></tr>
           )}
         </tbody>
       </AdminTable>
@@ -106,6 +108,7 @@ export default function AdminModerationPage() {
           <tr>
             <th className={t.adminTableHeaderCell}>이름 · 이메일</th>
             <th className={`${t.adminTableHeaderCell} w-28`}>구분</th>
+            <th className={t.adminTableHeaderCell}>사유</th>
             <th className={`${t.adminTableHeaderCell} w-24`} />
           </tr>
         </thead>
@@ -127,6 +130,7 @@ export default function AdminModerationPage() {
                 <td className={t.adminTableCell}>
                   {d.member_type === "student" ? "학생" : d.member_type === "teacher" ? "교사" : "외부 계정"}
                 </td>
+                <td className={`${t.adminTableCell} text-muted`}>{d.ban_reason || "-"}</td>
                 <td className={t.adminTableCell}>
                   {iAmAdmin && (
                     <button onClick={() => unban(d.id)} className={t.adminBtnSecondary}>
@@ -138,7 +142,7 @@ export default function AdminModerationPage() {
             );
           })}
           {banned.length === 0 && (
-            <tr><td colSpan={3} className="text-muted text-center py-6 text-sm">현재 차단된 계정이 없습니다.</td></tr>
+            <tr><td colSpan={4} className="text-muted text-center py-6 text-sm">현재 차단된 계정이 없습니다.</td></tr>
           )}
         </tbody>
       </AdminTable>

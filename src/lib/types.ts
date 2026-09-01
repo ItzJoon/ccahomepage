@@ -15,6 +15,7 @@ export interface Profile {
   badge_sound_enabled: boolean;
   warning_count: number;
   suspended_until: string | null;
+  suspended_reason: string | null;
   created_at: string;
 }
 
@@ -288,6 +289,7 @@ export interface DirectoryMember {
   subject: string | null;
   leadership_role: string | null;
   is_allowed: boolean;
+  ban_reason: string | null;
   created_at: string;
 }
 

@@ -81,6 +81,7 @@ export default function DirectoryPage() {
     subject: null,
     leadership_role: null,
     is_allowed: true,
+    ban_reason: null,
     created_at: new Date().toISOString(),
   };
 

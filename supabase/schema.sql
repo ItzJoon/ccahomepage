@@ -3399,3 +3399,128 @@ create or replace function author_name(board_comments) returns text as $$
   end
   from profiles p where p.id = ($1).author_id;
 $$ language sql stable security definer;
+
+-- ------------------------------------------------------------
+-- 89. 일시정지/영구차단 사유를 프로필·정지차단 화면에도 표시
+-- ------------------------------------------------------------
+-- 지금까지 정지/차단 사유는 audit_logs(관리자만 조회 가능)에만 남아서, 구성원 프로필의
+-- ModerationPanel이나 관리자용 /admin/moderation 목록에서 "왜" 막혔는지 알 수 없었다.
+-- 정지는 항상 계정(profiles)이 있어야 걸 수 있으므로 profiles에 두고, 차단은 아직
+-- 가입하지 않은 외부 이메일도 미리 막아둘 수 있어 email 기준인 directory_members에 둔다.
+alter table profiles add column if not exists suspended_reason text;
+alter table directory_members add column if not exists ban_reason text;
+
+create or replace function internal_ban_user_by_email(target_email text, p_reason text)
+returns void as $$
+begin
+  insert into directory_members (email, member_type, display_name, is_allowed, ban_reason)
+  values (target_email, 'other', target_email, false, p_reason)
+  on conflict (email) do update set is_allowed = false, ban_reason = p_reason;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'blocked', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  else
+    insert into login_access_requests (email, status, decided_by, decided_at)
+    values (target_email, 'blocked', auth.uid(), now());
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'ban', 'directory_members', target_email, jsonb_build_object('reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function suspend_user(target_user_id uuid, days int, p_reason text)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 계정을 정지할 수 있습니다';
+  end if;
+  update profiles set suspended_until = now() + (days || ' days')::interval, suspended_reason = p_reason where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', days, 'reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function unsuspend_user(target_user_id uuid)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 정지를 해제할 수 있습니다';
+  end if;
+  update profiles set suspended_until = null, suspended_reason = null where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unsuspend', 'profiles', target_user_id::text, jsonb_build_object('reason', '관리자가 직접 정지 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function unban_user_permanently(target_user_id uuid)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 차단을 해제할 수 있습니다';
+  end if;
+  select email into target_email from profiles where id = target_user_id;
+  if target_email is null then
+    raise exception '대상 계정을 찾을 수 없습니다';
+  end if;
+
+  update directory_members set is_allowed = true, ban_reason = null where email = target_email;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'approved', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unban', 'directory_members', target_email, jsonb_build_object('reason', '관리자가 직접 차단 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function issue_user_warning(target_user_id uuid, p_report_id uuid, p_reason text)
+returns json as $$
+declare
+  new_count int;
+  suspend_threshold int;
+  suspend_days int;
+  ban_threshold int;
+  target_email text;
+  auto_action text := null;
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 경고를 부여할 수 있습니다';
+  end if;
+
+  insert into user_warnings (user_id, report_id, issued_by, reason)
+  values (target_user_id, p_report_id, auth.uid(), p_reason);
+
+  update profiles set warning_count = warning_count + 1
+  where id = target_user_id
+  returning warning_count, email into new_count, target_email;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'warn', 'profiles', target_user_id::text, jsonb_build_object('warning_count', new_count, 'reason', p_reason));
+
+  select warning_suspend_threshold, warning_suspend_days, warning_ban_threshold
+    into suspend_threshold, suspend_days, ban_threshold
+    from site_settings where id = 'default';
+
+  if new_count >= ban_threshold then
+    perform internal_ban_user_by_email(target_email, '경고 누적(' || new_count || '회)으로 인한 영구 차단');
+    auto_action := 'banned';
+  elsif new_count >= suspend_threshold then
+    update profiles set suspended_until = now() + (suspend_days || ' days')::interval,
+      suspended_reason = '경고 누적(' || new_count || '회)으로 인한 자동 정지'
+      where id = target_user_id;
+    insert into audit_logs (user_id, action, target_table, target_id, after_data)
+    values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', suspend_days, 'reason', '경고 누적(' || new_count || '회)으로 인한 자동 정지'));
+    auto_action := 'suspended';
+  end if;
+
+  return json_build_object('warning_count', new_count, 'auto_action', auto_action, 'suspend_days', suspend_days);
+end;
+$$ language plpgsql security definer set search_path = public;

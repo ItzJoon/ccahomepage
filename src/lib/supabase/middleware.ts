@@ -69,20 +69,24 @@ export async function updateSession(request: NextRequest) {
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
   let directoryAllowed = false;
   let suspendedUntil: string | null = null;
+  let suspendedReason: string | null = null;
+  let banReason: string | null = null;
   if (!isSpecialPageExempt) {
     if (user) {
       const [roleResult, settingsResult, directoryResult] = await Promise.all([
-        supabase.from("profiles").select("role, is_council, suspended_until").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, is_council, suspended_until, suspended_reason").eq("id", user.id).single(),
         supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
         user.email
-          ? supabase.from("directory_members").select("is_allowed").eq("email", user.email).maybeSingle()
+          ? supabase.from("directory_members").select("is_allowed, ban_reason").eq("email", user.email).maybeSingle()
           : Promise.resolve({ data: null }),
       ]);
       role = roleResult.data?.role ?? null;
       isCouncil = !!roleResult.data?.is_council;
       siteSettings = settingsResult.data;
       directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
+      banReason = (directoryResult.data as { ban_reason: string | null } | null)?.ban_reason ?? null;
       suspendedUntil = roleResult.data?.suspended_until ?? null;
+      suspendedReason = roleResult.data?.suspended_reason ?? null;
     } else {
       // 비로그인 방문자는 role/명단 체크가 필요 없지만, 사이트 잠금 모드(maintenance_mode)는
       // 로그인 여부와 무관하게 모든 방문자에게 적용돼야 하므로 이 조회만은 건너뛰면 안 된다.
@@ -110,6 +114,7 @@ export async function updateSession(request: NextRequest) {
         await supabase.rpc("record_login_access_attempt");
         const url = request.nextUrl.clone();
         url.pathname = "/access-restricted";
+        if (banReason) url.searchParams.set("reason", banReason);
         return NextResponse.redirect(url);
       }
     }
@@ -126,6 +131,7 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/suspended";
       url.searchParams.set("until", suspendedUntil);
+      if (suspendedReason) url.searchParams.set("reason", suspendedReason);
       return NextResponse.redirect(url);
     }
   }

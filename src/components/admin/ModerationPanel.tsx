@@ -13,6 +13,7 @@ interface TargetInfo {
   nickname: string | null;
   warning_count: number;
   suspended_until: string | null;
+  suspended_reason: string | null;
 }
 
 function fmtDateTime(iso: string) {
@@ -40,6 +41,7 @@ export default function ModerationPanel({
   const { t } = useHomeTheme();
   const [target, setTarget] = useState<TargetInfo | null>(null);
   const [isBanned, setIsBanned] = useState(false);
+  const [banReason, setBanReason] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<UserWarning[]>([]);
   const [warningReason, setWarningReason] = useState("");
   const [suspendDays, setSuspendDays] = useState(3);
@@ -51,17 +53,18 @@ export default function ModerationPanel({
   const refresh = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, name, nickname, warning_count, suspended_until")
+      .select("id, email, name, nickname, warning_count, suspended_until, suspended_reason")
       .eq("id", targetUserId)
       .maybeSingle();
     if (data) {
       setTarget(data as TargetInfo);
       const { data: dm } = await supabase
         .from("directory_members")
-        .select("is_allowed")
+        .select("is_allowed, ban_reason")
         .eq("email", data.email)
         .maybeSingle();
       setIsBanned(dm ? !dm.is_allowed : false);
+      setBanReason(dm?.ban_reason ?? null);
     }
     const { data: w } = await supabase
       .from("user_warnings")
@@ -185,6 +188,16 @@ export default function ModerationPanel({
         {isSuspended && <span className="text-red ml-1">· {fmtDateTime(target.suspended_until!)}까지 정지 중</span>}
         {isBanned && <span className="text-red ml-1">· 영구 차단됨</span>}
       </div>
+      {isSuspended && target.suspended_reason && (
+        <p className="text-xs bg-bg rounded-lg px-2.5 py-1.5 m-0">
+          <span className="font-bold text-muted">정지 사유:</span> {target.suspended_reason}
+        </p>
+      )}
+      {isBanned && banReason && (
+        <p className="text-xs bg-bg rounded-lg px-2.5 py-1.5 m-0">
+          <span className="font-bold text-muted">차단 사유:</span> {banReason}
+        </p>
+      )}
 
       <label className="text-xs font-bold text-muted">경고 사유 (학생에게 그대로 보입니다)</label>
       <textarea

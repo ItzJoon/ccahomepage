@@ -16,6 +16,7 @@ export default function SuspendedPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const until = searchParams.get("until");
+  const reason = searchParams.get("reason");
   const [email, setEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -38,6 +39,11 @@ export default function SuspendedPage() {
         </p>
         {until && (
           <p className="text-sm font-bold text-red mb-2">{fmt(until)}까지 정지</p>
+        )}
+        {reason && (
+          <p className="text-sm bg-bg rounded-lg px-3 py-2 mb-2 text-left">
+            <span className="font-bold">사유:</span> {reason}
+          </p>
         )}
         {email && <p className="text-xs text-muted mb-5">현재 로그인된 계정: {email}</p>}
         <button onClick={signOut} className="bg-navy text-white font-bold text-sm rounded-lg px-6 py-3">
