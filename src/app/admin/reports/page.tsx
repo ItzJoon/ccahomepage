@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import AuthorCell from "@/components/admin/AuthorCell";
 import ModerationPanel from "@/components/admin/ModerationPanel";
@@ -25,12 +26,14 @@ interface TargetProfile {
   nickname: string | null;
   bio: string | null;
   email: string;
+  profile_image: string | null;
 }
 
 interface TargetContent {
   title?: string;
   content: string;
   is_hidden: boolean;
+  post_id?: string;
 }
 
 export default function AdminReportsPage() {
@@ -72,7 +75,7 @@ export default function AdminReportsPage() {
     if (ids.length === 0) return;
     supabase
       .from("profiles")
-      .select("id, name, nickname, bio, email")
+      .select("id, name, nickname, bio, email, profile_image")
       .in("id", ids)
       .then(({ data }) => {
         const map: Record<string, TargetProfile> = {};
@@ -93,8 +96,8 @@ export default function AdminReportsPage() {
         (data ?? []).forEach((p: any) => { next[`board_post:${p.id}`] = { title: p.title, content: p.content, is_hidden: p.is_hidden }; });
       }
       if (commentIds.length > 0) {
-        const { data } = await supabase.from("board_comments").select("id, content, is_hidden").in("id", commentIds);
-        (data ?? []).forEach((c: any) => { next[`board_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden }; });
+        const { data } = await supabase.from("board_comments").select("id, content, is_hidden, post_id").in("id", commentIds);
+        (data ?? []).forEach((c: any) => { next[`board_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden, post_id: c.post_id }; });
       }
       setContentByKey(next);
     })();
@@ -110,7 +113,7 @@ export default function AdminReportsPage() {
   // rows(신고 목록)에 의존하는 위 useEffect가 다시 안 돈다 — 저장 직후 이 화면에도 바로
   // 반영되도록 그 계정만 따로 다시 조회한다.
   const refetchProfile = async (id: string) => {
-    const { data } = await supabase.from("profiles").select("id, name, nickname, bio, email").eq("id", id).single();
+    const { data } = await supabase.from("profiles").select("id, name, nickname, bio, email, profile_image").eq("id", id).single();
     if (data) setProfilesById((prev) => ({ ...prev, [data.id]: data as TargetProfile }));
   };
 
@@ -127,7 +130,14 @@ export default function AdminReportsPage() {
   const current = rows.find((r) => r.id === openId);
   const currentContentKey = current ? `${current.target_type}:${current.target_id}` : null;
   const currentContent = currentContentKey ? contentByKey[currentContentKey] : null;
-
+  // 게시글 신고는 target_id가 곧 게시물 id지만, 댓글 신고는 target_id가 댓글 id라
+  // 그 댓글이 속한 게시물로 가려면 currentContent에서 따로 조회해둔 post_id가 필요하다.
+  const postLinkId =
+    current?.target_type === "board_post"
+      ? current.target_id
+      : current?.target_type === "board_comment"
+        ? currentContent?.post_id ?? null
+        : null;
   const toggleHiddenContent = async () => {
     if (!current || !currentContent) return;
     const table = current.target_type === "board_post" ? "board_posts" : "board_comments";
@@ -268,6 +278,12 @@ export default function AdminReportsPage() {
           <p className="text-sm m-0"><span className="font-bold">사유:</span> {current.reason || "-"}</p>
           {current.context && <p className="text-sm m-0"><span className="font-bold">비고:</span> {current.context}</p>}
 
+          {postLinkId && (
+            <Link href={`/board/${postLinkId}`} target="_blank" className="text-blue text-xs font-bold w-fit">
+              {current.target_type === "board_comment" ? "댓글이 달린 게시물 보기 ↗" : "신고된 게시물 보기 ↗"}
+            </Link>
+          )}
+
           {currentContent && (
             <div className="bg-bg rounded-lg p-3 mt-1">
               {currentContent.title && <div className="font-bold text-sm mb-1">{currentContent.title}</div>}
@@ -289,15 +305,20 @@ export default function AdminReportsPage() {
             <div className="border-t border-border mt-2 pt-3 flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
                 <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
-                {isAdmin && (
-                  <button
-                    type="button"
-                    onClick={() => setEditingProfileId(current.target_author_id)}
-                    className="text-blue text-xs font-bold shrink-0"
-                  >
-                    닉네임 · 소개 수정
-                  </button>
-                )}
+                <div className="flex items-center gap-3 shrink-0">
+                  <Link href={`/members/${current.target_author_id}`} target="_blank" className="text-blue text-xs font-bold">
+                    프로필 보기 ↗
+                  </Link>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setEditingProfileId(current.target_author_id)}
+                      className="text-blue text-xs font-bold"
+                    >
+                      닉네임 · 소개 수정
+                    </button>
+                  )}
+                </div>
               </div>
               {canModerateReport ? (
                 <ModerationPanel
@@ -322,6 +343,7 @@ export default function AdminReportsPage() {
           userId={editingProfileId}
           initialNickname={profilesById[editingProfileId]?.nickname ?? ""}
           initialBio={profilesById[editingProfileId]?.bio ?? ""}
+          initialProfileImage={profilesById[editingProfileId]?.profile_image ?? null}
           onClose={() => {
             refetchProfile(editingProfileId);
             setEditingProfileId(null);
