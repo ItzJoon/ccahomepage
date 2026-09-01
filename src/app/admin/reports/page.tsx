@@ -2,6 +2,7 @@
 
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import ModerationPanel from "@/components/admin/ModerationPanel";
+import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -20,6 +21,7 @@ interface TargetProfile {
   id: string;
   name: string | null;
   nickname: string | null;
+  bio: string | null;
   email: string;
 }
 
@@ -52,6 +54,7 @@ export default function AdminReportsPage() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
 
   // reports.target_id는 target_type에 따라 다른 대상을 가리키는 범용 컬럼이라 profiles와
   // FK로 묶여있지 않다(외래키 임베딩 불가) — 신고자/신고 대상(사용자인 경우)/게시글·댓글
@@ -67,7 +70,7 @@ export default function AdminReportsPage() {
     if (ids.length === 0) return;
     supabase
       .from("profiles")
-      .select("id, name, nickname, email")
+      .select("id, name, nickname, bio, email")
       .in("id", ids)
       .then(({ data }) => {
         const map: Record<string, TargetProfile> = {};
@@ -99,6 +102,14 @@ export default function AdminReportsPage() {
     if (!id) return "-";
     const p = profilesById[id];
     return p ? p.nickname || p.name || p.email : "(알 수 없음)";
+  };
+
+  // 닉네임·소개 수정 모달은 profiles를 직접 update하고, reports 테이블은 안 바뀌므로
+  // rows(신고 목록)에 의존하는 위 useEffect가 다시 안 돈다 — 저장 직후 이 화면에도 바로
+  // 반영되도록 그 계정만 따로 다시 조회한다.
+  const refetchProfile = async (id: string) => {
+    const { data } = await supabase.from("profiles").select("id, name, nickname, bio, email").eq("id", id).single();
+    if (data) setProfilesById((prev) => ({ ...prev, [data.id]: data as TargetProfile }));
   };
 
   const setStatus = async (id: string, status: ReportStatus) => {
@@ -274,7 +285,18 @@ export default function AdminReportsPage() {
 
           {current.target_author_id && (
             <div className="border-t border-border mt-2 pt-3 flex flex-col gap-2">
-              <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
+              <div className="flex items-center justify-between gap-2">
+                <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
+                {isAdmin && (
+                  <button
+                    type="button"
+                    onClick={() => setEditingProfileId(current.target_author_id)}
+                    className="text-blue text-xs font-bold shrink-0"
+                  >
+                    닉네임 · 소개 수정
+                  </button>
+                )}
+              </div>
               {canModerateReport ? (
                 <ModerationPanel
                   targetUserId={current.target_author_id}
@@ -291,6 +313,18 @@ export default function AdminReportsPage() {
             <div className="text-sm font-bold bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
           )}
         </div>
+      )}
+
+      {editingProfileId && (
+        <ProfileQuickEditModal
+          userId={editingProfileId}
+          initialNickname={profilesById[editingProfileId]?.nickname ?? ""}
+          initialBio={profilesById[editingProfileId]?.bio ?? ""}
+          onClose={() => {
+            refetchProfile(editingProfileId);
+            setEditingProfileId(null);
+          }}
+        />
       )}
     </div>
   );
