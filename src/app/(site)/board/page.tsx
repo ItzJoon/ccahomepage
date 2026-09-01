@@ -195,7 +195,14 @@ export default function BoardPage() {
           {rows.map((p) => (
             <tr key={p.id} className="hover:bg-[#F2F4F8]">
               <td className="p-2.5 border-b border-border">
-                <Link href={`/board/${p.id}`}>{p.title}</Link>
+                <Link href={`/board/${p.id}`}>
+                  {p.title}
+                  {p.image_url && (
+                    <span className="ml-1 text-muted" title="사진 첨부됨">
+                      📷
+                    </span>
+                  )}
+                </Link>
               </td>
               <td className="p-2.5 border-b border-border text-sm text-muted">
                 <div className="flex items-center gap-1.5">
