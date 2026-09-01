@@ -3365,3 +3365,37 @@ for each row execute function sync_like_count();
 -- 픽셀만큼 최소 높이로 쓴다(급식표처럼 이미지가 긴 블록은 그 안에서 스크롤되게 처리).
 alter table main_blocks add column height_px int
   check (height_px is null or (height_px >= 100 and height_px <= 1200));
+
+-- 88. 관리자(admin/superadmin) 계정 이름은 학생 화면에서도 "닉네임(실명)"으로 표시
+-- ------------------------------------------------------------
+-- 관리자 화면 전용으로 만들었던 "닉네임(실명)" 표시(85번대 커밋의 adminDisplayName)를
+-- 공지/뉴스/게시판 글·댓글의 작성자 이름에도 적용한다 — 단, "관리자 계정일 때만" 그렇고
+-- 일반 학생 글은 기존처럼 닉네임만 보인다. author_name(51번 섹션)이 이미 SECURITY
+-- DEFINER로 profiles RLS를 우회해 안전하게 이름만 돌려주고 있어서, 그 안에 role 조건만
+-- 추가하면 된다.
+create or replace function author_name(posts) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+
+create or replace function author_name(board_posts) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+
+create or replace function author_name(board_comments) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
