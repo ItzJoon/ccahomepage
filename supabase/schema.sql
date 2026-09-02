@@ -3700,3 +3700,35 @@ $$;
 drop policy if exists "profiles_update_self" on profiles;
 create policy "profiles_update_self" on profiles for update
   using (auth.uid() = id and not is_self_suspended_or_banned());
+
+-- ------------------------------------------------------------
+-- 94. 외부 계정 관리: 이미 명단에 허용된 이메일의 stale pending 요청 자동 정리
+-- ------------------------------------------------------------
+-- 버그: directory_members에 이미 is_allowed=true로 등록된(=학교 명단에 있는) 이메일인데도
+-- login_access_requests에 예전에 남은 pending 기록이 그대로 있으면 "외부 계정 관리" 대기
+-- 목록에 계속 뜨는 문제. 예: 처음 로그인 시도 당시엔 명단에 없어서 pending이 만들어졌는데,
+-- 그 뒤 다른 경로(구성원 등록 등)로 directory_members에 추가된 경우 이 대기 기록이
+-- 자동으로 정리되지 않았다. directory_members가 허용 상태로 바뀔 때마다 같은 이메일의
+-- pending 요청을 자동으로 approved 처리해 근본 원인을 막는다.
+create or replace function sync_login_access_requests_on_directory_allow()
+returns trigger as $$
+begin
+  if new.is_allowed then
+    update login_access_requests
+      set status = 'approved', decided_at = coalesce(decided_at, now())
+      where email = new.email and status = 'pending';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_directory_members_sync_access_requests on directory_members;
+create trigger trg_directory_members_sync_access_requests
+after insert or update of is_allowed on directory_members
+for each row execute function sync_login_access_requests_on_directory_allow();
+
+-- 기존에 이미 생긴 stale pending 기록 정리(1회성 백필).
+update login_access_requests lar
+set status = 'approved', decided_at = coalesce(lar.decided_at, now())
+from directory_members dm
+where dm.email = lar.email and dm.is_allowed = true and lar.status = 'pending';
