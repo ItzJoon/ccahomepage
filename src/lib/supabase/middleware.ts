@@ -120,6 +120,20 @@ export async function updateSession(request: NextRequest) {
     }
   }
 
+  // "외부 계정 관리" 스위치가 켜져 있으면 비로그인 방문자도 어떤 페이지든 콘텐츠를 볼 수
+  // 없고 로그인 화면만 봐야 한다. 지금까지는 이 스위치가 "로그인한 외부 계정"만 막고
+  // 비로그인 방문자는 이 설정과 무관하게 계속 둘러볼 수 있는 구멍이 있었다(위 체크는
+  // user가 있을 때만 동작). restrict_external_checkin의 기본 의미(명시적으로 false가
+  // 아니면 켜짐)를 그대로 재사용한다.
+  if (!user && !isSpecialPageExempt) {
+    const restrictionEnabled = siteSettings?.restrict_external_checkin !== false;
+    if (restrictionEnabled) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login";
+      return NextResponse.redirect(url);
+    }
+  }
+
   // 신고 누적 경고 또는 관리자의 직접 조치로 일시정지된 계정은 그 기간 동안 로그인은
   // 되어도 사이트를 이용할 수 없게 막는다. 별도 배치 작업 없이 매 요청마다
   // suspended_until을 현재 시각과 비교하는 방식이라, 기간이 지나면 다음 요청부터 자동으로
@@ -188,7 +202,7 @@ export async function updateSession(request: NextRequest) {
         minute: "2-digit",
         hour12: false,
       }).format(new Date());
-      const activeWindow = (restriction.windows as { start: string; end: string }[]).find(
+      const activeWindow = (restriction.windows as { label?: string; start: string; end: string }[]).find(
         (w) => nowHM >= w.start && nowHM <= w.end
       );
       if (activeWindow) {
@@ -196,6 +210,7 @@ export async function updateSession(request: NextRequest) {
         url.pathname = "/restricted";
         url.searchParams.set("start", activeWindow.start);
         url.searchParams.set("end", activeWindow.end);
+        if (activeWindow.label) url.searchParams.set("label", activeWindow.label);
         return NextResponse.redirect(url);
       }
     }
