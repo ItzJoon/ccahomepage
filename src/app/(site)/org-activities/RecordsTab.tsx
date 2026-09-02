@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
@@ -17,6 +17,33 @@ export default function RecordsTab({ orgs, orgFilter, q }: { orgs: Organization[
   const [error, setError] = useState<string | null>(null);
 
   const { rows: records } = useRealtimeList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
+
+  // 글쓰기 창을 열 때 작성자 계정에 연결된 소속 부서(members.user_id)를 자동으로 선택해
+  // 둔다 — 여러 부서에 속해 있으면 그중 본인이 활동기록을 가장 최근에 남긴 부서를
+  // 우선하고(그 부서 일 하는 중일 확률이 높음), 기록이 아직 없으면 첫 번째 소속 부서로
+  // 둔다. 자동완성일 뿐 select는 그대로 열려 있어 언제든 수동으로 바꿀 수 있다.
+  useEffect(() => {
+    if (!writing || !userId || form.org_id) return;
+    (async () => {
+      const { data: myMemberships } = await supabase.from("members").select("org_id").eq("user_id", userId);
+      const myOrgIds = (myMemberships ?? []).map((m) => m.org_id);
+      if (myOrgIds.length === 0) return;
+      if (myOrgIds.length === 1) {
+        setForm((f) => (f.org_id ? f : { ...f, org_id: myOrgIds[0] }));
+        return;
+      }
+      const { data: recent } = await supabase
+        .from("org_records")
+        .select("org_id")
+        .eq("author_id", userId)
+        .in("org_id", myOrgIds)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const defaultOrgId = recent?.[0]?.org_id ?? myOrgIds[0];
+      setForm((f) => (f.org_id ? f : { ...f, org_id: defaultOrgId }));
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [writing, userId]);
 
   const orgName = (id: string) => orgs.find((o) => o.id === id)?.name || "-";
   const list = records
