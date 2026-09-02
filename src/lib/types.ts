@@ -271,6 +271,7 @@ export interface SiteSettings {
 }
 
 export interface SiteRestrictionWindow {
+  label?: string;
   start: string;
   end: string;
 }

@@ -35,7 +35,7 @@ export function useWriteRestriction() {
 
   const isRestricted = role === "student" && !!activeWindow;
   const message = activeWindow
-    ? `현재 수업시간이라 글쓰기가 제한되어 있어요 (제한 시간: ${activeWindow.start}~${activeWindow.end})`
+    ? `현재 수업시간이라 글쓰기가 제한되어 있어요 (제한 시간: ${activeWindow.label ? `${activeWindow.label} ` : ""}${activeWindow.start}~${activeWindow.end})`
     : "";
 
   return { isRestricted, message };

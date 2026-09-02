@@ -13,6 +13,7 @@ export default function RestrictedPage() {
   const searchParams = useSearchParams();
   const start = searchParams.get("start");
   const end = searchParams.get("end");
+  const label = searchParams.get("label");
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-5">
@@ -24,7 +25,9 @@ export default function RestrictedPage() {
           제한 시간이 끝나면 다시 이용할 수 있습니다.
         </p>
         {start && end && (
-          <p className="text-sm font-bold text-red mb-5">제한 시간: {start}~{end}</p>
+          <p className="text-sm font-bold text-red mb-5">
+            제한 시간: {label && `${label} `}{start}~{end}
+          </p>
         )}
         <Link href="/" className="inline-block bg-navy text-white font-bold text-sm rounded-lg px-6 py-3">
           홈으로 돌아가기
