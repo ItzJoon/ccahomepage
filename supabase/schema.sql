@@ -3671,3 +3671,32 @@ create policy "proposals_insert_own" on proposals for insert
 drop policy if exists "proposal_votes_insert_own" on proposal_votes;
 create policy "proposal_votes_insert_own" on proposal_votes for insert
   with check (auth.uid() = user_id and not is_student_restricted_now());
+
+-- ------------------------------------------------------------
+-- 93. 정지/차단 계정은 본인 프로필(닉네임/소개 등) 자가 수정 불가
+-- ------------------------------------------------------------
+-- 미들웨어가 페이지 접근 자체는 이미 막지만(이미 열려 있던 탭에서 리다이렉트되기
+-- 전 짧은 순간 등), 클라이언트를 거치지 않고 직접 API를 호출해도 실제로 막히도록
+-- RLS에 최종 방어선을 둔다. admin이 다른 사람의 프로필을 고쳐주는 별도 정책
+-- (profiles_update_admin)은 건드리지 않는다 — 모더레이션 목적 수정(부적절한
+-- 닉네임 정리 등)은 대상이 정지/차단 중이어도 계속 가능해야 한다.
+create or replace function is_self_suspended_or_banned()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select coalesce(
+    (
+      select (p.suspended_until is not null and p.suspended_until > now())
+        or exists (
+          select 1 from directory_members dm where dm.email = p.email and dm.is_allowed = false
+        )
+      from profiles p where p.id = auth.uid()
+    ), false
+  );
+$$;
+
+drop policy if exists "profiles_update_self" on profiles;
+create policy "profiles_update_self" on profiles for update
+  using (auth.uid() = id and not is_self_suspended_or_banned());
