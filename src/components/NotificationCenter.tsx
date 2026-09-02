@@ -14,6 +14,7 @@ function fmtDateTime(iso: string) {
 function targetHref(n: UserNotification) {
   if (n.target_type === "board_post") return `/board/${n.target_id}`;
   if (n.target_type === "qna_question") return "/qna";
+  if (n.target_type === "patch_note") return `/patch-notes/${n.target_id}`;
   return "/";
 }
 

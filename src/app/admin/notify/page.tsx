@@ -8,19 +8,8 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import { adminDisplayName } from "@/lib/displayName";
+import { DURATION_PRESETS, computeDisplayUntil, type DurationMode } from "@/lib/notificationDuration";
 import type { NotificationItem } from "@/lib/types";
-
-type DurationMode = "1h" | "6h" | "24h" | "3d" | "7d" | "custom" | "indefinite";
-
-const DURATION_PRESETS: { value: DurationMode; label: string; hours?: number }[] = [
-  { value: "1h", label: "1시간", hours: 1 },
-  { value: "6h", label: "6시간", hours: 6 },
-  { value: "24h", label: "하루(24시간)", hours: 24 },
-  { value: "3d", label: "3일", hours: 72 },
-  { value: "7d", label: "일주일", hours: 168 },
-  { value: "custom", label: "직접 종료 시각 지정" },
-  { value: "indefinite", label: "수동으로 끌 때까지 계속 노출" },
-];
 
 interface NotificationWithSender extends NotificationItem {
   sender: { name: string | null; nickname: string | null; email: string } | null;
@@ -46,13 +35,6 @@ export default function AdminNotifyPage() {
   const [customUntil, setCustomUntil] = useState(""); // datetime-local 값, durationMode==="custom"일 때만 사용
   const [sending, setSending] = useState(false);
 
-  const computeDisplayUntil = (): string | null => {
-    if (durationMode === "indefinite") return null;
-    if (durationMode === "custom") return customUntil ? new Date(customUntil).toISOString() : null;
-    const preset = DURATION_PRESETS.find((p) => p.value === durationMode);
-    return preset?.hours ? new Date(Date.now() + preset.hours * 3600_000).toISOString() : null;
-  };
-
   const send = async () => {
     if (!title.trim() || !message.trim()) return;
     if (durationMode === "custom" && !customUntil) return;
@@ -65,7 +47,7 @@ export default function AdminNotifyPage() {
       message,
       level,
       display_type: displayType,
-      display_until: computeDisplayUntil(),
+      display_until: computeDisplayUntil(durationMode, customUntil),
       sent_by: user?.id,
     });
     setTitle("");

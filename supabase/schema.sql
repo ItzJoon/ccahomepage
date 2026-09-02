@@ -3750,3 +3750,78 @@ where duration_minutes is not null and display_until is null;
 
 -- duration_minutes는 이제 쓰이지 않으므로 정리한다(같은 정보가 display_until로 이관됨).
 alter table notifications drop column if exists duration_minutes;
+
+-- ------------------------------------------------------------
+-- 96. 패치노트(사이트 업데이트 내역) 기능
+-- ------------------------------------------------------------
+-- 한 패치노트 안에 신규 기능/개선/버그 수정 등 카테고리별 항목을 여러 개 담을 수
+-- 있도록 1(패치노트):N(항목) 구조로 둔다.
+create table if not exists patch_notes (
+  id uuid primary key default uuid_generate_v4(),
+  version text,
+  title text not null,
+  published_at timestamptz not null default now(),
+  author_id uuid references profiles(id) on delete set null,
+  is_published boolean not null default false,
+  notify_popup boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists patch_note_items (
+  id uuid primary key default uuid_generate_v4(),
+  patch_note_id uuid not null references patch_notes(id) on delete cascade,
+  category text not null check (category in ('feature', 'improvement', 'fix')),
+  content text not null,
+  order_index int not null default 0
+);
+
+alter table patch_notes enable row level security;
+alter table patch_note_items enable row level security;
+
+-- 열람은 공지사항과 동일하게 전체 공개(비로그인 포함) — 단, 노출 여부(is_published)가
+-- 꺼진 임시저장은 작성 권한이 있는 developer(superadmin)만 미리보기로 볼 수 있다.
+drop policy if exists "patch_notes_read_published" on patch_notes;
+create policy "patch_notes_read_published" on patch_notes for select
+  using (is_published = true or is_superadmin());
+drop policy if exists "patch_notes_write_superadmin" on patch_notes;
+create policy "patch_notes_write_superadmin" on patch_notes for all
+  using (is_superadmin()) with check (is_superadmin());
+
+drop policy if exists "patch_note_items_read_published" on patch_note_items;
+create policy "patch_note_items_read_published" on patch_note_items for select
+  using (
+    exists (
+      select 1 from patch_notes pn
+      where pn.id = patch_note_id and (pn.is_published = true or is_superadmin())
+    )
+  );
+drop policy if exists "patch_note_items_write_superadmin" on patch_note_items;
+create policy "patch_note_items_write_superadmin" on patch_note_items for all
+  using (is_superadmin()) with check (is_superadmin());
+
+-- 헤더 알림 센터(user_notifications)에 새 알림 종류를 추가한다.
+alter table user_notifications drop constraint if exists user_notifications_type_check;
+alter table user_notifications add constraint user_notifications_type_check
+  check (type in ('board_comment', 'qna_answered', 'patch_note'));
+
+-- 패치노트가 새로 게시되는 순간(is_published가 true로 바뀌는 시점) 전체 사용자에게
+-- 헤더 알림을 하나씩 만들어준다. 팝업/배너로도 띄울지는 관리자가 화면에서 별도로
+-- notifications 테이블에 직접 발송하는 방식이라(기존 알림 발송 시스템 재사용) 여기서는
+-- 다루지 않는다.
+create or replace function notify_patch_note_published()
+returns trigger as $$
+begin
+  if new.is_published and (tg_op = 'INSERT' or not old.is_published) then
+    insert into user_notifications (user_id, type, target_type, target_id, message)
+    select id, 'patch_note', 'patch_note', new.id,
+      '새로운 업데이트가 있어요! ' || coalesce(new.version || ' ', '') || new.title
+    from profiles;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_notify_patch_note_published on patch_notes;
+create trigger trg_notify_patch_note_published
+after insert or update of is_published on patch_notes
+for each row execute function notify_patch_note_published();

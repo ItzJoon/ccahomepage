@@ -406,7 +406,7 @@ export interface Report {
   created_at: string;
 }
 
-export type NotificationType = "board_comment" | "qna_answered";
+export type NotificationType = "board_comment" | "qna_answered" | "patch_note";
 
 export interface UserNotification {
   id: string;
@@ -416,5 +416,26 @@ export interface UserNotification {
   target_id: string;
   message: string;
   is_read: boolean;
+  created_at: string;
+}
+
+export type PatchNoteCategory = "feature" | "improvement" | "fix";
+
+export interface PatchNoteItem {
+  id: string;
+  patch_note_id: string;
+  category: PatchNoteCategory;
+  content: string;
+  order_index: number;
+}
+
+export interface PatchNote {
+  id: string;
+  version: string | null;
+  title: string;
+  published_at: string;
+  author_id: string | null;
+  is_published: boolean;
+  notify_popup: boolean;
   created_at: string;
 }

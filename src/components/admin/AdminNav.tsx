@@ -45,6 +45,7 @@ const SUPERADMIN_NAV = [
   { href: "/admin/activity-logs", label: "활동 로그" },
   { href: "/admin/feature-flags", label: "기능 스위치" },
   { href: "/admin/site-restrictions", label: "사이트 제한" },
+  { href: "/admin/patch-notes", label: "패치노트 관리" },
 ];
 
 // 기존 메뉴들과 섞이지 않도록 구분선 아래에 별도 그룹으로 묶어서 보여준다.
