@@ -198,7 +198,11 @@ export default function QnaPage() {
         </div>
       ) : (
         <ul className="list-none m-0 p-0">
-          {rows.map((q) => (
+          {/* 비공개 질문은 공개 목록에 섞이지 않게 하되, 본인이 쓴 비공개 질문은 답변
+              여부를 확인할 수 있어야 하므로 본인 것만 예외로 계속 보여준다(다른 사람의
+              비공개 질문은 RLS로 애초에 내려오지도 않지만, admin이 이 화면을 볼 때는
+              전체가 내려오므로 여기서도 걸러 다른 학생 것이 섞여 보이지 않게 한다). */}
+          {rows.filter((q) => !q.is_private || q.user_id === userId).map((q) => (
             <li key={q.id} className="border-b border-border py-2.5 cursor-pointer" onClick={() => setOpenId(openId === q.id ? null : q.id)}>
               <div className="flex items-center gap-2">
                 {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
