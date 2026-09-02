@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
-import type { PatchNoteCategory } from "@/lib/types";
+import type { PatchNoteCategory, PatchNoteItem } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
   feature: "신규 기능",
@@ -27,14 +27,9 @@ export default async function PatchNoteDetailPage({ params }: { params: { id: st
     return <div className="text-muted text-center py-10">패치노트를 찾을 수 없습니다.</div>;
   }
 
-  const itemsByCategory = (Object.keys(CATEGORY_LABEL) as PatchNoteCategory[])
-    .map((category) => ({
-      category,
-      items: (note.patch_note_items as { id: string; category: PatchNoteCategory; content: string; order_index: number }[])
-        .filter((i) => i.category === category)
-        .sort((a, b) => a.order_index - b.order_index),
-    }))
-    .filter((g) => g.items.length > 0);
+  // 항목 하나가 여러 카테고리에 동시에 속할 수 있어서(예: 신규 기능+버그 수정), 카테고리별
+  // 섹션으로 나누지 않고 항목마다 해당하는 뱃지를 전부 붙여서 한 번씩만 보여준다.
+  const items = (note.patch_note_items as PatchNoteItem[]).sort((a, b) => a.order_index - b.order_index);
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
@@ -44,20 +39,20 @@ export default async function PatchNoteDetailPage({ params }: { params: { id: st
         <h1 className="text-2xl m-0 min-w-0">{note.title}</h1>
       </div>
       <div className="text-muted text-sm mb-[18px]">{fmt(note.published_at)}</div>
-      <div className="flex flex-col gap-5">
-        {itemsByCategory.map((g) => (
-          <div key={g.category}>
-            <Badge color={CATEGORY_COLOR[g.category]} className="mb-2">{CATEGORY_LABEL[g.category]}</Badge>
-            <ul className="list-disc pl-5 m-0 flex flex-col gap-1.5">
-              {g.items.map((i) => (
-                <li key={i.id} className="text-[15px] leading-7 whitespace-pre-wrap">
-                  <Linkify text={i.content} />
-                </li>
+      <ul className="list-none m-0 p-0 flex flex-col gap-3">
+        {items.map((i) => (
+          <li key={i.id} className="flex items-start gap-2">
+            <div className="flex gap-1 shrink-0 mt-0.5">
+              {i.categories.map((c) => (
+                <Badge key={c} color={CATEGORY_COLOR[c]}>{CATEGORY_LABEL[c]}</Badge>
               ))}
-            </ul>
-          </div>
+            </div>
+            <p className="text-[15px] leading-7 whitespace-pre-wrap m-0">
+              <Linkify text={i.content} />
+            </p>
+          </li>
         ))}
-      </div>
+      </ul>
     </div>
   );
 }

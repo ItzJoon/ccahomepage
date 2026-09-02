@@ -424,7 +424,7 @@ export type PatchNoteCategory = "feature" | "improvement" | "fix";
 export interface PatchNoteItem {
   id: string;
   patch_note_id: string;
-  category: PatchNoteCategory;
+  categories: PatchNoteCategory[];
   content: string;
   order_index: number;
 }

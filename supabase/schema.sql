@@ -3825,3 +3825,14 @@ drop trigger if exists trg_notify_patch_note_published on patch_notes;
 create trigger trg_notify_patch_note_published
 after insert or update of is_published on patch_notes
 for each row execute function notify_patch_note_published();
+
+-- ------------------------------------------------------------
+-- 97. 패치노트 항목이 여러 카테고리에 동시에 속할 수 있게(신규 기능+버그 수정 등 중첩)
+-- ------------------------------------------------------------
+-- 단일 category 컬럼을 배열로 바꾼다. 최초 도입 시점이라 기존 데이터가 없어 백필 없이
+-- 바로 교체.
+alter table patch_note_items drop column if exists category;
+alter table patch_note_items add column if not exists categories text[] not null default '{}';
+alter table patch_note_items drop constraint if exists patch_note_items_categories_check;
+alter table patch_note_items add constraint patch_note_items_categories_check
+  check (categories <@ array['feature','improvement','fix'] and array_length(categories, 1) > 0);

@@ -52,7 +52,7 @@ export default function PatchNotesPage() {
               <span className="text-xs text-muted shrink-0">{fmt(n.published_at)}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {Array.from(new Set(n.patch_note_items.map((i) => i.category))).map((c) => (
+              {Array.from(new Set(n.patch_note_items.flatMap((i) => i.categories))).map((c) => (
                 <Badge key={c} color={CATEGORY_COLOR[c]}>{CATEGORY_LABEL[c]}</Badge>
               ))}
             </div>

@@ -20,7 +20,7 @@ const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
 };
 
 interface ItemForm {
-  category: PatchNoteCategory;
+  categories: PatchNoteCategory[];
   content: string;
 }
 
@@ -29,7 +29,7 @@ const emptyForm = () => ({
   title: "",
   published_at: new Date().toISOString().slice(0, 10),
   notify_popup: false,
-  items: [{ category: "feature" as PatchNoteCategory, content: "" }] as ItemForm[],
+  items: [{ categories: ["feature"] as PatchNoteCategory[], content: "" }] as ItemForm[],
 });
 
 /**
@@ -70,27 +70,36 @@ export default function AdminPatchNotesPage() {
       notify_popup: n.notify_popup,
       items: n.patch_note_items
         .sort((a, b) => a.order_index - b.order_index)
-        .map((i) => ({ category: i.category, content: i.content })),
+        .map((i) => ({ categories: i.categories, content: i.content })),
     });
     setDurationMode("indefinite");
     setCustomUntil("");
     setOpenId(n.id);
   };
 
-  const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { category: "feature", content: "" }] }));
+  const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { categories: ["feature"], content: "" }] }));
   const removeItem = (idx: number) => setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
   const updateItem = (idx: number, patch: Partial<ItemForm>) =>
     setForm((f) => ({ ...f, items: f.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)) }));
+  const toggleItemCategory = (idx: number, category: PatchNoteCategory, checked: boolean) =>
+    setForm((f) => ({
+      ...f,
+      items: f.items.map((it, i) =>
+        i === idx
+          ? { ...it, categories: checked ? [...it.categories, category] : it.categories.filter((c) => c !== category) }
+          : it
+      ),
+    }));
 
   // 항목(items)은 patch_note_items에 별도 저장돼 있고 다른 테이블에서 참조하지 않으므로,
   // 수정할 때마다 통째로 지우고 폼 내용으로 다시 채우는 방식이 항목별 추가/삭제/순서
   // 변경을 각각 추적하는 것보다 훨씬 단순하다.
   const saveItems = async (patchNoteId: string) => {
     await supabase.from("patch_note_items").delete().eq("patch_note_id", patchNoteId);
-    const validItems = form.items.filter((i) => i.content.trim());
+    const validItems = form.items.filter((i) => i.content.trim() && i.categories.length > 0);
     if (validItems.length === 0) return;
     await supabase.from("patch_note_items").insert(
-      validItems.map((i, idx) => ({ patch_note_id: patchNoteId, category: i.category, content: i.content.trim(), order_index: idx }))
+      validItems.map((i, idx) => ({ patch_note_id: patchNoteId, categories: i.categories, content: i.content.trim(), order_index: idx }))
     );
   };
 
@@ -110,6 +119,8 @@ export default function AdminPatchNotesPage() {
     if (!form.title.trim()) return "제목을 입력해 주세요.";
     if (!form.published_at) return "게시일을 입력해 주세요.";
     if (form.items.every((i) => !i.content.trim())) return "최소 한 개의 항목 내용을 입력해 주세요.";
+    if (form.items.some((i) => i.content.trim() && i.categories.length === 0))
+      return "내용이 있는 항목은 카테고리를 최소 하나 선택해 주세요.";
     if (durationMode === "custom" && !customUntil) return "팝업 종료 시각을 지정해 주세요.";
     return null;
   };
@@ -245,29 +256,32 @@ export default function AdminPatchNotesPage() {
           <label className="text-xs font-bold text-muted mt-2">게시일</label>
           <input type="date" className={t.adminInput} value={form.published_at} onChange={(e) => setForm({ ...form, published_at: e.target.value })} />
 
-          <label className="text-xs font-bold text-muted mt-2">항목</label>
-          <div className="flex flex-col gap-2">
+          <label className="text-xs font-bold text-muted mt-2">항목 (카테고리는 중첩 선택 가능)</label>
+          <div className="flex flex-col gap-3">
             {form.items.map((item, idx) => (
-              <div key={idx} className="flex items-start gap-1.5">
-                <select
-                  className={`${t.adminInput} w-28 shrink-0`}
-                  value={item.category}
-                  onChange={(e) => updateItem(idx, { category: e.target.value as PatchNoteCategory })}
-                >
+              <div key={idx} className="border border-border rounded-lg p-2 flex flex-col gap-1.5">
+                <div className="flex items-center gap-3 flex-wrap">
                   {(Object.keys(CATEGORY_LABEL) as PatchNoteCategory[]).map((c) => (
-                    <option key={c} value={c}>{CATEGORY_LABEL[c]}</option>
+                    <label key={c} className="flex items-center gap-1 text-xs">
+                      <input
+                        type="checkbox"
+                        checked={item.categories.includes(c)}
+                        onChange={(e) => toggleItemCategory(idx, c, e.target.checked)}
+                      />
+                      {CATEGORY_LABEL[c]}
+                    </label>
                   ))}
-                </select>
+                  {form.items.length > 1 && (
+                    <button type="button" onClick={() => removeItem(idx)} className="text-red text-xs font-bold ml-auto">삭제</button>
+                  )}
+                </div>
                 <textarea
                   rows={2}
-                  className={`${t.adminInput} flex-1`}
+                  className={t.adminInput}
                   value={item.content}
                   onChange={(e) => updateItem(idx, { content: e.target.value })}
                   placeholder="변경 내용"
                 />
-                {form.items.length > 1 && (
-                  <button type="button" onClick={() => removeItem(idx)} className="text-red text-xs font-bold shrink-0 mt-1.5">삭제</button>
-                )}
               </div>
             ))}
           </div>
