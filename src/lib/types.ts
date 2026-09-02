@@ -152,7 +152,7 @@ export interface NotificationItem {
   message: string;
   level: "info" | "urgent";
   display_type: "banner" | "popup";
-  duration_minutes: number | null;
+  display_until: string | null;
   popup_active: boolean;
   sent_by: string | null;
   sent_at: string;

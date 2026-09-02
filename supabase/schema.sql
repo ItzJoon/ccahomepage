@@ -3732,3 +3732,21 @@ update login_access_requests lar
 set status = 'approved', decided_at = coalesce(lar.decided_at, now())
 from directory_members dm
 where dm.email = lar.email and dm.is_allowed = true and lar.status = 'pending';
+
+-- ------------------------------------------------------------
+-- 95. 알림 배너/팝업 노출 기간을 절대 시각(display_until)으로 통일
+-- ------------------------------------------------------------
+-- 기존 duration_minutes(배너 전용, sent_at 기준 상대 시간, 클라이언트가 직접 시간을
+-- 계산해서 숨기는 방식)를 대체한다 — 이제 배너/팝업 모두 display_until을 쓰고,
+-- null이면 무기한(직접 끌 때까지) 노출이며 서버 쿼리 단계에서 만료된 것을 아예
+-- 내려주지 않는다.
+alter table notifications add column if not exists display_until timestamptz;
+
+-- 기존 배너 데이터 이관: duration_minutes가 있던 것은 그 시점 기준 만료 시각을 계산해
+-- display_until에 채워 넣는다(과거 발송 이력의 실제 만료 시점을 그대로 보존).
+update notifications
+set display_until = sent_at + (duration_minutes || ' minutes')::interval
+where duration_minutes is not null and display_until is null;
+
+-- duration_minutes는 이제 쓰이지 않으므로 정리한다(같은 정보가 display_until로 이관됨).
+alter table notifications drop column if exists duration_minutes;

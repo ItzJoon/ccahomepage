@@ -23,6 +23,10 @@ export const dynamic = "force-dynamic";
  */
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
   const supabase = createClient();
+  // 노출 기간이 지난 배너/팝업은 클라이언트가 받은 뒤 숨기는 게 아니라 애초에 서버
+  // 조회 단계에서 걸러낸다 — display_until이 없으면(무기한) 통과, 있으면 아직 지나지
+  // 않은 것만 통과시킨다.
+  const nowIso = new Date().toISOString();
 
   // 프로필/커스텀 페이지/배너/팝업/잠금 여부 조회는 서로 의존관계가 없는데, 하나씩 순서대로
   // 기다리면 매 페이지 로드마다 Supabase 왕복이 그만큼 누적된다. 동시에 요청해서 가장 느린 것
@@ -58,6 +62,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .from("notifications")
         .select("*")
         .eq("display_type", "banner")
+        .or(`display_until.is.null,display_until.gt.${nowIso}`)
         .order("sent_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
@@ -66,6 +71,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .select("*")
         .eq("display_type", "popup")
         .eq("popup_active", true)
+        .or(`display_until.is.null,display_until.gt.${nowIso}`)
         .order("sent_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
