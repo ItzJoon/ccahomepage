@@ -1,13 +1,21 @@
 "use client";
 
 import AdminTable from "@/components/admin/AdminTable";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
 import { adminDisplayName } from "@/lib/displayName";
 import type { BadgeDef, Profile } from "@/lib/types";
+
+interface BadgeHolder {
+  id: string;
+  name: string | null;
+  nickname: string | null;
+  email: string;
+  earned_at: string;
+}
 
 const empty = {
   code: "",
@@ -46,6 +54,45 @@ export default function AdminBadgesPage() {
   const { t } = useHomeTheme();
   const { rows, reload } = useRealtimeList<BadgeDef>("badges", { orderBy: { column: "order_index" } });
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  // 뱃지별 보유 인원 수 — user_badges 전체를 실시간 구독해두고 badge_id별로 세기만
+  // 하면 되므로(학교 규모상 전체 행 수가 적어 부담 없음), 지급/회수가 있을 때마다
+  // 자동으로 숫자가 갱신된다.
+  const { rows: userBadgeRows } = useRealtimeList<{ id: string; badge_id: string }>("user_badges", { select: "id, badge_id" });
+  const badgeCounts = useMemo(() => {
+    const m = new Map<string, number>();
+    userBadgeRows.forEach((ub) => m.set(ub.badge_id, (m.get(ub.badge_id) ?? 0) + 1));
+    return m;
+  }, [userBadgeRows]);
+
+  const [viewingHoldersBadge, setViewingHoldersBadge] = useState<BadgeDef | null>(null);
+  const [holders, setHolders] = useState<BadgeHolder[]>([]);
+  const [holdersLoading, setHoldersLoading] = useState(false);
+  const [holderSearch, setHolderSearch] = useState("");
+
+  // 보유자 목록은 뱃지를 클릭했을 때만(자주 안 열어보는 화면이라) 조회한다 — 미리
+  // 전체 뱃지×전체 학생을 다 조인해두는 것보다 훨씬 가볍다.
+  const openHolders = async (b: BadgeDef) => {
+    setViewingHoldersBadge(b);
+    setHolderSearch("");
+    setHoldersLoading(true);
+    const { data } = await supabase
+      .from("user_badges")
+      .select("earned_at, user:profiles(id, name, nickname, email)")
+      .eq("badge_id", b.id)
+      .order("earned_at", { ascending: false });
+    setHolders(
+      (data ?? [])
+        .filter((d: any) => d.user)
+        .map((d: any) => ({ ...d.user, earned_at: d.earned_at }))
+    );
+    setHoldersLoading(false);
+  };
+
+  const filteredHolders = holders.filter((h) => {
+    const q = holderSearch.trim().toLowerCase();
+    if (!q) return true;
+    return (h.name ?? "").toLowerCase().includes(q) || (h.nickname ?? "").toLowerCase().includes(q) || h.email.toLowerCase().includes(q);
+  });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
@@ -169,6 +216,7 @@ export default function AdminBadgesPage() {
     .filter((b) => grantUserEarnedIds.has(b.id));
 
   return (
+    <>
     <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <div className="flex justify-between items-end mb-4">
@@ -189,6 +237,7 @@ export default function AdminBadgesPage() {
               <th className={`${t.adminTableHeaderCell} w-14`}>아이콘</th>
               <th className={t.adminTableHeaderCell}>이름</th>
               <th className={`${t.adminTableHeaderCell} w-24`}>조건</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>보유</th>
               <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
               <th className={`${t.adminTableHeaderCell} w-16`} />
             </tr>
@@ -220,6 +269,14 @@ export default function AdminBadgesPage() {
                 </td>
                 <td className={t.adminTableCell}>
                   <button
+                    className="text-xs font-bold text-blue"
+                    onClick={(e) => { e.stopPropagation(); openHolders(b); }}
+                  >
+                    {badgeCounts.get(b.id) ?? 0}명 보유
+                  </button>
+                </td>
+                <td className={t.adminTableCell}>
+                  <button
                     className={`text-xs font-bold ${b.is_active ? "text-teal" : "text-muted"}`}
                     onClick={(e) => { e.stopPropagation(); toggleActive(b); }}
                   >
@@ -231,7 +288,7 @@ export default function AdminBadgesPage() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</td></tr>}
           </tbody>
         </AdminTable>
 
@@ -469,5 +526,48 @@ export default function AdminBadgesPage() {
         </div>
       )}
     </div>
+    {viewingHoldersBadge && (
+      <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewingHoldersBadge(null)}>
+        <div
+          className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <h3 className="m-0 flex items-center gap-1.5">
+              <span className="text-xl">{viewingHoldersBadge.icon}</span>
+              {viewingHoldersBadge.label} 보유자
+            </h3>
+            <button onClick={() => setViewingHoldersBadge(null)} className="text-muted text-xl leading-none shrink-0">✕</button>
+          </div>
+          <p className="text-muted text-xs mb-3">총 {holders.length}명이 보유 중</p>
+          <input
+            className={`${t.adminInput} mb-3`}
+            placeholder="이름 또는 이메일로 검색"
+            value={holderSearch}
+            onChange={(e) => setHolderSearch(e.target.value)}
+          />
+          <div className="overflow-y-auto flex flex-col gap-1.5">
+            {holdersLoading ? (
+              <p className="text-muted text-sm text-center py-4">불러오는 중…</p>
+            ) : filteredHolders.length === 0 ? (
+              <p className="text-muted text-sm text-center py-4">
+                {holders.length === 0 ? "아직 아무도 보유하고 있지 않습니다." : "검색 결과가 없습니다."}
+              </p>
+            ) : (
+              filteredHolders.map((h) => (
+                <div key={h.id} className="flex items-center justify-between gap-2 bg-bg rounded-lg px-3 py-2">
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold truncate">{adminDisplayName(h)}</div>
+                    <div className="text-muted text-xs truncate">{h.email}</div>
+                  </div>
+                  <div className="text-muted text-xs shrink-0">{new Date(h.earned_at).toLocaleString("ko-KR")}</div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
