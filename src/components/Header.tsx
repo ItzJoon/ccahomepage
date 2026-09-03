@@ -8,6 +8,7 @@ import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
+import FreezeChoiceModal from "@/components/FreezeChoiceModal";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import NotificationCenter from "@/components/NotificationCenter";
 import type { HomeThemeKey } from "@/lib/homeTheme";
@@ -62,7 +63,11 @@ export default function Header({
   // 사이트 잠금 모드는 admin/superadmin/viewer/designer가 우회하므로(middleware.ts와 동일
   // 기준, editor는 예외 아님), 연속 접속 체크인도 같은 기준으로 잠금 중 보류 여부를 판단한다.
   const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
-  const { toast, celebrate, dismissCelebrate } = useAutoCheckIn(profile?.id ?? null, isLockdownExempt, checkInEligible);
+  const { toast, celebrate, dismissCelebrate, freezePrompt, resolveFreezePrompt } = useAutoCheckIn(
+    profile?.id ?? null,
+    isLockdownExempt,
+    checkInEligible
+  );
   const [mobileOpen, setMobileOpen] = useState(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
@@ -291,7 +296,16 @@ export default function Header({
         </div>
       )}
     </header>
-    {toast !== null && <CheckInToast streak={toast} />}
+    {toast !== null && <CheckInToast streak={toast.streak} streakReset={toast.streakReset} />}
+    {freezePrompt && (
+      <FreezeChoiceModal
+        streak={freezePrompt.streak}
+        streakIfUsed={freezePrompt.streakIfUsed}
+        freezeCredits={freezePrompt.freezeCredits}
+        onUse={() => resolveFreezePrompt(true)}
+        onSkip={() => resolveFreezePrompt(false)}
+      />
+    )}
     {celebrate && (
       <BadgeCelebration badge={celebrate} onClose={dismissCelebrate} soundEnabled={profile?.badge_sound_enabled ?? true} />
     )}

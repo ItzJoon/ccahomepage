@@ -8,6 +8,12 @@ export function todayKST(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
 
+/** "YYYY-MM-DD" 문자열에 일수를 더하고(음수면 뺀 뒤) 다시 "YYYY-MM-DD"로 돌려준다. */
+export function addDaysKST(dateStr: string, delta: number): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + delta)).toISOString().slice(0, 10);
+}
+
 /**
  * timestamptz(예: org_events.start_at)를 한국 시간(Asia/Seoul) 기준 YYYY-MM-DD로 변환한다.
  * 브라우저 로컬 타임존에 의존하면 방문자 기기 설정에 따라 날짜가 하루 밀릴 수 있어(위
