@@ -4037,3 +4037,37 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function change_post_author(uuid, uuid) to authenticated;
+
+-- 102. author_name의 "닉네임(실명)" 표시가 닉네임=실명일 때 중복되던 문제 수정
+-- ------------------------------------------------------------
+-- 88번에서 admin/superadmin 글쓴이는 "닉네임(실명)"으로 보여주게 했는데, 두 값이
+-- 우연히 똑같이 저장돼 있으면(예: 닉네임도 "이준서", 실명도 "이준서") "이준서(이준서)"
+-- 처럼 중복 표시된다. adminDisplayName(클라이언트, 관리자 화면 전용)은 이미 같은
+-- 이유로 고쳤고(nickname !== name일 때만 괄호 표기), 여기 서버 함수(공지/게시판 글·댓글의
+-- 공개 작성자 표시)도 동일한 조건을 추가한다.
+create or replace function author_name(posts) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+
+create or replace function author_name(board_posts) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+
+create or replace function author_name(board_comments) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
