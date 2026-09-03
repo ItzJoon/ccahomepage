@@ -2,6 +2,7 @@
 
 import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import AuthorCell from "./AuthorCell";
+import AccountPicker, { accountDisplayName } from "./AccountPicker";
 import { adminDisplayName } from "@/lib/displayName";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -21,7 +22,7 @@ import {
   type PostWithAttachments,
   type TeacherInfo,
 } from "./PostManager.helpers";
-import type { DirectoryMember, EmailAudience, EmailNotificationBatch, PostType } from "@/lib/types";
+import type { DirectoryMember, EmailAudience, EmailNotificationBatch, PostType, Profile } from "@/lib/types";
 
 export default function PostManager({
   type,
@@ -54,6 +55,9 @@ export default function PostManager({
   // 카테고리 입력을 자유 텍스트 대신 이 목록에서 고르게 한다 — 지금까지 실제로 쓰인
   // 값들을 그대로 보여준다(별도 카테고리 관리 테이블은 없음).
   const existingCategories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort();
+  // "작성자 변경"(admin 전용)에서 고를 대상 목록. AccountPicker가 이미 다른 관리 화면에서
+  // 이 패턴(useRealtimeList<Profile> 전체 조회 + 검색)으로 쓰이고 있어 그대로 재사용한다.
+  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
 
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -67,11 +71,14 @@ export default function PostManager({
   const [myId, setMyId] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [canChangeAuthor, setCanChangeAuthor] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
   const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [changingAuthor, setChangingAuthor] = useState(false);
+  const [authorChangeMsg, setAuthorChangeMsg] = useState<string | null>(null);
   // 카테고리를 자유 입력 대신 기존에 쓰인 값 중에서 고르게 한다("+ 새 카테고리 추가"를
   // 고르면 그때만 직접 입력할 수 있는 입력창으로 바뀐다). teacher는 교과/학급 선택으로
   // 이미 분류가 정해지므로 이 필드 자체를 보여주지 않는다.
@@ -115,6 +122,11 @@ export default function PostManager({
       // 있다(RLS의 posts_delete_admin이 is_designer()를 허용) — 이 컴포넌트는 useMyRole
       // 대신 자체적으로 role을 조회하므로 여기서 판정 로직에 designer를 함께 넣는다.
       setIAmAdmin(!!me && ["admin", "superadmin", "designer"].includes(me.role));
+      // 작성자 변경은 그보다 더 좁게 진짜 admin 이상(설계상 조회 전용인 designer, 삭제
+      // 이력이 남는 것과 성격이 다름)만 — change_post_author RPC의 is_admin() 체크와
+      // 정확히 같은 기준으로 버튼을 보여준다(못 쓰는 사람에게 항상 실패하는 버튼을 보여주지
+      // 않기 위함).
+      setCanChangeAuthor(!!me && ["admin", "superadmin"].includes(me.role));
       const teacher = me?.role === "teacher";
       setIsTeacher(teacher);
       if (teacher && me?.email) {
@@ -167,6 +179,8 @@ export default function PostManager({
     setExistingFiles([]);
     setResultMessage(null);
     setSaveError(null);
+    setChangingAuthor(false);
+    setAuthorChangeMsg(null);
     {
       const chosenType = draft && (draft.title || draft.content) ? draft.type : next.type;
       resetEmailOptions(chosenType === "subject_notice" || chosenType === "homeroom_notice");
@@ -245,6 +259,8 @@ export default function PostManager({
     setExistingFiles(item.attachments ?? []);
     setResultMessage(null);
     setSaveError(null);
+    setChangingAuthor(false);
+    setAuthorChangeMsg(null);
     // 기존 글을 다시 열 때는(재발송 여부를 매번 새로 판단해야 하므로) 항상 꺼둔 상태로
     // 시작한다 — 자동 체크는 "처음 쓰는" 교과/학급 공지에만 적용한다.
     resetEmailOptions(false);
@@ -399,6 +415,22 @@ export default function PostManager({
     reload();
   };
 
+  // 작성자 변경은 admin 이상만 가능하다 — posts_update_editor RLS는 editor도 author_id를
+  // 포함해 아무 컬럼이나 바꿀 수 있어서, 일반 update로는 이 제한을 걸 수 없다. 전용 RPC
+  // (change_post_author)가 is_admin()을 서버에서 다시 확인하고 audit_logs에 남긴다.
+  const changeAuthor = async (p: Profile) => {
+    if (!editing || editing === "new") return;
+    setAuthorChangeMsg(null);
+    const { error } = await supabase.rpc("change_post_author", { p_post_id: editing, p_new_author_id: p.id });
+    if (error) {
+      setAuthorChangeMsg(`변경 실패: ${error.message}`);
+      return;
+    }
+    setChangingAuthor(false);
+    setAuthorChangeMsg(`작성자가 ${accountDisplayName(p)}(으)로 변경되었습니다.`);
+    reload();
+  };
+
   const remove = async (id: string) => {
     if (!confirm("삭제하시겠습니까?")) return;
     await supabase.from("posts").delete().eq("id", id);
@@ -486,6 +518,30 @@ export default function PostManager({
             지우고 새로 쓰기
           </button>
         </div>
+      )}
+
+      {canChangeAuthor && editing !== "new" && (
+        <>
+          <label className="text-xs font-bold text-muted mt-2">작성자</label>
+          {changingAuthor ? (
+            <AccountPicker
+              profiles={profiles}
+              linkedProfile={null}
+              onLink={changeAuthor}
+              onUnlink={() => setChangingAuthor(false)}
+            />
+          ) : (
+            <div className="flex items-center justify-between gap-2 border border-border rounded-lg px-2.5 py-2 text-sm">
+              <span className="truncate">
+                {adminDisplayName(rows.find((r) => r.id === editing)?.author, "알 수 없음")}
+              </span>
+              <button type="button" onClick={() => setChangingAuthor(true)} className="text-blue text-xs font-bold shrink-0">
+                변경
+              </button>
+            </div>
+          )}
+          {authorChangeMsg && <p className="text-xs text-teal m-0">{authorChangeMsg}</p>}
+        </>
       )}
 
       {type === "notice" && isTeacher && (

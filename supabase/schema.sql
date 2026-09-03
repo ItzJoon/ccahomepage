@@ -4005,3 +4005,35 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function check_in_attendance(uuid, boolean) to authenticated;
+
+-- 101. 공지/뉴스 글의 작성자를 관리자가 직접 변경
+-- ------------------------------------------------------------
+-- posts_update_editor 정책은 editor 이상이면 author_id를 포함해 아무 컬럼이나 바꿀 수
+-- 있어서, "작성자 변경은 admin 이상만" 요건을 일반 update로는 강제할 수 없다. 전용 RPC로
+-- is_admin()을 다시 확인하고, 바뀐 내역을 audit_logs에 남긴다.
+create or replace function change_post_author(p_post_id uuid, p_new_author_id uuid)
+returns void as $$
+declare
+  v_old_author_id uuid;
+begin
+  if not is_admin() then
+    raise exception '작성자 변경은 admin 이상만 할 수 있습니다';
+  end if;
+
+  select author_id into v_old_author_id from posts where id = p_post_id;
+  if not found then
+    raise exception '글을 찾을 수 없습니다';
+  end if;
+
+  update posts set author_id = p_new_author_id where id = p_post_id;
+
+  insert into audit_logs (user_id, action, target_table, target_id, before_data, after_data)
+  values (
+    auth.uid(), 'change_post_author', 'posts', p_post_id::text,
+    jsonb_build_object('author_id', v_old_author_id),
+    jsonb_build_object('author_id', p_new_author_id)
+  );
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function change_post_author(uuid, uuid) to authenticated;
