@@ -5,6 +5,18 @@ import type { EmailAudience, Post, PostType } from "@/lib/types";
 const FROM_NAME = "학생자치회";
 const MAX_ATTEMPTS = 3; // 최초 시도 + 재시도 2회
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
+// 수신자마다 sendMail을 따로 호출하지 않고 BCC로 한 번에 묶어 보낸다 — 청크 크기는
+// Gmail 공식 한도(메일 1통당 수신자 to+cc+bcc 합쳐 최대 500명)보다 충분히 낮게 잡았다.
+// 개인 Gmail 계정(Workspace 아님)은 대량 BCC를 스팸으로 더 쉽게 분류하고, 청크 하나가
+// 늘어날수록 그 안에 한 명이라도 문제(존재하지 않는 주소 등)가 있을 때 전체 청크의
+// 성공/실패 판정에 영향을 주는 범위도 커지므로, 500의 여유 있는 부분집합인 90으로 뒀다.
+const BCC_CHUNK_SIZE = 90;
+
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
+  return out;
+}
 
 // 대상 계산에는 글의 type/target_subject/target_homeroom만 있으면 되고 제목·본문은 필요
 // 없다 — 그 덕분에 아직 저장 전인 글(작성 화면에서 "게시하기" 누르기 전 미리보기)도 같은
@@ -132,24 +144,38 @@ async function resolveAudience(
   return { emails: [], description: "대상 없음" };
 }
 
-async function sendOne(to: string, post: Post): Promise<{ ok: true } | { ok: false; error: string }> {
+/**
+ * 수신자 한 묶음(최대 BCC_CHUNK_SIZE명)을 BCC로 한 번에 보낸다. SMTP 응답의
+ * accepted/rejected 목록을 그대로 돌려줘서, 호출부가 수신자별 성공/실패 로그를
+ * 기존과 동일한 세밀함으로 남길 수 있게 한다(반복 발송에서 BCC로 바꿔도 "누구에게
+ * 실패했는지"는 그대로 알 수 있어야 하므로).
+ */
+async function sendChunk(
+  bccList: string[],
+  post: Post
+): Promise<{ accepted: string[]; rejected: string[]; error?: string }> {
   const transporter = getTransporter();
   let lastError: unknown;
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
-      await transporter.sendMail({
+      const info = await transporter.sendMail({
         from: `"${FROM_NAME}" <${process.env.GMAIL_USER}>`,
-        to,
+        to: process.env.GMAIL_USER,
+        bcc: bccList.join(","),
         subject: `[학생자치회] ${post.title}`,
         html: buildHtml(post),
       });
-      return { ok: true };
+      return {
+        accepted: (info.accepted ?? []).map(String),
+        rejected: (info.rejected ?? []).map(String),
+      };
     } catch (err) {
       lastError = err;
       if (attempt < MAX_ATTEMPTS) await new Promise((r) => setTimeout(r, 1000 * attempt));
     }
   }
-  return { ok: false, error: lastError instanceof Error ? lastError.message : String(lastError) };
+  // 청크 전체가 실패한 경우(연결 오류 등) — 이 묶음의 모든 수신자를 실패로 기록한다.
+  return { accepted: [], rejected: bccList, error: lastError instanceof Error ? lastError.message : String(lastError) };
 }
 
 async function todaySentCount(supabase: ReturnType<typeof createServiceRoleClient>) {
@@ -220,14 +246,26 @@ export async function sendNoticeToAudience(postId: string, audience: EmailAudien
     error_message: string | null;
   }[] = [];
 
-  for (const email of emails) {
-    const result = await sendOne(email, post as Post);
-    if (result.ok) {
-      sent++;
-      logs.push({ post_id: post.id, post_title: post.title, batch_id: batch.id, recipient_email: email, status: "sent", error_message: null });
-    } else {
-      failed++;
-      logs.push({ post_id: post.id, post_title: post.title, batch_id: batch.id, recipient_email: email, status: "failed", error_message: result.error });
+  // 대상자가 0명이면 굳이 SMTP 요청을 만들지 않고 건너뛴다 — 빈 bcc로 발송을 시도해도
+  // 의미가 없고, 배치 이력은 이미 recipient_count:0으로 남아있으니 그대로 0/0으로 마감한다.
+  if (emails.length > 0) {
+    for (const group of chunk(emails, BCC_CHUNK_SIZE)) {
+      const result = await sendChunk(group, post as Post);
+      if (result.error) {
+        failed += group.length;
+        for (const email of group) {
+          logs.push({ post_id: post.id, post_title: post.title, batch_id: batch.id, recipient_email: email, status: "failed", error_message: result.error });
+        }
+        continue;
+      }
+      for (const email of result.accepted) {
+        sent++;
+        logs.push({ post_id: post.id, post_title: post.title, batch_id: batch.id, recipient_email: email, status: "sent", error_message: null });
+      }
+      for (const email of result.rejected) {
+        failed++;
+        logs.push({ post_id: post.id, post_title: post.title, batch_id: batch.id, recipient_email: email, status: "failed", error_message: "수신 거부됨(주소 오류 등)" });
+      }
     }
   }
 
