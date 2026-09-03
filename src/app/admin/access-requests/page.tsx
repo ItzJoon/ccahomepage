@@ -8,7 +8,7 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
 import { fakeEmail } from "@/lib/fakeData";
 import { adminDisplayName } from "@/lib/displayName";
-import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
+import type { DirectoryMember, LoginAccessRequest, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
   pending: { text: "대기 중", className: "text-gold" },
@@ -18,9 +18,21 @@ const STATUS_LABEL: Record<string, { text: string; className: string }> = {
 
 export default function AdminAccessRequestsPage() {
   const supabase = createClient();
-  const { rows, reload } = useRealtimeList<LoginAccessRequest>("login_access_requests", {
+  const { rows: allRows, reload } = useRealtimeList<LoginAccessRequest>("login_access_requests", {
     orderBy: { column: "attempted_at", ascending: false },
   });
+  const { rows: directory } = useRealtimeList<DirectoryMember>("directory_members", {
+    select: "email, member_type",
+  });
+  // 학교 명단(학생/교사)에 있는 이메일은 여기서 제외한다 — 명단에 등록되기 전에 시도했던
+  // 기록이 login_access_requests에 그대로 남아있어서, 지금은 정상적인 학교 계정인데도 이
+  // "외부 계정 관리" 화면에 계속 뜨는 문제가 있었다(정지·차단 계정 화면과 표시 범위가
+  // 겹침). 이 화면은 명단에 아예 없거나 member_type='other'인 외부 계정만 다룬다.
+  const schoolEmails = useMemo(
+    () => new Set(directory.filter((d) => d.member_type !== "other").map((d) => d.email)),
+    [directory]
+  );
+  const rows = useMemo(() => allRows.filter((r) => !schoolEmails.has(r.email)), [allRows, schoolEmails]);
   const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
   const { myId, isAdmin, role, loading: roleLoading } = useMyRole();

@@ -38,7 +38,9 @@ export default function AdminModerationPage() {
     .filter((p) => p.suspended_until && new Date(p.suspended_until).getTime() > Date.now())
     .sort((a, b) => new Date(a.suspended_until!).getTime() - new Date(b.suspended_until!).getTime());
 
-  const banned = directory.filter((d) => !d.is_allowed);
+  // 학교 명단(학생/교사)만 대상으로 한다 — directory_members에는 "외부 계정 관리"에서
+  // 별도로 다루는 외부 계정(member_type='other')도 섞여 있어서, 그쪽은 제외한다.
+  const banned = directory.filter((d) => !d.is_allowed && d.member_type !== "other");
   const profileByEmail = Object.fromEntries(profiles.map((p) => [p.email, p]));
 
   const unsuspend = async (id: string) => {
