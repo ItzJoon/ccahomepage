@@ -1,17 +1,45 @@
 "use client";
 
 import { useEffect } from "react";
-import { useEditor, EditorContent } from "@tiptap/react";
+import { useEditor, EditorContent, type Editor } from "@tiptap/react";
+import { Extension } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { TextStyle, FontSize } from "@tiptap/extension-text-style";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 
-const FONT_SIZES = [
-  { label: "기본", value: "" },
-  { label: "작게", value: "13px" },
-  { label: "크게", value: "20px" },
-  { label: "아주 크게", value: "26px" },
-];
+const DEFAULT_FONT_SIZE = 14;
+const FONT_SIZE_STEP = 2;
+const FONT_SIZE_MIN = 10;
+const FONT_SIZE_MAX = 32;
+
+function currentFontSizePx(editor: Editor): number {
+  const raw = editor.getAttributes("textStyle").fontSize as string | undefined;
+  const parsed = raw ? parseInt(raw, 10) : NaN;
+  return Number.isFinite(parsed) ? parsed : DEFAULT_FONT_SIZE;
+}
+
+function stepFontSize(editor: Editor, delta: number) {
+  const next = Math.min(FONT_SIZE_MAX, Math.max(FONT_SIZE_MIN, currentFontSizePx(editor) + delta));
+  editor.chain().focus().setFontSize(`${next}px`).run();
+}
+
+// 구글 문서와 같은 단축키(Mac: Cmd+Shift+ , / . , Windows/Linux: Ctrl+Shift+ , / .) 로
+// 글씨 크기를 한 단계씩 줄이고 늘린다 — "Mod"가 플랫폼에 맞게 Cmd/Ctrl로 자동 치환된다.
+const FontSizeShortcuts = Extension.create({
+  name: "fontSizeShortcuts",
+  addKeyboardShortcuts() {
+    return {
+      "Mod-Shift-.": () => {
+        stepFontSize(this.editor, FONT_SIZE_STEP);
+        return true;
+      },
+      "Mod-Shift-,": () => {
+        stepFontSize(this.editor, -FONT_SIZE_STEP);
+        return true;
+      },
+    };
+  },
+});
 
 /**
  * 공지사항 본문 전용 리치 텍스트 에디터. 굵게/기울임/글씨 크기만 지원한다 —
@@ -51,6 +79,7 @@ export default function RichTextEditor({
       }),
       TextStyle,
       FontSize,
+      FontSizeShortcuts,
     ],
     content: value,
     onUpdate: ({ editor }) => onChange(editor.getHTML()),
@@ -90,21 +119,25 @@ export default function RichTextEditor({
         >
           기울임
         </button>
-        <select
-          className="text-xs font-bold rounded-lg px-2 py-1 border border-border bg-white"
-          value={(editor.getAttributes("textStyle").fontSize as string | undefined) ?? ""}
-          onChange={(e) => {
-            const size = e.target.value;
-            if (size) editor.chain().focus().setFontSize(size).run();
-            else editor.chain().focus().unsetFontSize().run();
-          }}
-        >
-          {FONT_SIZES.map((s) => (
-            <option key={s.label} value={s.value}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        <div className="flex items-center gap-1 ml-1">
+          <button
+            type="button"
+            title="글씨 작게 (Cmd/Ctrl+Shift+,)"
+            onClick={() => stepFontSize(editor, -FONT_SIZE_STEP)}
+            className={btnClass(false)}
+          >
+            가-
+          </button>
+          <span className="text-xs text-muted w-9 text-center tabular-nums">{currentFontSizePx(editor)}px</span>
+          <button
+            type="button"
+            title="글씨 크게 (Cmd/Ctrl+Shift+.)"
+            onClick={() => stepFontSize(editor, FONT_SIZE_STEP)}
+            className={btnClass(false)}
+          >
+            가+
+          </button>
+        </div>
       </div>
       <EditorContent editor={editor} />
     </div>
