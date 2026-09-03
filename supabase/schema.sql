@@ -3860,3 +3860,74 @@ create policy "patch_note_reads_select_own" on patch_note_reads for select using
 
 drop policy if exists "patch_note_reads_insert_own" on patch_note_reads;
 create policy "patch_note_reads_insert_own" on patch_note_reads for insert with check (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- 99. 체크인/스트릭 프리즈 처리를 단일 원자적 RPC로 통합(중복 기록/streak 이중 증가 버그 수정)
+-- ------------------------------------------------------------
+-- 버그: useAttendance.checkIn()이 클라이언트에서 "프리즈 사용 시 어제 날짜 backfill
+-- insert(streak+1) → 오늘 날짜 insert(streak+2)" 두 단계로 나뉘어 있어서, 프리즈를
+-- 쓸 때마다 한 번의 접속에서 user_attendance에 행이 2개 생기고 streak가 한 번에 2씩
+-- 올라갔다(실데이터로 확인: 09-01 방문 후 09-02를 통째로 건너뛴 학생이 09-03에
+-- 접속하면 09-02(프리즈, streak+1)와 09-03(streak+2) 두 행이 0.3초 간격으로 동시에
+-- 생성됨). 원래 "스트릭 프리즈"의 취지는 하루를 놓쳐도 스트릭이 리셋되지 않고 그대로
+-- 이어지는 것이지, 놓친 날까지 추가로 카운트해주는 게 아니다.
+--
+-- 전체 로직을 단일 원자적 RPC로 합친다: 오늘 이미 기록이 있으면 아무것도 안 하고,
+-- 없으면 (필요 시 프리즈 소비 여부만 판단해) 오늘 날짜로 딱 한 행만 넣고 streak를
+-- 정확히 1만 올린다. 동시 요청에 대비해 insert는 기존 unique(user_id, visit_date)
+-- 제약에 기대는 on conflict do nothing으로 처리하고, 실제로 내가 넣은 행일 때만
+-- freeze_credits를 차감한다.
+create or replace function check_in_attendance(p_user_id uuid)
+returns json as $$
+declare
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_yesterday date := v_today - 1;
+  v_day_before date := v_today - 2;
+  v_last_date date;
+  v_last_streak int;
+  v_freeze_credits int;
+  v_use_freeze boolean;
+  v_next_streak int;
+  v_inserted_streak int;
+begin
+  if p_user_id is distinct from auth.uid() then
+    raise exception '본인만 체크인할 수 있습니다';
+  end if;
+
+  if exists (select 1 from user_attendance where user_id = p_user_id and visit_date = v_today) then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select visit_date, streak_count into v_last_date, v_last_streak
+    from user_attendance where user_id = p_user_id order by visit_date desc limit 1;
+
+  select freeze_credits into v_freeze_credits from profiles where id = p_user_id;
+
+  v_use_freeze := (v_last_date is distinct from v_yesterday)
+    and v_last_date = v_day_before
+    and coalesce(v_freeze_credits, 0) > 0;
+
+  v_next_streak := case
+    when v_last_date = v_yesterday then coalesce(v_last_streak, 0) + 1
+    when v_use_freeze then coalesce(v_last_streak, 0) + 1
+    else 1
+  end;
+
+  insert into user_attendance (user_id, visit_date, streak_count, is_freeze)
+  values (p_user_id, v_today, v_next_streak, v_use_freeze)
+  on conflict (user_id, visit_date) do nothing
+  returning streak_count into v_inserted_streak;
+
+  if not found then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  if v_use_freeze then
+    update profiles set freeze_credits = greatest(freeze_credits - 1, 0) where id = p_user_id;
+  end if;
+
+  return json_build_object('streak', v_inserted_streak, 'used_freeze', v_use_freeze);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function check_in_attendance(uuid) to authenticated;

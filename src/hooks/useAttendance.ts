@@ -4,12 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
 
-function addDays(base: string, n: number) {
-  const d = new Date(`${base}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
 export function useAttendance(userId: string | null) {
   const [streak, setStreak] = useState(0);
   const [history, setHistory] = useState<string[]>([]);
@@ -45,37 +39,28 @@ export function useAttendance(userId: string | null) {
     load();
   }, [load]);
 
-  /** 체크인 성공 시 갱신된 연속 접속일수를 반환합니다 (뱃지 마일스톤 판정용). */
+  /**
+   * 체크인 성공 시 갱신된 연속 접속일수를 반환합니다(뱃지 마일스톤 판정용). 실제
+   * 판단(오늘 이미 체크인했는지, 스트릭 프리즈를 쓸지, streak를 얼마나 올릴지)은
+   * 전부 check_in_attendance RPC(supabase/schema.sql 99번)가 단일 트랜잭션으로
+   * 처리한다 — 예전엔 여기서 "프리즈 소비"와 "오늘 체크인"을 각각 별도 insert로
+   * 나눠서 처리해서, 프리즈를 쓸 때마다 한 번의 접속에서 streak가 실수로 2씩
+   * 올라가는 버그가 있었다(프리즈는 스트릭이 리셋되지 않게만 해줘야지, 놓친 날까지
+   * 추가로 카운트해주면 안 된다). 여기서는 클라이언트 쪽 화면 상태만 그 결과에
+   * 맞춰 갱신한다.
+   */
   const checkIn = useCallback(async () => {
     if (!userId || checkedToday) return null;
-    const today = todayKST();
-    const yesterday = addDays(today, -1);
-    const dayBeforeYesterday = addDays(today, -2);
-
-    // 어제 기록이 없어도, 그저께까지는 이어져 있고 스트릭 프리즈가 남아있으면
-    // 어제 하루를 프리즈로 채워서 연속 기록을 유지합니다.
-    const useFreeze = history[0] !== yesterday && history[0] === dayBeforeYesterday && freezeCredits > 0;
-    const nextStreak = history[0] === yesterday ? streak + 1 : useFreeze ? streak + 2 : 1;
-
-    if (useFreeze) {
-      await supabase
-        .from("user_attendance")
-        .insert({ user_id: userId, visit_date: yesterday, streak_count: streak + 1, is_freeze: true });
-      await supabase.from("profiles").update({ freeze_credits: freezeCredits - 1 }).eq("id", userId);
-    }
-
-    const { error } = await supabase
-      .from("user_attendance")
-      .insert({ user_id: userId, visit_date: today, streak_count: nextStreak });
-    if (!error) {
-      setStreak(nextStreak);
-      setCheckedToday(true);
-      setHistory((h) => [today, ...(useFreeze ? [yesterday] : []), ...h]);
-      if (useFreeze) setFreezeCredits((c) => c - 1);
-      return nextStreak;
-    }
-    return null;
-  }, [userId, checkedToday, history, streak, freezeCredits, supabase]);
+    const { data, error } = await supabase.rpc("check_in_attendance", { p_user_id: userId });
+    if (error || !data) return null;
+    const result = data as { streak: number | null; used_freeze: boolean };
+    setCheckedToday(true);
+    if (result.streak == null) return null; // 동시 요청 등으로 이미 다른 곳에서 처리됨
+    setStreak(result.streak);
+    setHistory((h) => [todayKST(), ...h]);
+    if (result.used_freeze) setFreezeCredits((c) => Math.max(c - 1, 0));
+    return result.streak;
+  }, [userId, checkedToday, supabase]);
 
   return { streak, history, checkedToday, checkIn, freezeCredits, loading };
 }
