@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
 import { fakeEmail } from "@/lib/fakeData";
+import { adminDisplayName } from "@/lib/displayName";
 import type { LoginAccessRequest, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
@@ -67,6 +68,34 @@ export default function AdminAccessRequestsPage() {
     reload();
   };
 
+  // 차단된 계정을 다시 허용 상태로 되돌린다. directory_members.is_allowed를 true로 올리고
+  // login_access_requests도 approved로 되돌린 뒤, 누가/언제 해제했는지 audit_logs에 남긴다.
+  const unblock = async (req: LoginAccessRequest) => {
+    if (!myId) return;
+    setBusyId(req.id);
+    const { data: existing } = await supabase
+      .from("directory_members")
+      .select("id")
+      .eq("email", req.email)
+      .maybeSingle();
+    if (existing) {
+      await supabase.from("directory_members").update({ is_allowed: true }).eq("id", existing.id);
+    }
+    await supabase
+      .from("login_access_requests")
+      .update({ status: "approved", decided_by: myId, decided_at: new Date().toISOString() })
+      .eq("id", req.id);
+    await supabase.from("audit_logs").insert({
+      user_id: myId,
+      action: "unban",
+      target_table: "directory_members",
+      target_id: req.email,
+      after_data: { reason: "access-requests 화면에서 차단 해제" },
+    });
+    setBusyId(null);
+    reload();
+  };
+
   // 이미 허용한 계정을 다시 미승인 상태로 되돌린다. directory_members의 is_allowed를 false로
   // 내리고(영구 차단이 아니라 "다시 승인 대기" 상태), login_access_requests도 pending으로
   // 되돌려서 대기 목록에 다시 나타나게 한다.
@@ -96,6 +125,28 @@ export default function AdminAccessRequestsPage() {
 
   const pending = rows.filter((r) => r.status === "pending");
   const decided = rows.filter((r) => r.status !== "pending");
+
+  const [deciders, setDeciders] = useState<Record<string, { name: string | null; nickname: string | null; email: string | null }>>({});
+  const deciderIds = useMemo(
+    () => Array.from(new Set(decided.map((r) => r.decided_by).filter((id): id is string => !!id))),
+    [decided]
+  );
+  useEffect(() => {
+    const missing = deciderIds.filter((id) => !(id in deciders));
+    if (missing.length === 0) return;
+    supabase
+      .from("profiles")
+      .select("id, name, nickname, email")
+      .in("id", missing)
+      .then(({ data }) => {
+        if (!data) return;
+        setDeciders((prev) => {
+          const next = { ...prev };
+          data.forEach((p) => (next[p.id] = { name: p.name, nickname: p.nickname, email: p.email }));
+          return next;
+        });
+      });
+  }, [deciderIds, deciders, supabase]);
 
   return (
     <div>
@@ -184,6 +235,7 @@ export default function AdminAccessRequestsPage() {
             <th className={t.adminTableHeaderCell}>최근 시도</th>
             <th className={t.adminTableHeaderCell}>상태</th>
             <th className={t.adminTableHeaderCell}>처리 시각</th>
+            <th className={t.adminTableHeaderCell}>처리자</th>
             <th className={`${t.adminTableHeaderCell} w-28`} />
           </tr>
         </thead>
@@ -200,6 +252,9 @@ export default function AdminAccessRequestsPage() {
                 <td className={`${t.adminTableCell} text-muted`}>
                   {r.decided_at ? new Date(r.decided_at).toLocaleString("ko-KR") : "-"}
                 </td>
+                <td className={`${t.adminTableCell} text-muted`}>
+                  {r.decided_by ? adminDisplayName(deciders[r.decided_by]) : "-"}
+                </td>
                 <td className={t.adminTableCell}>
                   {r.status === "approved" && (
                     <button
@@ -210,13 +265,22 @@ export default function AdminAccessRequestsPage() {
                       다시 막기
                     </button>
                   )}
+                  {r.status === "blocked" && (
+                    <button
+                      onClick={() => unblock(r)}
+                      disabled={busyId === r.id}
+                      className="text-teal text-xs font-bold disabled:opacity-50"
+                    >
+                      차단 해제
+                    </button>
+                  )}
                 </td>
               </tr>
             );
           })}
           {decided.length === 0 && (
             <tr>
-              <td colSpan={5} className="text-muted text-center py-6 text-sm">
+              <td colSpan={6} className="text-muted text-center py-6 text-sm">
                 처리 이력이 없습니다.
               </td>
             </tr>
