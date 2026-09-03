@@ -4071,3 +4071,58 @@ create or replace function author_name(board_comments) returns text as $$
   end
   from profiles p where p.id = ($1).author_id;
 $$ language sql stable security definer;
+
+-- 103. "넌 누구야"(phantom_member) 뱃지 정원을 5명 -> 10명으로 확대 +
+--      부서 소속 구성원은 정원 계산에서 제외
+-- ------------------------------------------------------------
+-- 74번에서 정한 5명 한정을 10명으로 늘린다. 그리고 이미 부서(members 테이블에
+-- user_id로 연결된 임원/부서원)에 소속된 사람은 정원 계산에서 뺀다 — 실제로 지금
+-- 보유자 5명 중 4명(박다엘/이준호/정택규/이수진)이 부서 소속이라, 이 사람들까지
+-- "일반 학생이 우연히 찾은" 정원에 포함시키면 사실상 정원이 거의 다 부서원으로
+-- 채워지는 셈이 된다. 뱃지 자체는 그대로 유지하되(회수하지 않음) 앞으로의 정원
+-- 계산에서만 제외한다. developer(superadmin) 제외 로직은 그대로 둔다.
+create or replace function claim_easter_egg_badge()
+returns json as $$
+declare
+  v_badge_id uuid;
+  v_is_developer boolean;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id into v_badge_id from badges where code = 'phantom_member' and is_active = true;
+  if v_badge_id is null then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+
+  select (role = 'superadmin') into v_is_developer from profiles where id = auth.uid();
+  if v_is_developer then
+    return json_build_object('badge_id', v_badge_id, 'developer', true);
+  end if;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+      and not exists (select 1 from members m where m.user_id = p.id);
+  if v_holder_count >= 10 then
+    update badges set is_active = false where id = v_badge_id;
+    raise exception '이미 정원(10명)이 마감된 뱃지입니다';
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), v_badge_id)
+  on conflict (user_id, badge_id) do nothing;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+      and not exists (select 1 from members m where m.user_id = p.id);
+  if v_holder_count >= 10 then
+    update badges set is_active = false where id = v_badge_id;
+  end if;
+
+  return json_build_object('badge_id', v_badge_id);
+end;
+$$ language plpgsql security definer set search_path = public;
