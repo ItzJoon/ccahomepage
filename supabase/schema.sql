@@ -3836,3 +3836,27 @@ alter table patch_note_items add column if not exists categories text[] not null
 alter table patch_note_items drop constraint if exists patch_note_items_categories_check;
 alter table patch_note_items add constraint patch_note_items_categories_check
   check (categories <@ array['feature','improvement','fix'] and array_length(categories, 1) > 0);
+
+-- ------------------------------------------------------------
+-- 98. 패치노트 자동 팝업 + 사용자별 확인 기록
+-- ------------------------------------------------------------
+-- 게시 시 "notifications 테이블에 선택적으로 팝업 발송"(notify_popup 체크박스) 방식을
+-- 없애고, 대신 게시된 순간 로그인한 모든 사용자에게 무조건 화면 가운데 모달로 전체
+-- 내용을 보여주는 방식으로 바꾼다. 사용자별로 "이 패치노트를 봤는지"를 기록해 한 번
+-- 닫으면 다시 안 뜨게 한다.
+alter table patch_notes drop column if exists notify_popup;
+
+create table if not exists patch_note_reads (
+  user_id uuid not null references profiles(id) on delete cascade,
+  patch_note_id uuid not null references patch_notes(id) on delete cascade,
+  read_at timestamptz not null default now(),
+  primary key (user_id, patch_note_id)
+);
+
+alter table patch_note_reads enable row level security;
+
+drop policy if exists "patch_note_reads_select_own" on patch_note_reads;
+create policy "patch_note_reads_select_own" on patch_note_reads for select using (auth.uid() = user_id);
+
+drop policy if exists "patch_note_reads_insert_own" on patch_note_reads;
+create policy "patch_note_reads_insert_own" on patch_note_reads for insert with check (auth.uid() = user_id);

@@ -23,6 +23,7 @@ const NAV = [
   { href: "/rules", label: "생활규정", flagKey: "rules" },
   { href: "/qna", label: "Q&A", flagKey: "qna" },
   { href: "/board", label: "게시판", flagKey: "board" },
+  { href: "/patch-notes", label: "패치노트" },
 ];
 
 export default function Header({

@@ -6,7 +6,6 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
-import { DURATION_PRESETS, computeDisplayUntil, type DurationMode } from "@/lib/notificationDuration";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 interface Row extends PatchNote {
@@ -28,16 +27,15 @@ const emptyForm = () => ({
   version: "",
   title: "",
   published_at: new Date().toISOString().slice(0, 10),
-  notify_popup: false,
   items: [{ categories: ["feature"] as PatchNoteCategory[], content: "" }] as ItemForm[],
 });
 
 /**
  * developer(superadmin) 전용 패치노트 관리 화면. "게시하기"를 누르는 순간 is_published가
  * true로 바뀌고, DB 트리거(notify_patch_note_published, supabase/schema.sql 96번)가
- * 전체 사용자에게 헤더 알림(🔔)을 자동으로 만들어준다 — 여기서 따로 처리할 필요 없음.
- * "팝업으로도 띄우기"를 체크한 경우에만 기존 알림 발송 시스템(notifications 테이블)에
- * 직접 발송해서 팝업/배너로도 노출한다.
+ * 전체 사용자에게 헤더 알림(🔔)을 자동으로 만들어주고, PatchNotePopup 컴포넌트가
+ * 로그인한 모든 사용자 화면에 자동으로 전체 내용 모달을 띄운다 — 여기서 따로 처리할
+ * 필요 없음(체크박스로 선택하는 게 아니라 게시하면 항상 뜬다).
  */
 export default function AdminPatchNotesPage() {
   const supabase = createClient();
@@ -50,15 +48,11 @@ export default function AdminPatchNotesPage() {
 
   const [openId, setOpenId] = useState<string | null | "new">(null);
   const [form, setForm] = useState(emptyForm());
-  const [durationMode, setDurationMode] = useState<DurationMode>("indefinite");
-  const [customUntil, setCustomUntil] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const startNew = () => {
     setForm(emptyForm());
-    setDurationMode("indefinite");
-    setCustomUntil("");
     setOpenId("new");
   };
 
@@ -67,13 +61,10 @@ export default function AdminPatchNotesPage() {
       version: n.version ?? "",
       title: n.title,
       published_at: n.published_at.slice(0, 10),
-      notify_popup: n.notify_popup,
       items: n.patch_note_items
         .sort((a, b) => a.order_index - b.order_index)
         .map((i) => ({ categories: i.categories, content: i.content })),
     });
-    setDurationMode("indefinite");
-    setCustomUntil("");
     setOpenId(n.id);
   };
 
@@ -103,25 +94,12 @@ export default function AdminPatchNotesPage() {
     );
   };
 
-  const sendPopupIfNeeded = async (note: { id: string; version: string | null; title: string }) => {
-    if (!form.notify_popup) return;
-    await supabase.from("notifications").insert({
-      title: "새로운 업데이트가 있어요",
-      message: `${note.version ? `${note.version} ` : ""}${note.title}`,
-      level: "info",
-      display_type: "popup",
-      display_until: computeDisplayUntil(durationMode, customUntil),
-      sent_by: myId,
-    });
-  };
-
   const validate = () => {
     if (!form.title.trim()) return "제목을 입력해 주세요.";
     if (!form.published_at) return "게시일을 입력해 주세요.";
     if (form.items.every((i) => !i.content.trim())) return "최소 한 개의 항목 내용을 입력해 주세요.";
     if (form.items.some((i) => i.content.trim() && i.categories.length === 0))
       return "내용이 있는 항목은 카테고리를 최소 하나 선택해 주세요.";
-    if (durationMode === "custom" && !customUntil) return "팝업 종료 시각을 지정해 주세요.";
     return null;
   };
 
@@ -138,14 +116,14 @@ export default function AdminPatchNotesPage() {
     if (openId === "new") {
       const { data, error } = await supabase
         .from("patch_notes")
-        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, notify_popup: form.notify_popup, is_published: false })
+        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, is_published: false })
         .select("id")
         .single();
       if (!error && data) await saveItems(data.id);
     } else if (openId) {
       await supabase
         .from("patch_notes")
-        .update({ version: form.version || null, title: form.title, published_at: form.published_at, notify_popup: form.notify_popup })
+        .update({ version: form.version || null, title: form.title, published_at: form.published_at })
         .eq("id", openId);
       await saveItems(openId);
     }
@@ -154,9 +132,9 @@ export default function AdminPatchNotesPage() {
     reload();
   };
 
-  // 게시하기 — is_published를 true로 바꾼다. 헤더 알림(전체 사용자)은 DB 트리거가
-  // 자동으로 만들고, "팝업으로도 띄우기"를 체크했을 때만 여기서 notifications에 직접
-  // 발송한다(팝업 노출 기간은 이 화면에서 고른 값을 그대로 쓴다).
+  // 게시하기 — is_published를 true로 바꾼다. 헤더 알림(전체 사용자)과 화면 가운데
+  // 자동 팝업 둘 다 DB 트리거/PatchNotePopup 컴포넌트가 알아서 처리하므로 여기서는
+  // is_published만 바꾸면 된다.
   const publish = async () => {
     const v = validate();
     if (v) {
@@ -169,21 +147,19 @@ export default function AdminPatchNotesPage() {
     if (openId === "new") {
       const { data, error } = await supabase
         .from("patch_notes")
-        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, notify_popup: form.notify_popup, is_published: true })
+        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, is_published: true })
         .select("id")
         .single();
       if (!error && data) {
         noteId = data.id;
         await saveItems(data.id);
-        await sendPopupIfNeeded({ id: data.id, version: form.version || null, title: form.title });
       }
     } else if (noteId) {
       await supabase
         .from("patch_notes")
-        .update({ version: form.version || null, title: form.title, published_at: form.published_at, notify_popup: form.notify_popup, is_published: true })
+        .update({ version: form.version || null, title: form.title, published_at: form.published_at, is_published: true })
         .eq("id", noteId);
       await saveItems(noteId);
-      await sendPopupIfNeeded({ id: noteId, version: form.version || null, title: form.title });
     }
     setSaving(false);
     setOpenId(null);
@@ -287,30 +263,10 @@ export default function AdminPatchNotesPage() {
           </div>
           <button type="button" onClick={addItem} className="text-blue text-xs font-bold w-fit mt-1">+ 항목 추가</button>
 
-          <label className="flex items-center gap-2 text-sm font-bold mt-3">
-            <input
-              type="checkbox"
-              checked={form.notify_popup}
-              onChange={(e) => setForm({ ...form, notify_popup: e.target.checked })}
-            />
-            이 패치노트를 팝업으로도 띄우기
-          </label>
-          {form.notify_popup && (
-            <>
-              <label className="text-xs font-bold text-muted mt-1">팝업 노출 기간</label>
-              <select className={t.adminInput} value={durationMode} onChange={(e) => setDurationMode(e.target.value as DurationMode)}>
-                {DURATION_PRESETS.map((p) => (
-                  <option key={p.value} value={p.value}>{p.label}</option>
-                ))}
-              </select>
-              {durationMode === "custom" && (
-                <input type="datetime-local" className={t.adminInput} value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} />
-              )}
-            </>
-          )}
-          <p className="text-muted text-xs mt-1">
-            체크하지 않으면 헤더 알림(🔔)에만 조용히 쌓이고, 체크하면 게시하는 순간
-            팝업으로도 전체 발송됩니다.
+          <p className="text-muted text-xs mt-3">
+            게시하면 헤더 알림(🔔)이 쌓이는 것과 동시에, 로그인한 모든 사용자 화면에
+            자동으로 전체 내용이 담긴 팝업이 뜹니다(한 번 닫으면 그 사용자에게는
+            다시 뜨지 않습니다).
           </p>
 
           {error && <div className="text-red text-xs">{error}</div>}

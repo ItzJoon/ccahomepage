@@ -436,6 +436,11 @@ export interface PatchNote {
   published_at: string;
   author_id: string | null;
   is_published: boolean;
-  notify_popup: boolean;
   created_at: string;
+}
+
+export interface PatchNoteRead {
+  user_id: string;
+  patch_note_id: string;
+  read_at: string;
 }

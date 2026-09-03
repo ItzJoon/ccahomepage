@@ -4,6 +4,7 @@ import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
 import BadgeGrantWatcher from "@/components/BadgeGrantWatcher";
 import NotificationPopup from "@/components/NotificationPopup";
+import PatchNotePopup from "@/components/PatchNotePopup";
 import PrevPathProvider from "@/components/PrevPathProvider";
 import StudentPreviewBanner from "@/components/StudentPreviewBanner";
 import SuspensionWatcher from "@/components/SuspensionWatcher";
@@ -41,6 +42,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { data: settings },
     { data: siteTheme },
     { data: featureFlags },
+    { data: latestPatchNote },
   ] = await Promise.all([
     (async () => {
       const profile = await getCurrentProfile();
@@ -82,7 +84,29 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .maybeSingle(),
       supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
       supabase.from("feature_flags").select("key, enabled"),
+      supabase
+        .from("patch_notes")
+        .select("*, patch_note_items(*)")
+        .eq("is_published", true)
+        .order("published_at", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
     ]);
+
+  // 로그인한 사용자가 최신 패치노트를 아직 안 읽었으면 화면 가운데 팝업으로 보여준다
+  // (PatchNotePopup). latestPatchNote 자체는 profile과 무관하게 이미 병렬로 가져왔으니,
+  // 여기서는 "이 사람이 이미 읽었는지"만 한 번 더 확인한다 — 비로그인이거나 게시된
+  // 패치노트가 아예 없으면 이 조회 자체를 건너뛴다.
+  let unreadPatchNote: (typeof latestPatchNote) | null = null;
+  if (profile && latestPatchNote) {
+    const { data: readRow } = await supabase
+      .from("patch_note_reads")
+      .select("patch_note_id")
+      .eq("user_id", profile.id)
+      .eq("patch_note_id", latestPatchNote.id)
+      .maybeSingle();
+    if (!readRow) unreadPatchNote = latestPatchNote;
+  }
 
   const disabledFeatures = new Set((featureFlags ?? []).filter((f) => !f.enabled).map((f) => f.key));
 
@@ -133,6 +157,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           />
           {showNotifications && <NotificationBanner initial={latestBanner as any} />}
           {showNotifications && <NotificationPopup initial={latestPopup as any} />}
+          {showNotifications && <PatchNotePopup initial={unreadPatchNote as any} userId={profile?.id ?? null} />}
           {showNotifications && (
             <BadgeGrantWatcher userId={profile?.id ?? null} soundEnabled={profile?.badge_sound_enabled ?? true} />
           )}
