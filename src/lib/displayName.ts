@@ -13,6 +13,6 @@ export function adminDisplayName(
 ): string {
   if (!person) return fallback;
   const { nickname, name, email } = person;
-  if (nickname && name) return `${nickname}(${name})`;
+  if (nickname && name && nickname !== name) return `${nickname}(${name})`;
   return nickname || name || email || fallback;
 }

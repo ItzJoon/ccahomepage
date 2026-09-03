@@ -94,13 +94,33 @@ export default function PatchNotePopup({
     if (fresh) setNote(fresh as NoteWithItems);
   };
 
+  // "확인"/닫기를 눌렀는데도 새로고침하면 같은 패치노트가 다시 뜨는 문제가 있었다 —
+  // 원인은 이 함수가 insert 결과(error)를 전혀 확인하지 않아서, RLS 세션이 아직 완전히
+  // 반영되지 않았거나 일시적인 네트워크 오류로 insert가 실패해도 화면에서는 조용히
+  // 닫히고 아무 신호도 남지 않았던 것이다(patch_note_reads에 기록이 안 남으니 다음
+  // 접속/새로고침 때 서버가 "안 읽음"으로 다시 판단해 팝업을 또 띄운다). 이제 결과를
+  // 확인해서 실패하면 짧게 한 번 재시도하고, upsert + onConflict로 이미 기록돼 있는
+  // 경우(중복 클릭 등)도 에러 없이 안전하게 처리한다.
+  const markRead = async (uid: string, patchNoteId: string) => {
+    const supabase = createClient();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const { error } = await supabase
+        .from("patch_note_reads")
+        .upsert({ user_id: uid, patch_note_id: patchNoteId }, { onConflict: "user_id,patch_note_id", ignoreDuplicates: true });
+      if (!error) return;
+      console.error("patch_note_reads 기록 실패, 재시도", attempt, error);
+      await new Promise((r) => setTimeout(r, 500));
+    }
+  };
+
   const close = async () => {
     if (!note || !userId) {
       setNote(null);
       return;
     }
+    const patchNoteId = note.id;
     setNote(null);
-    await createClient().from("patch_note_reads").insert({ user_id: userId, patch_note_id: note.id });
+    await markRead(userId, patchNoteId);
   };
 
   if (!note || !userId) return null;
