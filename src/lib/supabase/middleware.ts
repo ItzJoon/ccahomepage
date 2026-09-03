@@ -207,9 +207,14 @@ export async function updateSession(request: NextRequest) {
       );
       if (activeWindow) {
         const url = request.nextUrl.clone();
+        // 제한이 풀리면 원래 있던 페이지로 돌려보낼 수 있도록 원래 경로를 함께 넘긴다
+        // (/restricted가 자체적으로 시간을 다시 확인해서 풀리는 즉시 여기로 되돌아간다).
+        const from = pathname;
         url.pathname = "/restricted";
+        url.search = "";
         url.searchParams.set("start", activeWindow.start);
         url.searchParams.set("end", activeWindow.end);
+        url.searchParams.set("from", from);
         if (activeWindow.label) url.searchParams.set("label", activeWindow.label);
         return NextResponse.redirect(url);
       }
