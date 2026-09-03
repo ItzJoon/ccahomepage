@@ -1,5 +1,7 @@
+import juice from "juice";
 import { createServiceRoleClient } from "@/lib/supabase/serviceRole";
 import { getTransporter } from "./transporter";
+import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
 import type { EmailAudience, Post, PostType } from "@/lib/types";
 
 const FROM_NAME = "학생자치회";
@@ -27,30 +29,32 @@ interface AudienceCriteria {
   target_homeroom: number | null;
 }
 
-function snippet(text: string, len = 200) {
-  const clean = text.replace(/\s+/g, " ").trim();
-  return clean.length > len ? `${clean.slice(0, len)}…` : clean;
-}
-
 function postUrl(post: Pick<Post, "id" | "type">) {
   const base = process.env.NEXT_PUBLIC_SITE_URL || "";
   const path = post.type === "news" ? `/news/${post.id}` : `/notices/${post.id}`;
   return `${base}${path}`;
 }
 
+// 공지사항 본문은 리치 텍스트 에디터가 저장한 HTML을 그대로(요약 없이) 보여준다 —
+// noticeContentToSafeHtml이 예전 순수 텍스트 글도 같은 방식으로 안전하게 변환해준다.
+// juice로 이 함수가 만든 인라인 스타일까지 한 번 더 정리해서, Gmail/Outlook처럼
+// <style> 블록을 무시하거나 다르게 해석하는 이메일 클라이언트에서도 서식이 깨지지
+// 않게 한다(지금은 전부 인라인 style이라 juice가 할 일은 적지만, 안전망으로 둔다).
 function buildHtml(post: Post) {
   const url = postUrl(post);
   const kindLabel = post.type === "news" ? "새 뉴스" : "새 공지사항";
-  return `
-    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto;">
+  const bodyHtml = noticeContentToSafeHtml(post.content);
+  const html = `
+    <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color:#374151; line-height:1.6;">
       <p style="color:#6B7280; font-size:13px; margin-bottom:4px;">${kindLabel}</p>
       <h2 style="margin:0 0 12px;">${post.title}</h2>
-      <p style="color:#374151; line-height:1.6;">${snippet(post.content)}</p>
+      <div>${bodyHtml}</div>
       <a href="${url}" style="display:inline-block; margin-top:16px; background:#16233F; color:#fff; text-decoration:none; padding:10px 18px; border-radius:8px; font-weight:bold;">
         자세히 보기
       </a>
     </div>
   `;
+  return juice(html);
 }
 
 /**

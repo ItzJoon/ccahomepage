@@ -3,6 +3,8 @@
 import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import AuthorCell from "./AuthorCell";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
+import RichTextEditor from "./RichTextEditor";
+import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
 import { adminDisplayName } from "@/lib/displayName";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -242,7 +244,11 @@ export default function PostManager({
     const next = {
       title: item.title,
       category: item.category,
-      content: item.content,
+      // 리치 에디터 도입 전에 쓰인 순수 텍스트 공지는 그대로 넣으면(HTML로 취급되어)
+      // 줄바꿈이 다 뭉개져 보인다 — 편집 화면을 열 때도 렌더링 때와 같은 변환을
+      // 한 번 거쳐서, 옛 글도 에디터에서 줄바꿈이 그대로 보이게 한다. 저장하면 그때부터
+      // 진짜 HTML로 바뀐다(한 번 열어서 저장하면 그 글은 마이그레이션된 것).
+      content: type === "notice" ? noticeContentToSafeHtml(item.content) : item.content,
       is_pinned: item.is_pinned,
       status: item.status,
       publish_at: item.publish_at,
@@ -641,12 +647,17 @@ export default function PostManager({
         </>
       )}
       <label className="text-xs font-bold text-muted mt-2">내용</label>
-      <textarea
-        rows={6}
-        className={t.adminInput}
-        value={form.content}
-        onChange={(e) => setForm({ ...form, content: e.target.value })}
-      />
+      {type === "notice" ? (
+        // 공지사항만 우선 리치 텍스트로 전환한다(뉴스/게시판/QnA는 이번 작업 범위 밖).
+        <RichTextEditor value={form.content} onChange={(html) => setForm({ ...form, content: html })} />
+      ) : (
+        <textarea
+          rows={6}
+          className={t.adminInput}
+          value={form.content}
+          onChange={(e) => setForm({ ...form, content: e.target.value })}
+        />
+      )}
       {hasSchedulePin && (
         <>
           <label className="flex items-center gap-2 text-sm mt-2">

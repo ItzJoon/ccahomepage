@@ -6,14 +6,18 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
 import type { BoardPost, EventItem, Post, Question } from "@/lib/types";
+import { stripHtmlToText } from "@/lib/stripHtml";
 
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
 
+// 공지사항은 리치 텍스트(HTML)로 저장되므로 요약에 태그가 그대로 섞여 나오지 않게
+// 걷어낸다 — 게시판/QnA/일정 등 순수 텍스트에는 태그가 없어 그대로 통과한다(무해).
 function snippet(text: string, len = 80) {
-  return text.length > len ? `${text.slice(0, len)}…` : text;
+  const plain = stripHtmlToText(text);
+  return plain.length > len ? `${plain.slice(0, len)}…` : plain;
 }
 
 // 학생자치회 소개/생활규정/부서 활동은 각자 페이지 안에서만 검색되므로(사용자 요청)
