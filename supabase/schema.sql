@@ -4372,3 +4372,70 @@ create policy "judiciary_records_update" on judiciary_records for update
 drop policy if exists "judiciary_records_delete" on judiciary_records;
 create policy "judiciary_records_delete" on judiciary_records for delete
   using (auth.uid() = author_id or is_admin() or is_designer());
+
+-- 107. 신규 가입 시 profiles.name을 학교 명단(directory_members)에서 가져오도록 수정
+-- ------------------------------------------------------------
+-- handle_new_user()가 그동안 auth.users.raw_user_meta_data의 full_name만 봤는데,
+-- 이 사이트는 매직링크/OTP 로그인이라 그 메타데이터가 애초에 채워지지 않는다 —
+-- 그래서 신규 가입 계정은 항상 profiles.name이 null이었다(/admin/users에 이름 대신
+-- "-"로 뜨는 원인). 대부분 계정은 예전에 한 번 directory_members 기준으로 수동
+-- 백필된 상태라 이 문제가 안 보였을 뿐, 그 이후 새로 가입한 계정(예: 2022cca418,
+-- 2023cca112)은 계속 이름이 비어 있었다. directory_members.display_name(학교 명단의
+-- 실명)을 우선으로 쓰고, 명단에 없으면 기존처럼 메타데이터를 쓰도록 고친다.
+create or replace function handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, name, profile_image)
+  values (
+    new.id,
+    new.email,
+    coalesce(
+      (select display_name from directory_members where email = new.email),
+      new.raw_user_meta_data->>'full_name'
+    ),
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- 이미 이 문제로 이름이 비어있는 실제 학생 계정을 소급 보정한다(외부 계정
+-- liz7942@gmail.com은 명단에 실명이 없어 원래도 채울 값이 없으므로 대상에서 제외).
+update profiles p
+set name = dm.display_name
+from directory_members dm
+where dm.email = p.email
+  and p.name is null
+  and dm.member_type in ('student', 'teacher');
+
+-- 108. handle_new_user()의 search_path 누락으로 신규 가입이 전부 깨졌던 문제 수정
+-- ------------------------------------------------------------
+-- 위 107번에서 handle_new_user()에 directory_members 조회를 추가했는데, 이 함수는
+-- auth.users insert 트리거로 supabase_auth_admin 역할이 실행한다. 이 역할의
+-- search_path는 "auth"뿐이라(public이 없음) directory_members를 스키마 없이 참조하면
+-- "relation does not exist"로 실패하고, 그 결과 실제/무작위 이메일 구분 없이 모든
+-- 신규 가입이 "Database error saving new user"로 막혔다(라이브에서 재현 확인).
+-- 테이블을 public.directory_members로 명시하고, SECURITY DEFINER 함수의 일반적인
+-- 모범 사례대로 search_path를 함수에 고정해 같은 부류의 문제를 원천 차단한다.
+create or replace function handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+begin
+  insert into public.profiles (id, email, name, profile_image)
+  values (
+    new.id,
+    new.email,
+    coalesce(
+      (select display_name from public.directory_members where email = new.email),
+      new.raw_user_meta_data->>'full_name'
+    ),
+    new.raw_user_meta_data->>'avatar_url'
+  )
+  on conflict (id) do nothing;
+  return new;
+end;
+$$;
