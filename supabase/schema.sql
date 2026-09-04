@@ -4239,3 +4239,136 @@ begin
   return json_build_object('badge_id', v_badge_id);
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- 106. 사법위원회 전용 안건함/일정/활동기록 신설 (임원회와 완전히 별개 데이터)
+-- ------------------------------------------------------------
+-- "부서 활동"(임원회 전용, proposals/org_events/org_records)을 복사해서 사법위원회
+-- 전용 화면을 만든다. 사법위원회는 여러 부서를 모아 보여주는 임원회와 달리 단일
+-- 조직이라 org_id 없이 독립 테이블(judiciary_*)로 둔다 — 두 화면은 테이블도 RLS도
+-- 완전히 분리되어 있어 서로 아무것도 공유하지 않는다. 열람 자체도 임원회 안건함(전체
+-- 공개)과 달리 is_judiciary(사법위원회 소속) 또는 superadmin/designer만 가능하다(사법
+-- 관련 내용은 공개하지 않는다).
+create table if not exists judiciary_proposals (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  summary text not null,
+  author_id uuid references profiles(id) on delete set null,
+  status text not null default 'review' check (status in ('review','approved','rejected','completed')),
+  is_hidden boolean not null default false,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists judiciary_proposal_votes (
+  id uuid primary key default uuid_generate_v4(),
+  proposal_id uuid not null references judiciary_proposals(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  vote text not null check (vote in ('yes','no')),
+  created_at timestamptz not null default now(),
+  unique (proposal_id, user_id)
+);
+
+create table if not exists judiciary_events (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  description text,
+  location text,
+  category text not null default 'meeting' check (category in ('meeting','event','deadline','general')),
+  start_at timestamptz not null,
+  end_at timestamptz not null,
+  created_by uuid references profiles(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists judiciary_records (
+  id uuid primary key default uuid_generate_v4(),
+  category text not null check (category in ('notice','activity','minutes')),
+  title text not null,
+  content text not null,
+  author_id uuid references profiles(id) on delete set null,
+  is_hidden boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+alter table judiciary_proposals enable row level security;
+alter table judiciary_proposal_votes enable row level security;
+alter table judiciary_events enable row level security;
+alter table judiciary_records enable row level security;
+
+-- is_org_activities_manager()(=is_council 또는 superadmin)와 대응하는 사법위원회 버전.
+create or replace function is_judiciary_manager()
+returns boolean
+language sql
+security definer
+stable
+as $$
+  select exists (
+    select 1 from profiles
+    where id = auth.uid()
+      and (role = 'superadmin' or is_judiciary = true)
+  );
+$$;
+
+-- 안건함: 열람/제안/투표 모두 사법위원회 소속(또는 superadmin)만 가능 — 임원회 안건함과
+-- 달리 전체 공개하지 않는다. designer는 조회 전용으로 열람만 가능.
+drop policy if exists "judiciary_proposals_select" on judiciary_proposals;
+create policy "judiciary_proposals_select" on judiciary_proposals for select
+  using (is_judiciary_manager() or is_designer());
+drop policy if exists "judiciary_proposals_insert" on judiciary_proposals;
+create policy "judiciary_proposals_insert" on judiciary_proposals for insert
+  with check (is_judiciary_manager() and auth.uid() = author_id and not is_student_restricted_now());
+drop policy if exists "judiciary_proposals_update" on judiciary_proposals;
+create policy "judiciary_proposals_update" on judiciary_proposals for update
+  using (is_judiciary_manager() or is_designer());
+drop policy if exists "judiciary_proposals_delete" on judiciary_proposals;
+create policy "judiciary_proposals_delete" on judiciary_proposals for delete
+  using (auth.uid() = author_id or is_admin() or is_designer());
+
+-- 안건 상태(검토중/승인/반려/완료) 변경은 admin 이상만 — 임원회 안건함과 동일한 정책.
+create or replace function enforce_judiciary_proposal_status_admin_only()
+returns trigger as $$
+begin
+  if new.status is distinct from old.status and not (is_admin() or is_designer()) then
+    raise exception '안건 상태 변경은 admin 이상만 할 수 있습니다';
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_judiciary_proposal_status_admin_only on judiciary_proposals;
+create trigger trg_judiciary_proposal_status_admin_only
+  before update on judiciary_proposals
+  for each row execute function enforce_judiciary_proposal_status_admin_only();
+
+drop policy if exists "judiciary_proposal_votes_select" on judiciary_proposal_votes;
+create policy "judiciary_proposal_votes_select" on judiciary_proposal_votes for select
+  using (is_judiciary_manager() or is_designer());
+drop policy if exists "judiciary_proposal_votes_insert" on judiciary_proposal_votes;
+create policy "judiciary_proposal_votes_insert" on judiciary_proposal_votes for insert
+  with check (is_judiciary_manager() and auth.uid() = user_id and not is_student_restricted_now());
+drop policy if exists "judiciary_proposal_votes_update" on judiciary_proposal_votes;
+create policy "judiciary_proposal_votes_update" on judiciary_proposal_votes for update
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "judiciary_proposal_votes_delete" on judiciary_proposal_votes;
+create policy "judiciary_proposal_votes_delete" on judiciary_proposal_votes for delete
+  using (auth.uid() = user_id);
+
+drop policy if exists "judiciary_events_select" on judiciary_events;
+create policy "judiciary_events_select" on judiciary_events for select
+  using (is_judiciary_manager() or is_designer());
+drop policy if exists "judiciary_events_write" on judiciary_events;
+create policy "judiciary_events_write" on judiciary_events for all
+  using (is_judiciary_manager()) with check (is_judiciary_manager());
+
+drop policy if exists "judiciary_records_select" on judiciary_records;
+create policy "judiciary_records_select" on judiciary_records for select
+  using (is_judiciary_manager() or is_designer());
+drop policy if exists "judiciary_records_insert" on judiciary_records;
+create policy "judiciary_records_insert" on judiciary_records for insert
+  with check (is_judiciary_manager());
+drop policy if exists "judiciary_records_update" on judiciary_records;
+create policy "judiciary_records_update" on judiciary_records for update
+  using (is_judiciary_manager()) with check (is_judiciary_manager());
+drop policy if exists "judiciary_records_delete" on judiciary_records;
+create policy "judiciary_records_delete" on judiciary_records for delete
+  using (auth.uid() = author_id or is_admin() or is_designer());

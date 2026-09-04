@@ -2,24 +2,33 @@
 
 import { useMemo, useState } from "react";
 import { todayKST, toKSTDateString } from "@/lib/date";
-import type { OrgEvent } from "@/lib/types";
+
+// org_events(임원회)뿐 아니라 judiciary_events(사법위원회, 완전히 별개 테이블)에도 이
+// 그리드를 재사용한다 — 실제로 쓰는 필드(id/title/start_at/category)만 구조적으로
+// 요구하고, 두 테이블 중 어느 쪽 타입이 와도 맞도록 특정 테이블 타입에 묶지 않는다.
+interface CalendarEventLike {
+  id: string;
+  title: string;
+  start_at: string;
+  category: string;
+}
 
 /**
- * 부서 일정(org_events)용 월간 캘린더 그리드. 학사일정(`/calendar`)의 월간 뷰와 같은
- * 구조를 그대로 따라서(달력 UX를 사이트 전체에서 통일), 관리자 화면(OrgEventsManager)과
- * 학생/임원회 화면(EventsTab, ExecutiveCalendarTab) 세 군데에서 공용으로 쓴다.
+ * 부서/사법위원회 일정용 월간 캘린더 그리드. 학사일정(`/calendar`)의 월간 뷰와 같은
+ * 구조를 그대로 따라서(달력 UX를 사이트 전체에서 통일), 관리자 화면(OrgEventsManager/
+ * JudiciaryEventsManager) 등에서 공용으로 쓴다.
  *
- * org_events.start_at은 events.start_at(date 타입)과 달리 timestamptz라서, 방문자의
- * 브라우저 타임존에 기대지 않고 한국 시간(KST) 기준으로 날짜 칸에 묶는다(toKSTDateString).
+ * start_at은 events.start_at(date 타입)과 달리 timestamptz라서, 방문자의 브라우저
+ * 타임존에 기대지 않고 한국 시간(KST) 기준으로 날짜 칸에 묶는다(toKSTDateString).
  */
-export default function OrgEventsCalendarGrid<T extends OrgEvent>({
+export default function OrgEventsCalendarGrid<T extends CalendarEventLike>({
   events,
   categoryLabel,
   renderExtra,
   onEventClick,
 }: {
   events: T[];
-  categoryLabel: Record<OrgEvent["category"], string>;
+  categoryLabel: Record<T["category"], string>;
   /** 이벤트 칸에 배지 등 추가 정보를 덧붙이고 싶을 때(예: 임원회 캘린더의 부서명 배지). */
   renderExtra?: (event: T) => React.ReactNode;
   /** 관리자 화면에서 캘린더 칸을 눌러 바로 수정 폼을 열고 싶을 때. */

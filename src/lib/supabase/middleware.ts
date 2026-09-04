@@ -66,6 +66,7 @@ export async function updateSession(request: NextRequest) {
   // 어차피 이 값들이 필요 없으므로 조회 자체를 건너뛴다.
   let role: string | null = null;
   let isCouncil = false;
+  let isJudiciary = false;
   let siteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
   let directoryAllowed = false;
   let suspendedUntil: string | null = null;
@@ -74,7 +75,7 @@ export async function updateSession(request: NextRequest) {
   if (!isSpecialPageExempt) {
     if (user) {
       const [roleResult, settingsResult, directoryResult] = await Promise.all([
-        supabase.from("profiles").select("role, is_council, suspended_until, suspended_reason").eq("id", user.id).single(),
+        supabase.from("profiles").select("role, is_council, is_judiciary, suspended_until, suspended_reason").eq("id", user.id).single(),
         supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
         user.email
           ? supabase.from("directory_members").select("is_allowed, ban_reason").eq("email", user.email).maybeSingle()
@@ -82,6 +83,7 @@ export async function updateSession(request: NextRequest) {
       ]);
       role = roleResult.data?.role ?? null;
       isCouncil = !!roleResult.data?.is_council;
+      isJudiciary = !!roleResult.data?.is_judiciary;
       siteSettings = settingsResult.data;
       directoryAllowed = !!(directoryResult.data as { is_allowed: boolean } | null)?.is_allowed;
       banReason = (directoryResult.data as { ban_reason: string | null } | null)?.ban_reason ?? null;
@@ -247,6 +249,11 @@ export async function updateSession(request: NextRequest) {
     // (Header의 "관리자" 버튼도 이런 계정은 /admin이 아니라 바로 여기로 연결한다).
     // 그 외 모든 /admin 하위 경로는 여전히 editor 이상만 접근할 수 있다.
     const isOrgActivitiesPath = pathname === "/admin/org-activities" || pathname.startsWith("/admin/org-activities/");
+    // 사법위원회 전용 화면(안건함/일정/활동기록) — 임원회와 완전히 별개의 데이터(judiciary_*
+    // 테이블)를 쓰고, is_judiciary(사법위원회 소속)만 들어올 수 있다. 임원회 화면과 동일한
+    // 패턴(role과 무관, superadmin/designer 예외)을 그대로 적용한다.
+    const isJudiciaryActivitiesPath =
+      pathname === "/admin/judiciary-activities" || pathname.startsWith("/admin/judiciary-activities/");
     // teacher는 예전엔 "교과 공지"/"학급 공지" 작성을 위해 /admin/notices만 예외적으로
     // 접근할 수 있었는데, teacher 권한을 student와 동일하게 차단하면서 이 예외도 없앴다
     // (posts RLS에서도 teacher 전용 작성/수정 정책을 제거함).
@@ -255,6 +262,13 @@ export async function updateSession(request: NextRequest) {
       // 취급한다 — 실제 쓰기 차단은 UI가 아니라 RLS(각 테이블의 write 정책에 designer가
       // 없음)가 담당하므로 안전하다.
       if (!isCouncil && r !== "superadmin" && r !== "designer") {
+        const url = request.nextUrl.clone();
+        url.pathname = "/";
+        url.searchParams.set("denied", "1");
+        return NextResponse.redirect(url);
+      }
+    } else if (isJudiciaryActivitiesPath) {
+      if (!isJudiciary && r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();
         url.pathname = "/";
         url.searchParams.set("denied", "1");

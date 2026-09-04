@@ -258,6 +258,50 @@ export interface OrgRecord {
   created_at: string;
 }
 
+// 사법위원회 전용 안건함/일정/활동기록 — 임원회 쪽(Proposal/OrgEvent/OrgRecord)과 완전히
+// 별개의 테이블(judiciary_*)을 쓴다. 사법위원회는 여러 부서를 아우르는 임원회와 달리
+// 하나의 단일 조직이라 org_id가 없다.
+export interface JudiciaryProposal {
+  id: string;
+  title: string;
+  summary: string;
+  author_id: string | null;
+  status: "review" | "approved" | "rejected" | "completed";
+  is_hidden: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface JudiciaryProposalVote {
+  id: string;
+  proposal_id: string;
+  user_id: string;
+  vote: "yes" | "no";
+  created_at: string;
+}
+
+export interface JudiciaryEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  location: string | null;
+  category: "meeting" | "event" | "deadline" | "general";
+  start_at: string;
+  end_at: string;
+  created_by: string | null;
+  created_at: string;
+}
+
+export interface JudiciaryRecord {
+  id: string;
+  category: "notice" | "activity" | "minutes";
+  title: string;
+  content: string;
+  author_id: string | null;
+  is_hidden: boolean;
+  created_at: string;
+}
+
 export interface SiteSettings {
   id: string;
   maintenance_mode: boolean;

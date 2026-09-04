@@ -11,15 +11,16 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // middleware.ts 에서 1차로 걸러지지만, 서버 컴포넌트 레벨에서도 한 번 더 확인합니다.
-  // middleware는 /admin/org-activities/*만 role과 무관하게 is_council 플래그로도
-  // 통과시키므로(부서 활동 관리는 임원이면 role에 상관없이 다룰 수 있어야 함), 여기서도
-  // 세부 경로를 다시 따지지 않고 "관리 화면에 발 들일 자격이 있는지"만 role 또는
-  // is_council 둘 중 하나로 본다. teacher는 is_council이 아닌 한 관리 화면 접근 권한이
-  // 없다(student와 동일하게 차단됨). designer(조회 전용)는 모든 관리 화면에 들어올 수
-  // 있어야 하므로 포함한다 — 실제 데이터 변경은 RLS가 막는다.
+  // middleware는 /admin/org-activities/*는 is_council, /admin/judiciary-activities/*는
+  // is_judiciary 플래그로도 role과 무관하게 통과시키므로(부서/사법위원회 활동 관리는
+  // 그 소속이면 role에 상관없이 다룰 수 있어야 함), 여기서도 세부 경로를 다시 따지지
+  // 않고 "관리 화면에 발 들일 자격이 있는지"만 role 또는 is_council/is_judiciary로 본다.
+  // teacher는 둘 다 아닌 한 관리 화면 접근 권한이 없다(student와 동일하게 차단됨).
+  // designer(조회 전용)는 모든 관리 화면에 들어올 수 있어야 하므로 포함한다 — 실제
+  // 데이터 변경은 RLS가 막는다.
   const profile = await getCurrentProfile();
   const hasAdminRole = !!profile && ["sub_editor", "editor", "admin", "superadmin", "designer"].includes(profile.role);
-  if (!profile || !(hasAdminRole || profile.is_council)) {
+  if (!profile || !(hasAdminRole || profile.is_council || profile.is_judiciary)) {
     redirect("/login?next=/admin");
   }
 
@@ -37,7 +38,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <div className="min-h-screen bg-[#F2F4F8]">
         <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
         <div className="max-w-[1280px] mx-auto flex">
-          <AdminNav role={profile.role} isCouncil={profile.is_council} initialThemeKey={initialThemeKey} />
+          <AdminNav
+            role={profile.role}
+            isCouncil={profile.is_council}
+            isJudiciary={profile.is_judiciary}
+            initialThemeKey={initialThemeKey}
+          />
           <main className="flex-1 p-6 min-w-0">
             <AdminDateBadgeSync userId={profile.id} />
             <DesignerModeGate isDesigner={profile.role === "designer"}>{children}</DesignerModeGate>

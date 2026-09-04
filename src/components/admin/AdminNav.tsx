@@ -56,6 +56,15 @@ const ORG_ACTIVITIES_NAV = [
   { href: "/admin/org-activities/records", label: "활동기록" },
 ];
 
+// 임원회 전용과 완전히 별개의 데이터(judiciary_* 테이블)를 쓰는 사법위원회 전용 메뉴.
+// is_judiciary(사법위원회 소속) 플래그가 있는 사람에게만 보인다 — 임원회 쪽과 데이터도
+// 화면도 서로 공유하지 않는다.
+const JUDICIARY_ACTIVITIES_NAV = [
+  { href: "/admin/judiciary-activities/proposals", label: "안건함" },
+  { href: "/admin/judiciary-activities/events", label: "일정" },
+  { href: "/admin/judiciary-activities/records", label: "활동기록" },
+];
+
 function NavLink({
   href,
   label,
@@ -88,10 +97,12 @@ function NavLink({
 export default function AdminNav({
   role,
   isCouncil,
+  isJudiciary,
   initialThemeKey,
 }: {
   role?: string;
   isCouncil?: boolean;
+  isJudiciary?: boolean;
   initialThemeKey?: HomeThemeKey;
 }) {
   const pathname = usePathname();
@@ -144,6 +155,14 @@ export default function AdminNav({
         <>
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
           {ORG_ACTIVITIES_NAV.map((n) => (
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+          ))}
+        </>
+      )}
+      {(isJudiciary || role === "superadmin" || isDesigner) && (
+        <>
+          <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">사법위원회 전용</div>
+          {JUDICIARY_ACTIVITIES_NAV.map((n) => (
             <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
           ))}
         </>
