@@ -56,8 +56,8 @@ export default function AdminBadgesPage() {
   const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   // 뱃지별 보유 인원 수 — user_badges 전체를 실시간 구독해두고 badge_id별로 세기만
   // 하면 되므로(학교 규모상 전체 행 수가 적어 부담 없음), 지급/회수가 있을 때마다
-  // 자동으로 숫자가 갱신된다. admin/superadmin(관리자 계정)은 실제 구성원 통계가
-  // 아니므로 이 숫자에서 뺀다.
+  // 자동으로 숫자가 갱신된다. developer 계정(superadmin)은 실제 구성원 통계가 아니므로
+  // 이 숫자에서 뺀다(admin은 학생회 임원 등 실제 구성원인 경우가 많아 그대로 포함).
   const { rows: userBadgeRows } = useRealtimeList<{ id: string; badge_id: string; user: { role: string } | null }>(
     "user_badges",
     { select: "id, badge_id, user:profiles(role)" }
@@ -65,7 +65,7 @@ export default function AdminBadgesPage() {
   const badgeCounts = useMemo(() => {
     const m = new Map<string, number>();
     userBadgeRows.forEach((ub) => {
-      if (ub.user?.role === "admin" || ub.user?.role === "superadmin") return;
+      if (ub.user?.role === "superadmin") return;
       m.set(ub.badge_id, (m.get(ub.badge_id) ?? 0) + 1);
     });
     return m;
@@ -89,7 +89,7 @@ export default function AdminBadgesPage() {
       .order("earned_at", { ascending: false });
     setHolders(
       (data ?? [])
-        .filter((d: any) => d.user && d.user.role !== "admin" && d.user.role !== "superadmin")
+        .filter((d: any) => d.user && d.user.role !== "superadmin")
         .map((d: any) => ({ ...d.user, earned_at: d.earned_at }))
     );
     setHoldersLoading(false);

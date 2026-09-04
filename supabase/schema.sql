@@ -4179,3 +4179,63 @@ begin
   return json_build_object('badge_id', v_badge_id);
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- 105. 104번 조정: admin은 다시 포함, developer(superadmin)만 통계에서 제외
+-- ------------------------------------------------------------
+-- 104번에서 admin까지 회원 통계에서 뺐는데, admin은 학생회 임원 등 실제 구성원이
+-- 승격된 역할인 경우가 많아 다시 포함시킨다. 실제 개발자 계정인 superadmin만 계속
+-- 제외한다.
+create or replace view user_latest_attendance
+with (security_invoker = true) as
+select distinct on (ua.user_id)
+  ua.user_id, ua.streak_count, ua.visit_date, p.name, p.email
+from user_attendance ua
+join profiles p on p.id = ua.user_id
+where p.role <> 'superadmin'
+order by ua.user_id, ua.visit_date desc;
+
+create or replace function claim_easter_egg_badge()
+returns json as $$
+declare
+  v_badge_id uuid;
+  v_is_developer boolean;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id into v_badge_id from badges where code = 'phantom_member' and is_active = true;
+  if v_badge_id is null then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+
+  select (role = 'superadmin') into v_is_developer from profiles where id = auth.uid();
+  if v_is_developer then
+    return json_build_object('badge_id', v_badge_id, 'developer', true);
+  end if;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+      and not exists (select 1 from members m where m.user_id = p.id);
+  if v_holder_count >= 10 then
+    update badges set is_active = false where id = v_badge_id;
+    raise exception '이미 정원(10명)이 마감된 뱃지입니다';
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), v_badge_id)
+  on conflict (user_id, badge_id) do nothing;
+
+  select count(*) into v_holder_count
+    from user_badges ub join profiles p on p.id = ub.user_id
+    where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+      and not exists (select 1 from members m where m.user_id = p.id);
+  if v_holder_count >= 10 then
+    update badges set is_active = false where id = v_badge_id;
+  end if;
+
+  return json_build_object('badge_id', v_badge_id);
+end;
+$$ language plpgsql security definer set search_path = public;

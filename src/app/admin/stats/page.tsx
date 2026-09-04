@@ -20,29 +20,27 @@ export default async function AdminStatsPage() {
     { data: todayAttendance },
     { data: topStreaks },
   ] = await Promise.all([
-    // "전체 가입자 수" — admin/superadmin(관리자 계정)은 실제 구성원 통계가 아니라
-    // 이 화면 아래쪽 "관리 권한 계정 수"에서 별도로 보여주므로 여기서는 뺀다.
-    supabase.from("profiles").select("*", { count: "exact", head: true }).not("role", "in", "(admin,superadmin)"),
+    // "전체 가입자 수" — developer 계정(superadmin)은 실제 구성원이 아니므로 뺀다.
+    // admin은(학생회 임원 등 실제 구성원이 승격된 경우가 많아서) 그대로 포함한다.
+    supabase.from("profiles").select("*", { count: "exact", head: true }).neq("role", "superadmin"),
     // "전체 학생 수": role=student이거나, suwoncca.org 학교 도메인 계정이면 role이 teacher가 아닌 한
-    // (editor로 승격된 학생회 임원 계정도) 학생으로 집계하되, admin/superadmin(관리자 계정)은
-    // 실제로 학생이어도 이 통계에서는 제외한다.
+    // (editor/admin으로 승격된 학생회 임원 계정도) 전부 학생으로 집계한다.
     supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
-      .or("role.eq.student,and(email.ilike.*@suwoncca.org,role.neq.teacher)")
-      .not("role", "in", "(admin,superadmin)"),
+      .or("role.eq.student,and(email.ilike.*@suwoncca.org,role.neq.teacher)"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).in("role", ["editor", "admin", "superadmin"]),
-    // "하루 방문 횟수" — admin/superadmin 계정의 체크인은 실제 구성원 활동 통계가 아니므로
-    // !inner 조인으로 profiles.role을 함께 걸러서 뺀다.
+    // "하루 방문 횟수" — developer 계정(superadmin)의 체크인만 빼고, admin은 실제 구성원
+    // 활동일 수 있으니 그대로 둔다.
     supabase
       .from("user_attendance")
       .select("visit_date, profiles!inner(role)")
       .eq("visit_date", today)
-      .not("profiles.role", "in", "(admin,superadmin)"),
+      .neq("profiles.role", "superadmin"),
     // 같은 학생이 접속한 날짜 수만큼 여러 행으로 중복 표시되지 않도록, 사용자별 최신
     // 접속(=현재 연속 기록)만 남긴 뷰(user_latest_attendance)에서 가져온다 — 이 뷰 자체가
-    // admin/superadmin을 제외하도록 정의돼 있다.
+    // developer 계정(superadmin)을 제외하도록 정의돼 있다.
     supabase
       .from("user_latest_attendance")
       .select("user_id, streak_count, name, email")
