@@ -1,4 +1,4 @@
-import { createServerClient } from "@supabase/ssr";
+import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
 /**
@@ -15,18 +15,20 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
+        getAll() {
+          return request.cookies.getAll();
         },
-        set(name: string, value: string, options: any) {
-          request.cookies.set({ name, value, ...options });
+        // 예전엔 get/set/remove(쿠키 하나씩 콜백)를 썼는데, set이 호출될 때마다
+        // response = NextResponse.next(...)로 아예 새로 만들어서, Supabase 세션이
+        // 여러 쿠키로 나뉘어 저장될 때(예: 토큰이 길어서 sb-...-auth-token.0/.1로
+        // 쪼개지는 경우) 먼저 쓴 쿠키가 나중 쿠키 때문에 사라지는 버그가 있었다 —
+        // "로그인해도 세션이 금방 끊긴다"는 문의의 원인. setAll은 이번에 갱신된
+        // 쿠키를 한 번에 전부 받으므로, response를 한 번만 새로 만들고 전부 그
+        // 위에 적용해서 이 문제가 생길 수 없다.
+        setAll(cookiesToSet: { name: string; value: string; options: CookieOptions }[]) {
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
           response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: any) {
-          request.cookies.set({ name, value: "", ...options });
-          response = NextResponse.next({ request: { headers: request.headers } });
-          response.cookies.set({ name, value: "", ...options });
+          cookiesToSet.forEach(({ name, value, options }) => response.cookies.set(name, value, options));
         },
       },
       // Next.js가 fetch를 기본으로 캐싱해서, site_settings.maintenance_mode 같은 값이
@@ -40,6 +42,19 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // 이 요청 중 세션이 갱신됐다면(setAll이 호출됐다면) response에 그 쿠키가 담겨 있다.
+  // 아래에서 조건에 따라 리다이렉트로 응답을 새로 만들 때마다 이 쿠키를 그대로
+  // 옮겨 담아야, 갱신된 세션이 리다이렉트 과정에서 통째로 사라지지 않는다 — 그동안
+  // 모든 리다이렉트 분기가 이 작업 없이 NextResponse.redirect(url)만 반환하고 있어서,
+  // 토큰 갱신과 리다이렉트가 같은 요청에서 겹치면(예: 잠금 모드, 사이트 제한, 정지
+  // 안내 등으로 튕겨나가는 순간) 갱신된 세션이 브라우저에 전달되지 못하고 그대로
+  // 버려졌다.
+  const redirect = (url: URL) => {
+    const res = NextResponse.redirect(url);
+    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
+    return res;
+  };
 
   const pathname = request.nextUrl.pathname;
   // 두 안내 페이지(/maintenance, /access-restricted)는 서로의 체크에서도 예외여야 한다.
@@ -117,7 +132,7 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = "/access-restricted";
         if (banReason) url.searchParams.set("reason", banReason);
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     }
   }
@@ -132,7 +147,7 @@ export async function updateSession(request: NextRequest) {
     if (restrictionEnabled) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
   }
 
@@ -148,7 +163,7 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/suspended";
       url.searchParams.set("until", suspendedUntil);
       if (suspendedReason) url.searchParams.set("reason", suspendedReason);
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
   }
 
@@ -178,7 +193,7 @@ export async function updateSession(request: NextRequest) {
     if (flag?.enabled === false) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
   }
 
@@ -218,7 +233,7 @@ export async function updateSession(request: NextRequest) {
         url.searchParams.set("end", activeWindow.end);
         url.searchParams.set("from", from);
         if (activeWindow.label) url.searchParams.set("label", activeWindow.label);
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     }
   }
@@ -231,7 +246,7 @@ export async function updateSession(request: NextRequest) {
     if (!bypassesMaintenance) {
       const url = request.nextUrl.clone();
       url.pathname = "/maintenance";
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
   }
 
@@ -240,7 +255,7 @@ export async function updateSession(request: NextRequest) {
       const url = request.nextUrl.clone();
       url.pathname = "/login";
       url.searchParams.set("next", pathname);
-      return NextResponse.redirect(url);
+      return redirect(url);
     }
     const r = role;
     // "부서 활동 관리"(안건함/부서 일정/활동기록) 화면은 role과 무관하게 임원회
@@ -265,14 +280,14 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = "/";
         url.searchParams.set("denied", "1");
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     } else if (isJudiciaryActivitiesPath) {
       if (!isJudiciary && r !== "superadmin" && r !== "designer") {
         const url = request.nextUrl.clone();
         url.pathname = "/";
         url.searchParams.set("denied", "1");
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     } else {
       // superadmin은 최상위 권한이라 is_council 같은 부가 조건에 상관없이 조건부로 숨겨진
@@ -284,7 +299,7 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = "/";
         url.searchParams.set("denied", "1");
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     }
     // 아래 관리 메뉴들은 admin이 아니라 superadmin만 볼 수 있어야 한다(사이트 전체에
@@ -307,7 +322,7 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = "/admin";
         url.searchParams.set("denied", "1");
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     }
     // 신고 내역/급식표 관리/뱃지 관리/정지·차단 계정은 teacher는 물론 editor(부장급)도
@@ -319,7 +334,7 @@ export async function updateSession(request: NextRequest) {
         const url = request.nextUrl.clone();
         url.pathname = "/admin";
         url.searchParams.set("denied", "1");
-        return NextResponse.redirect(url);
+        return redirect(url);
       }
     }
   }
