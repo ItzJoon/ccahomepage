@@ -20,18 +20,29 @@ export default async function AdminStatsPage() {
     { data: todayAttendance },
     { data: topStreaks },
   ] = await Promise.all([
-    supabase.from("profiles").select("*", { count: "exact", head: true }),
+    // "전체 가입자 수" — admin/superadmin(관리자 계정)은 실제 구성원 통계가 아니라
+    // 이 화면 아래쪽 "관리 권한 계정 수"에서 별도로 보여주므로 여기서는 뺀다.
+    supabase.from("profiles").select("*", { count: "exact", head: true }).not("role", "in", "(admin,superadmin)"),
     // "전체 학생 수": role=student이거나, suwoncca.org 학교 도메인 계정이면 role이 teacher가 아닌 한
-    // (editor/admin으로 승격된 학생회 임원 계정도) 전부 학생으로 집계한다.
+    // (editor로 승격된 학생회 임원 계정도) 학생으로 집계하되, admin/superadmin(관리자 계정)은
+    // 실제로 학생이어도 이 통계에서는 제외한다.
     supabase
       .from("profiles")
       .select("*", { count: "exact", head: true })
-      .or("role.eq.student,and(email.ilike.*@suwoncca.org,role.neq.teacher)"),
+      .or("role.eq.student,and(email.ilike.*@suwoncca.org,role.neq.teacher)")
+      .not("role", "in", "(admin,superadmin)"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).eq("role", "teacher"),
     supabase.from("profiles").select("*", { count: "exact", head: true }).in("role", ["editor", "admin", "superadmin"]),
-    supabase.from("user_attendance").select("visit_date").eq("visit_date", today),
+    // "하루 방문 횟수" — admin/superadmin 계정의 체크인은 실제 구성원 활동 통계가 아니므로
+    // !inner 조인으로 profiles.role을 함께 걸러서 뺀다.
+    supabase
+      .from("user_attendance")
+      .select("visit_date, profiles!inner(role)")
+      .eq("visit_date", today)
+      .not("profiles.role", "in", "(admin,superadmin)"),
     // 같은 학생이 접속한 날짜 수만큼 여러 행으로 중복 표시되지 않도록, 사용자별 최신
-    // 접속(=현재 연속 기록)만 남긴 뷰(user_latest_attendance)에서 가져온다.
+    // 접속(=현재 연속 기록)만 남긴 뷰(user_latest_attendance)에서 가져온다 — 이 뷰 자체가
+    // admin/superadmin을 제외하도록 정의돼 있다.
     supabase
       .from("user_latest_attendance")
       .select("user_id, streak_count, name, email")
