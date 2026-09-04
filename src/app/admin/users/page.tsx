@@ -7,13 +7,9 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeEmail } from "@/lib/fakeData";
 import { roleLabel } from "@/lib/roleLabel";
+import { ROLES, ASSIGNABLE_ROLES } from "@/lib/roles";
 import type { DirectoryMember, Profile } from "@/lib/types";
 
-const ROLES = ["student", "viewer", "teacher", "sub_editor", "editor", "admin", "superadmin", "designer"];
-// developer(=superadmin)는 이 화면에서 아무도(developer 자신 포함) 새로 부여할 수 없다 —
-// 부여는 DB에서 직접 해야 한다. 그래서 선택 가능한 목록에서는 항상 제외한다(단, 이미
-// developer인 계정의 현재 값 표시는 ROLES 전체를 쓰는 잠금 표시 쪽에서 그대로 담당).
-const ASSIGNABLE_ROLES = ROLES.filter((r) => r !== "superadmin");
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
 export default function AdminUsersPage() {
@@ -53,6 +49,12 @@ export default function AdminUsersPage() {
   };
 
   const list = rows
+    // 이 화면은 학교 명단(directory_members) 계정만 다룬다 — 명단에 없거나 승인된
+    // 외부 계정(member_type='other')은 "외부 계정 관리" 화면에서 별도로 관리한다.
+    .filter((p) => {
+      const dm = directoryByEmail[p.email];
+      return dm?.member_type === "student" || dm?.member_type === "teacher";
+    })
     .filter((p) => (p.email || "").includes(q) || (p.name || "").includes(q))
     .filter((p) => {
       if (gradeFilter === "전체") return true;
@@ -119,11 +121,9 @@ export default function AdminUsersPage() {
                 <td className={t.adminTableCell}>{maskPII ? fakeName(p.id) : p.name || "-"}</td>
                 <td className={t.adminTableCell}>{maskPII ? fakeEmail(p.id) : p.email}</td>
                 <td className={`${t.adminTableCell} text-muted`}>
-                  {!dm && "-"}
                   {dm?.member_type === "student" &&
                     `학생 · ${dm.grade}학년 ${dm.homeroom ? HOMEROOM_LABEL[dm.homeroom] : ""}`}
                   {dm?.member_type === "teacher" && `교사 · ${dm.subject || "-"}`}
-                  {dm?.member_type === "other" && "외부 승인 계정"}
                 </td>
                 <td className={t.adminTableCell}>
                   {canEdit || iAmDesigner ? (

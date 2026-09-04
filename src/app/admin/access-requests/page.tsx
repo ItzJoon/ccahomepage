@@ -8,7 +8,9 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
 import { fakeEmail } from "@/lib/fakeData";
 import { adminDisplayName } from "@/lib/displayName";
-import type { DirectoryMember, LoginAccessRequest, SiteSettings } from "@/lib/types";
+import { roleLabel } from "@/lib/roleLabel";
+import { ASSIGNABLE_ROLES } from "@/lib/roles";
+import type { DirectoryMember, LoginAccessRequest, Profile, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<string, { text: string; className: string }> = {
   pending: { text: "대기 중", className: "text-gold" },
@@ -35,7 +37,9 @@ export default function AdminAccessRequestsPage() {
   const rows = useMemo(() => allRows.filter((r) => !schoolEmails.has(r.email)), [allRows, schoolEmails]);
   const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
-  const { myId, isAdmin, role, loading: roleLoading } = useMyRole();
+  const { rows: profiles } = useRealtimeList<Profile>("profiles", { select: "id, email, role" });
+  const profileByEmail = useMemo(() => Object.fromEntries(profiles.map((p) => [p.email, p])), [profiles]);
+  const { myId, isAdmin, isSuperadmin, role, loading: roleLoading } = useMyRole();
   const { t } = useHomeTheme();
   // designer(조회 전용)는 admin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는 제외한다
   // (실제 조작 차단은 DesignerModeGate가 담당).
@@ -125,6 +129,32 @@ export default function AdminAccessRequestsPage() {
       .from("login_access_requests")
       .update({ status: "pending", decided_by: null, decided_at: null })
       .eq("id", req.id);
+    setBusyId(null);
+    reload();
+  };
+
+  // 승인된 외부 계정의 권한 조정 — RLS만으로는 이 화면에서 developer 이외에는 못 쓰게
+  // 막기 어려워서(login_access_requests_update_admin이 admin 전체를 허용), DB 함수
+  // 안에서 is_superadmin()을 직접 검사하는 RPC로 developer 전용을 강제한다. profiles.role
+  // 변경은 audit_profiles_role 트리거가 자동으로 기록한다.
+  const changeExternalRole = async (userId: string, newRole: string) => {
+    setBusyId(userId);
+    const { error } = await supabase.rpc("set_external_account_role", {
+      target_user_id: userId,
+      new_role: newRole,
+    });
+    if (error) alert(error.message);
+    setBusyId(null);
+    reload();
+  };
+
+  // 차단된 계정을 "다시 대기 목록에 올리는" 것 — 위 role 변경과 같은 이유로 developer
+  // 전용 RPC로 구현한다. directory_members.is_allowed=false + login_access_requests를
+  // pending으로 되돌리며, 두 테이블 모두 기존 audit 트리거가 자동으로 기록한다.
+  const resetToPending = async (req: LoginAccessRequest) => {
+    setBusyId(req.id);
+    const { error } = await supabase.rpc("reset_login_access_to_pending", { request_id: req.id });
+    if (error) alert(error.message);
     setBusyId(null);
     reload();
   };
@@ -246,14 +276,16 @@ export default function AdminAccessRequestsPage() {
             <th className={t.adminTableHeaderCell}>이메일</th>
             <th className={t.adminTableHeaderCell}>최근 시도</th>
             <th className={t.adminTableHeaderCell}>상태</th>
+            <th className={`${t.adminTableHeaderCell} w-40`}>권한</th>
             <th className={t.adminTableHeaderCell}>처리 시각</th>
             <th className={t.adminTableHeaderCell}>처리자</th>
-            <th className={`${t.adminTableHeaderCell} w-28`} />
+            <th className={`${t.adminTableHeaderCell} w-32`} />
           </tr>
         </thead>
         <tbody>
           {decided.map((r) => {
             const label = STATUS_LABEL[r.status];
+            const profile = profileByEmail[r.email];
             return (
               <tr key={r.id}>
                 <td className={t.adminTableCell}>{maskPII ? fakeEmail(r.id) : r.email}</td>
@@ -261,6 +293,24 @@ export default function AdminAccessRequestsPage() {
                   {new Date(r.attempted_at).toLocaleString("ko-KR")}
                 </td>
                 <td className={`${t.adminTableCell} font-bold ${label.className}`}>{label.text}</td>
+                <td className={t.adminTableCell}>
+                  {!profile ? (
+                    <span className="text-muted text-xs">가입 전</span>
+                  ) : r.status === "approved" && isSuperadmin && profile.role !== "superadmin" ? (
+                    <select
+                      className={t.adminInput}
+                      value={profile.role}
+                      disabled={busyId === profile.id}
+                      onChange={(e) => changeExternalRole(profile.id, e.target.value)}
+                    >
+                      {ASSIGNABLE_ROLES.map((role) => (
+                        <option key={role} value={role}>{roleLabel(role)}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span className="text-sm text-muted px-2.5 py-2 inline-block">{roleLabel(profile.role)}</span>
+                  )}
+                </td>
                 <td className={`${t.adminTableCell} text-muted`}>
                   {r.decided_at ? new Date(r.decided_at).toLocaleString("ko-KR") : "-"}
                 </td>
@@ -268,31 +318,42 @@ export default function AdminAccessRequestsPage() {
                   {r.decided_by ? adminDisplayName(deciders[r.decided_by]) : "-"}
                 </td>
                 <td className={t.adminTableCell}>
-                  {r.status === "approved" && (
-                    <button
-                      onClick={() => revokeApproval(r)}
-                      disabled={busyId === r.id}
-                      className="text-red text-xs font-bold disabled:opacity-50"
-                    >
-                      다시 막기
-                    </button>
-                  )}
-                  {r.status === "blocked" && (
-                    <button
-                      onClick={() => unblock(r)}
-                      disabled={busyId === r.id}
-                      className="text-teal text-xs font-bold disabled:opacity-50"
-                    >
-                      차단 해제
-                    </button>
-                  )}
+                  <div className="flex flex-col gap-1 items-start">
+                    {r.status === "approved" && (
+                      <button
+                        onClick={() => revokeApproval(r)}
+                        disabled={busyId === r.id}
+                        className="text-red text-xs font-bold disabled:opacity-50"
+                      >
+                        다시 막기
+                      </button>
+                    )}
+                    {r.status === "blocked" && (
+                      <button
+                        onClick={() => unblock(r)}
+                        disabled={busyId === r.id}
+                        className="text-teal text-xs font-bold disabled:opacity-50"
+                      >
+                        차단 해제
+                      </button>
+                    )}
+                    {r.status === "blocked" && isSuperadmin && (
+                      <button
+                        onClick={() => resetToPending(r)}
+                        disabled={busyId === r.id}
+                        className="text-gold text-xs font-bold disabled:opacity-50"
+                      >
+                        대기 상태로 되돌리기
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );
           })}
           {decided.length === 0 && (
             <tr>
-              <td colSpan={6} className="text-muted text-center py-6 text-sm">
+              <td colSpan={7} className="text-muted text-center py-6 text-sm">
                 처리 이력이 없습니다.
               </td>
             </tr>

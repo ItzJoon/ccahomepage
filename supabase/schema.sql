@@ -4439,3 +4439,56 @@ begin
   return new;
 end;
 $$;
+
+-- ------------------------------------------------------------
+-- 109. 외부 계정 관리 화면 개선: 권한 조정 + 차단 계정 대기 상태로 되돌리기 (developer 전용)
+-- ------------------------------------------------------------
+-- login_access_requests_update_admin/directory_members_write_admin 정책은 admin 전체를
+-- 허용하는데(승인/차단 자체는 admin 권한), 이 두 기능은 요건상 developer(superadmin)만
+-- 쓸 수 있어야 한다. RLS를 세분화하는 대신, 기존 unban_user_permanently 등과 같은
+-- 패턴으로 함수 안에서 is_superadmin()을 직접 검사하는 SECURITY DEFINER RPC로 만든다 —
+-- 관리자 화면에서 버튼을 숨기는 것과 별개로 DB 레벨에서도 developer 이외의 호출을 막는다.
+
+-- 승인된 외부 계정의 role을 바꾼다. developer(superadmin) 권한 자체는 이 화면에서도
+-- 부여할 수 없다(회원·권한 관리 화면과 동일 제약).
+create or replace function set_external_account_role(target_user_id uuid, new_role text)
+returns void as $$
+begin
+  if not is_superadmin() then
+    raise exception 'developer만 외부 계정의 권한을 변경할 수 있습니다';
+  end if;
+  if new_role = 'superadmin' then
+    raise exception 'developer 권한은 이 화면에서 부여할 수 없습니다';
+  end if;
+  update profiles set role = new_role where id = target_user_id;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function set_external_account_role(uuid, text) to authenticated;
+
+-- 차단된 요청을 다시 "대기" 상태로 되돌린다(차단 해제=바로 허용과 달리, 다시 검토할 수
+-- 있도록 대기 목록에 올리는 것). directory_members.is_allowed도 함께 false로 되돌려
+-- 재승인 전까지는 계속 접근이 막힌 상태를 유지한다.
+create or replace function reset_login_access_to_pending(request_id uuid)
+returns void as $$
+declare
+  target_email text;
+begin
+  if not is_superadmin() then
+    raise exception 'developer만 이 작업을 할 수 있습니다';
+  end if;
+
+  select email into target_email from login_access_requests
+    where id = request_id and status = 'blocked';
+  if target_email is null then
+    raise exception '차단된 요청만 대기 상태로 되돌릴 수 있습니다';
+  end if;
+
+  update directory_members set is_allowed = false where email = target_email;
+  update login_access_requests
+    set status = 'pending', decided_by = null, decided_at = null
+    where id = request_id;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function reset_login_access_to_pending(uuid) to authenticated;
