@@ -56,6 +56,16 @@ export async function updateSession(request: NextRequest) {
     return res;
   };
 
+  // 점검 모드 전용 — 리다이렉트(3xx 후 200)가 아니라 rewrite로 URL은 그대로 둔 채
+  // /maintenance 화면만 보여주고, 응답 자체를 503(Service Unavailable)로 내린다. 검색엔진이
+  // "이 페이지가 실제로 이 콘텐츠다"라고 오해해 색인하는 걸 막는 표준적인 방법 — 200/redirect로
+  // 응답하면 구글이 점검 안내문을 그 URL의 진짜 콘텐츠로 색인해버릴 수 있다.
+  const maintenanceRewrite = (url: URL) => {
+    const res = NextResponse.rewrite(url, { status: 503 });
+    response.cookies.getAll().forEach((cookie) => res.cookies.set(cookie));
+    return res;
+  };
+
   const pathname = request.nextUrl.pathname;
   // 두 안내 페이지(/maintenance, /access-restricted)는 서로의 체크에서도 예외여야 한다.
   // 그렇지 않으면 명단 차단 → /access-restricted → 잠금 모드 체크에 걸려 /maintenance →
@@ -246,7 +256,7 @@ export async function updateSession(request: NextRequest) {
     if (!bypassesMaintenance) {
       const url = request.nextUrl.clone();
       url.pathname = "/maintenance";
-      return redirect(url);
+      return maintenanceRewrite(url);
     }
   }
 
