@@ -67,12 +67,14 @@ export function useAttendance(userId: string | null) {
         p_use_freeze: useFreeze,
       });
       if (error || !data) return null;
-      const result = data as { streak: number | null; used_freeze: boolean };
+      const result = data as { streak: number | null; used_freeze: boolean; freeze_credits: number };
       setCheckedToday(true);
       if (result.streak == null) return null; // 동시 요청 등으로 이미 다른 곳에서 처리됨
       setStreak(result.streak);
       setHistory((h) => [todayKST(), ...h]);
-      if (result.used_freeze) setFreezeCredits((c) => Math.max(c - 1, 0));
+      // 프리즈 소비뿐 아니라 연속 7일마다 자동 재충전도 서버(check_in_attendance)가 함께
+      // 처리하므로, 클라이언트에서 증감을 추측하지 않고 서버가 돌려준 최종값을 그대로 쓴다.
+      setFreezeCredits(result.freeze_credits);
       return result.streak;
     },
     [userId, checkedToday, supabase]
