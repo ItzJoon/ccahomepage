@@ -5,6 +5,7 @@ import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import { sortCategoriesForDisplay } from "@/lib/patchNotes";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 interface Row extends PatchNote {
@@ -52,7 +53,7 @@ export default function PatchNotesPage() {
               <span className="text-xs text-muted shrink-0">{fmt(n.published_at)}</span>
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {Array.from(new Set(n.patch_note_items.flatMap((i) => i.categories))).map((c) => (
+              {sortCategoriesForDisplay(Array.from(new Set(n.patch_note_items.flatMap((i) => i.categories)))).map((c) => (
                 <Badge key={c} color={CATEGORY_COLOR[c]}>{CATEGORY_LABEL[c]}</Badge>
               ))}
             </div>

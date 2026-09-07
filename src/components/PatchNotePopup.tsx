@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
+import { sortPatchNoteItemsForDisplay } from "@/lib/patchNotes";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
@@ -125,7 +126,8 @@ export default function PatchNotePopup({
 
   if (!note || !userId) return null;
 
-  const items = [...note.patch_note_items].sort((a, b) => a.order_index - b.order_index);
+  const orderedItems = [...note.patch_note_items].sort((a, b) => a.order_index - b.order_index);
+  const items = sortPatchNoteItemsForDisplay(orderedItems);
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4" onClick={close}>

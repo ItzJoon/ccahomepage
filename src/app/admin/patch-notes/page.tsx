@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import { computeNextPatchNoteVersion } from "@/lib/patchNotes";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 interface Row extends PatchNote {
@@ -51,8 +52,33 @@ export default function AdminPatchNotesPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 버전 자동 계산은 "직전에 게시된 패치노트" 기준으로 하고, 이미 게시된 패치노트를
+  // 다시 열어 수정할 때는 그 확정된 버전을 건드리지 않는다(신규 작성이거나, 아직
+  // 게시 전인 임시저장을 편집할 때만 자동 계산이 개입한다).
+  const editingNote = openId && openId !== "new" ? rows.find((r) => r.id === openId) ?? null : null;
+  const autoVersionEnabled = openId === "new" || (!!editingNote && !editingNote.is_published);
+  const latestPublishedVersion = useMemo(() => {
+    const published = rows.filter((r) => r.is_published);
+    if (published.length === 0) return null;
+    return [...published].sort((a, b) => (a.published_at < b.published_at ? 1 : -1))[0].version ?? null;
+  }, [rows]);
+
+  // 항목 구성(카테고리)이 바뀔 때마다(체크박스 토글/항목 추가·삭제) 버전을 다시 계산해서
+  // 채운다 — 관리자가 버전 입력란을 직접 고친 뒤에는, 이 함수가 다시 호출되기 전까지는
+  // (즉 카테고리 구성을 다시 바꾸기 전까지는) 그 수동 값을 덮어쓰지 않는다.
+  const applyAutoVersion = (items: ItemForm[], base: typeof form): typeof form => {
+    if (!autoVersionEnabled) return base;
+    const hasFeature = items.some((it) => it.categories.includes("feature"));
+    return { ...base, version: computeNextPatchNoteVersion(latestPublishedVersion, hasFeature) };
+  };
+
   const startNew = () => {
-    setForm(emptyForm());
+    // 이 시점엔 아직 openId가 "new"로 바뀌기 전이라 applyAutoVersion이 보는
+    // autoVersionEnabled가 옛 값(false)일 수 있다 — 새 패치노트는 항상 자동 계산
+    // 대상이므로 hasFeature만 직접 계산해서 채운다.
+    const base = emptyForm();
+    const hasFeature = base.items.some((it) => it.categories.includes("feature"));
+    setForm({ ...base, version: computeNextPatchNoteVersion(latestPublishedVersion, hasFeature) });
     setOpenId("new");
   };
 
@@ -68,19 +94,27 @@ export default function AdminPatchNotesPage() {
     setOpenId(n.id);
   };
 
-  const addItem = () => setForm((f) => ({ ...f, items: [...f.items, { categories: ["feature"], content: "" }] }));
-  const removeItem = (idx: number) => setForm((f) => ({ ...f, items: f.items.filter((_, i) => i !== idx) }));
+  const addItem = () =>
+    setForm((f) => {
+      const items = [...f.items, { categories: ["feature"] as PatchNoteCategory[], content: "" }];
+      return applyAutoVersion(items, { ...f, items });
+    });
+  const removeItem = (idx: number) =>
+    setForm((f) => {
+      const items = f.items.filter((_, i) => i !== idx);
+      return applyAutoVersion(items, { ...f, items });
+    });
   const updateItem = (idx: number, patch: Partial<ItemForm>) =>
     setForm((f) => ({ ...f, items: f.items.map((it, i) => (i === idx ? { ...it, ...patch } : it)) }));
   const toggleItemCategory = (idx: number, category: PatchNoteCategory, checked: boolean) =>
-    setForm((f) => ({
-      ...f,
-      items: f.items.map((it, i) =>
+    setForm((f) => {
+      const items = f.items.map((it, i) =>
         i === idx
           ? { ...it, categories: checked ? [...it.categories, category] : it.categories.filter((c) => c !== category) }
           : it
-      ),
-    }));
+      );
+      return applyAutoVersion(items, { ...f, items });
+    });
 
   // 항목(items)은 patch_note_items에 별도 저장돼 있고 다른 테이블에서 참조하지 않으므로,
   // 수정할 때마다 통째로 지우고 폼 내용으로 다시 채우는 방식이 항목별 추가/삭제/순서
@@ -227,6 +261,11 @@ export default function AdminPatchNotesPage() {
           </div>
           <label className="text-xs font-bold text-muted mt-2">버전 (선택)</label>
           <input className={t.adminInput} value={form.version} onChange={(e) => setForm({ ...form, version: e.target.value })} placeholder="예: v1.2.0" />
+          {autoVersionEnabled && (
+            <p className="text-muted text-[11px] m-0">
+              항목 구성에 따라 자동으로 채워집니다(신규 기능 포함 시 마이너 버전 상승) — 직접 고치면 그 값이 유지되고, 카테고리 체크를 다시 바꾸면 자동 계산으로 되돌아갑니다.
+            </p>
+          )}
           <label className="text-xs font-bold text-muted mt-2">제목</label>
           <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">게시일</label>

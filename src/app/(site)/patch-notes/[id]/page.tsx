@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
+import { sortPatchNoteItemsForDisplay } from "@/lib/patchNotes";
 import type { PatchNoteCategory, PatchNoteItem } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
@@ -29,7 +30,11 @@ export default async function PatchNoteDetailPage({ params }: { params: { id: st
 
   // 항목 하나가 여러 카테고리에 동시에 속할 수 있어서(예: 신규 기능+버그 수정), 카테고리별
   // 섹션으로 나누지 않고 항목마다 해당하는 뱃지를 전부 붙여서 한 번씩만 보여준다.
-  const items = (note.patch_note_items as PatchNoteItem[]).sort((a, b) => a.order_index - b.order_index);
+  // 저장 순서(order_index)를 먼저 적용한 뒤, 화면에는 신규 기능 > 개선 > 버그 수정
+  // 우선순위로 다시 정렬해서 보여준다(안정 정렬이라 같은 우선순위 안에서는 order_index
+  // 순서가 그대로 유지됨).
+  const orderedItems = (note.patch_note_items as PatchNoteItem[]).sort((a, b) => a.order_index - b.order_index);
+  const items = sortPatchNoteItemsForDisplay(orderedItems);
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
