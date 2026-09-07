@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { Organization, Proposal, ProposalVote } from "@/lib/types";
@@ -30,7 +31,7 @@ function fmt(d: string) {
 export default function ProposalsManager() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
+  const { rows: orgs } = useList<Organization>("organizations", { orderBy: { column: "order_index" } });
   const { rows: proposals, reload } = useRealtimeList<Proposal>("proposals", {
     orderBy: { column: "updated_at", ascending: false },
   });

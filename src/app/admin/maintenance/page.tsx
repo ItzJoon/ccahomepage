@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { SiteSettings } from "@/lib/types";
 
 export default function AdminMaintenancePage() {
   const supabase = createClient();
-  const { rows } = useRealtimeList<SiteSettings>("site_settings");
+  const { rows, reload } = useList<SiteSettings>("site_settings");
   const settings = rows.find((r) => r.id === "default");
 
   const { isAdmin: iAmAdmin, role } = useMyRole();
@@ -47,6 +47,7 @@ export default function AdminMaintenancePage() {
       .eq("id", "default");
     setSaving(false);
     setSavedMsg(true);
+    reload(); // realtime이 아니므로 저장 후 기준값(isDirty 비교 대상)을 직접 갱신
     setTimeout(() => setSavedMsg(false), 2000);
   };
 

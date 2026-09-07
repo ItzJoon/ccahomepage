@@ -9,7 +9,7 @@ import { adminDisplayName } from "@/lib/displayName";
 import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "./FileUpload";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
@@ -49,7 +49,7 @@ export default function PostManager({
   const { t } = useHomeTheme();
   // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
   // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
-  const { rows, reload } = useRealtimeList<PostWithAttachments>("posts", {
+  const { rows, reload } = useList<PostWithAttachments>("posts", {
     select: "*, attachments(*), author:profiles(name, nickname, email)",
     filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
     orderBy: { column: "created_at", ascending: false },
@@ -58,8 +58,8 @@ export default function PostManager({
   // 값들을 그대로 보여준다(별도 카테고리 관리 테이블은 없음).
   const existingCategories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort();
   // "작성자 변경"(admin 전용)에서 고를 대상 목록. AccountPicker가 이미 다른 관리 화면에서
-  // 이 패턴(useRealtimeList<Profile> 전체 조회 + 검색)으로 쓰이고 있어 그대로 재사용한다.
-  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  // 이 패턴(useList<Profile> 전체 조회 + 검색)으로 쓰이고 있어 그대로 재사용한다.
+  const { rows: profiles } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
 
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...emptyForm });

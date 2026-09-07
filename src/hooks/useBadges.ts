@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
 import { preloadBadgeSoundOverrides } from "@/lib/badgeSound";
@@ -15,10 +15,6 @@ export function useBadges(userId: string | null) {
   const [badges, setBadges] = useState<BadgeDef[]>([]);
   const [earnedIds, setEarnedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  // Header(useAutoCheckIn)와 마이페이지가 동시에 useBadges를 호출하면 같은 사용자에 대해
-  // 채널이 두 번 생기는데, 이름이 겹치면 realtime 구독끼리 충돌한다(useRealtimeList와 동일 문제).
-  // 인스턴스마다 고유한 채널 이름을 쓰도록 랜덤값을 섞는다.
-  const channelSuffixRef = useRef(Math.random().toString(36).slice(2));
 
   const load = useCallback(async () => {
     // secret_tier는 문자열값이 마침 "none" < "secret" < "super_secret" 알파벳 순서와
@@ -44,50 +40,10 @@ export function useBadges(userId: string | null) {
     load();
   }, [load]);
 
-  /**
-   * 관리자가 뱃지를 지급/회수했을 때 마이페이지 등의 보유 뱃지 목록이 새로고침 없이
-   * 최신 상태를 반영하도록 earnedIds만 동기화한다. 축하 팝업 자체는 이제 이 훅을 거치지
-   * 않고 BadgeGrantWatcher(NotificationBanner와 동일한 구조의 독립 컴포넌트)가 전담한다 —
-   * 예전엔 useBadges -> useAutoCheckIn -> Header로 이어지는 훅 체인을 거쳐 렌더링됐는데,
-   * 그 중계 단계마다 렌더/이펙트 사이클이 하나씩 더 끼면서 알림 배너보다 체감이 느렸다.
-   */
-  useEffect(() => {
-    if (!userId) return;
-    let cancelled = false;
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    (async () => {
-      // BadgeGrantWatcher와 동일한 이유로, 구독 전에 세션 토큰을 realtime에 명시적으로
-      // 반영해야 한다 — 안 그러면 마운트 직후엔 아직 미인증 상태로 구독돼 RLS를 통과 못 하고
-      // 그 뒤로 이 유저의 user_badges 변경을 계속 못 받는다(새로고침 전까지 실시간 반영 안 됨).
-      const { data: { session } } = await supabase.auth.getSession();
-      if (cancelled) return;
-      if (session) supabase.realtime.setAuth(session.access_token);
-
-      channel = supabase
-        .channel(`user_badges_earned_sync_${userId}_${channelSuffixRef.current}`)
-        .on("postgres_changes", { event: "INSERT", schema: "public", table: "user_badges" }, (payload) => {
-          const row = payload.new as { user_id: string; badge_id: string };
-          if (row.user_id !== userId) return;
-          setEarnedIds((prev) => (prev.has(row.badge_id) ? prev : new Set([...prev, row.badge_id])));
-        })
-        .on("postgres_changes", { event: "DELETE", schema: "public", table: "user_badges" }, (payload) => {
-          const row = payload.old as { user_id?: string; badge_id?: string };
-          if (row.user_id !== userId || !row.badge_id) return;
-          const badgeId = row.badge_id;
-          setEarnedIds((prev) => {
-            if (!prev.has(badgeId)) return prev;
-            const next = new Set(prev);
-            next.delete(badgeId);
-            return next;
-          });
-        })
-        .subscribe();
-    })();
-    return () => {
-      cancelled = true;
-      if (channel) supabase.removeChannel(channel);
-    };
-  }, [userId, supabase]);
+  // 예전엔 관리자가 다른 화면에서 뱃지를 지급/회수하면 이 훅도 realtime으로 earnedIds를
+  // 동기화했는데(본인에게만 영향 있는 정보라 실시간일 필요는 없다는 감사 결과에 따라 제거),
+  // 이제는 다음 재방문/새로고침 시 load()가 다시 조회하며 반영된다. 이 세션 안에서 스스로
+  // 획득한 뱃지(grant() 경유)는 즉시 로컬 상태에 반영되므로 체감상 문제되지 않는다.
 
   /** 오늘 날짜가 뱃지의 날짜 조건(이전/이후/당일/기간)을 만족하는지 확인합니다. */
   const matchesDateCondition = (b: BadgeDef, today: string) => {

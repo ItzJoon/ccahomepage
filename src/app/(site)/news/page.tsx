@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import type { Post } from "@/lib/types";
@@ -19,7 +19,7 @@ export default function NewsPage() {
   useTrackPageVisit("news"); // "탐험가" 뱃지용 방문 기록
   // author_name은 profiles를 그대로 조인하면 다른 사람 이름이 RLS에 막혀 비어오므로,
   // 안전하게 이름만 반환하는 computed column을 대신 쓴다(supabase/schema.sql 51번 참고).
-  const { rows } = useRealtimeList<Row>("posts", {
+  const { rows } = useList<Row>("posts", {
     select: "*, author_name",
     filter: (q) => q.eq("type", "news").eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },

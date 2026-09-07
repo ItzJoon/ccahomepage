@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
@@ -39,7 +39,7 @@ const emptyForm = () => ({
  */
 export default function AdminPatchNotesPage() {
   const supabase = createClient();
-  const { rows, reload } = useRealtimeList<Row>("patch_notes", {
+  const { rows, reload } = useList<Row>("patch_notes", {
     select: "*, patch_note_items(*)",
     orderBy: { column: "published_at", ascending: false },
   });

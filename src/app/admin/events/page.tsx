@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
 import { adminDisplayName } from "@/lib/displayName";
@@ -20,7 +20,7 @@ export default function AdminEventsPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
   const [myId, setMyId] = useState<string | null>(null);
-  const { rows, reload } = useRealtimeList<EventWithAttachments>("events", {
+  const { rows, reload } = useList<EventWithAttachments>("events", {
     select: "*, attachments(*), profiles(name, nickname)",
     orderBy: { column: "start_at" },
   });

@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { PageDoc } from "@/lib/types";
 
@@ -15,7 +15,7 @@ function slugify(title: string) {
 
 export default function AdminPagesPage() {
   const supabase = createClient();
-  const { rows, reload } = useRealtimeList<PageDoc>("pages", { orderBy: { column: "order_index" } });
+  const { rows, reload } = useList<PageDoc>("pages", { orderBy: { column: "order_index" } });
   const { t } = useHomeTheme();
   const [form, setForm] = useState({ ...empty });
 

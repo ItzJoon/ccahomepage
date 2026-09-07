@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeEmail } from "@/lib/fakeData";
 import { adminDisplayName } from "@/lib/displayName";
@@ -47,12 +47,10 @@ export default function StatsTabs({
   const supabase = createClient();
   const { t } = useHomeTheme();
 
-  // 전체 접속 기록은 다른 관리 화면들과 같은 방식(useRealtimeList)으로 실시간 반영한다.
-  // 예전에는 페이지 진입 시 서버에서 한 번만 조회해서, 화면을 열어둔 채로 있으면 그 이후
-  // 생긴 체크인이 새로고침 전까지 전혀 보이지 않는 문제가 있었다. postgres_changes
-  // 구독은 뷰가 아니라 원본 테이블에서만 동작하므로 table은 user_attendance, 실제 조회는
-  // 이름/이메일이 조인된 user_attendance_with_name 뷰에서 한다.
-  const { rows: liveLog, loading: liveLogLoading } = useRealtimeList<AttendanceRow>("user_attendance", {
+  // 전체 접속 기록은 대시보드 열람용 로그라 실시간일 필요가 없어(realtime 감사 결과)
+  // 페이지 진입 시 한 번만 조회한다(useList). 이름/이메일이 조인된 user_attendance_with_name
+  // 뷰에서 조회한다.
+  const { rows: liveLog, loading: liveLogLoading } = useList<AttendanceRow>("user_attendance", {
     selectFrom: "user_attendance_with_name",
     select: LOG_SELECT,
     orderBy: { column: "created_at", ascending: false },

@@ -3,7 +3,7 @@
 import AdminTable from "./AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { EmailNotificationBatch, EmailNotificationLog } from "@/lib/types";
 
@@ -21,7 +21,7 @@ function fmtDateTime(iso: string) {
 export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean }) {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows } = useRealtimeList<EmailNotificationBatch>("email_notification_batches", {
+  const { rows } = useList<EmailNotificationBatch>("email_notification_batches", {
     orderBy: { column: "created_at", ascending: false },
     limit: 200,
   });

@@ -4948,3 +4948,11 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function roll_daily_secret_badge(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 114. 석식 급식표 전환을 특정 요일에만 허용
+-- ------------------------------------------------------------
+-- 실제로 석식이 제공되는 요일(월/수/목)에만 시각 기준 전환이 적용되도록, 요일 목록을
+-- site_settings에 추가한다(0=일~6=토, JS Date.getDay()/Postgres extract(dow)와 동일 기준).
+-- 해당 요일이 아니면 전환 시각이 지났어도 항상 중식으로 남는다.
+alter table site_settings add column if not exists dinner_days int[] not null default '{1,3,4}';

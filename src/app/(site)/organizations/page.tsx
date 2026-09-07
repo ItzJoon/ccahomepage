@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import SectionTitle from "@/components/SectionTitle";
 import type { Organization } from "@/lib/types";
 
@@ -14,7 +14,7 @@ const COLOR_VAR: Record<string, string> = {
 };
 
 export default function OrganizationsPage() {
-  const { rows } = useRealtimeList<Organization>("organizations", {
+  const { rows } = useList<Organization>("organizations", {
     orderBy: { column: "order_index" },
   });
   const [q, setQ] = useState("");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import MemberEmailPicker from "./MemberEmailPicker";
 import type { DirectoryMember } from "@/lib/types";
 
@@ -51,7 +51,7 @@ export default function EmailAudienceSelector({
 }) {
   // 학급 구성이 학년마다 조금씩 달라서(예: 12학년은 2반이 없음) 실제로 존재하는 학년+반
   // 조합만 선택지로 보여준다 — directory_members에 학생이 없는 조합은 아예 안 보인다.
-  const { rows: members } = useRealtimeList<DirectoryMember>("directory_members");
+  const { rows: members } = useList<DirectoryMember>("directory_members");
   const availableClasses = new Set(
     members.filter((m) => m.member_type === "student" && m.grade && m.homeroom).map((m) => classKey(m.grade as string, m.homeroom as number))
   );

@@ -8,6 +8,7 @@ import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { adminDisplayName } from "@/lib/displayName";
@@ -39,7 +40,7 @@ interface TargetContent {
 export default function AdminReportsPage() {
   const supabase = createClient();
   const { rows, reload } = useRealtimeList<Report>("reports", { orderBy: { column: "created_at", ascending: false } });
-  const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
+  const { rows: settingsRows, reload: reloadSettings } = useList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
   const [profilesById, setProfilesById] = useState<Record<string, TargetProfile>>({});
   const [contentByKey, setContentByKey] = useState<Record<string, TargetContent>>({});
@@ -166,6 +167,7 @@ export default function AdminReportsPage() {
 
   const updateThreshold = async (field: keyof SiteSettings, value: number) => {
     await supabase.from("site_settings").update({ [field]: value }).eq("id", "default");
+    reloadSettings(); // realtime이 아니므로 직접 갱신
   };
 
   return (

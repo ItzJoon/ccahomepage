@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
@@ -18,7 +18,7 @@ interface NotificationWithSender extends NotificationItem {
 export default function AdminNotifyPage() {
   const supabase = createClient();
   const [tab, setTab] = useState<"popup" | "email">("popup");
-  const { rows, reload } = useRealtimeList<NotificationWithSender>("notifications", {
+  const { rows, reload } = useList<NotificationWithSender>("notifications", {
     select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
   });

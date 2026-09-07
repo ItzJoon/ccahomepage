@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
@@ -20,10 +20,10 @@ const STATUS_LABEL: Record<string, { text: string; className: string }> = {
 
 export default function AdminAccessRequestsPage() {
   const supabase = createClient();
-  const { rows: allRows, reload } = useRealtimeList<LoginAccessRequest>("login_access_requests", {
+  const { rows: allRows, reload } = useList<LoginAccessRequest>("login_access_requests", {
     orderBy: { column: "attempted_at", ascending: false },
   });
-  const { rows: directory } = useRealtimeList<DirectoryMember>("directory_members", {
+  const { rows: directory } = useList<DirectoryMember>("directory_members", {
     select: "email, member_type",
   });
   // 학교 명단(학생/교사)에 있는 이메일은 여기서 제외한다 — 명단에 등록되기 전에 시도했던
@@ -35,9 +35,9 @@ export default function AdminAccessRequestsPage() {
     [directory]
   );
   const rows = useMemo(() => allRows.filter((r) => !schoolEmails.has(r.email)), [allRows, schoolEmails]);
-  const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
+  const { rows: settingsRows } = useList<SiteSettings>("site_settings");
   const settings = settingsRows.find((r) => r.id === "default");
-  const { rows: profiles } = useRealtimeList<Profile>("profiles", { select: "id, email, role" });
+  const { rows: profiles, reload: reloadProfiles } = useList<Profile>("profiles", { select: "id, email, role" });
   const profileByEmail = useMemo(() => Object.fromEntries(profiles.map((p) => [p.email, p])), [profiles]);
   const { myId, isAdmin, isSuperadmin, role, loading: roleLoading } = useMyRole();
   const { t } = useHomeTheme();
@@ -146,6 +146,7 @@ export default function AdminAccessRequestsPage() {
     if (error) alert(error.message);
     setBusyId(null);
     reload();
+    reloadProfiles(); // realtime이 아니므로 방금 바뀐 role을 드롭다운에 반영하려면 직접 갱신
   };
 
   // 차단된 계정을 "다시 대기 목록에 올리는" 것 — 위 role 변경과 같은 이유로 developer

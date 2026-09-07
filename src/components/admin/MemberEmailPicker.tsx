@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import type { DirectoryMember } from "@/lib/types";
 
@@ -19,7 +19,7 @@ export default function MemberEmailPicker({
   selected: DirectoryMember[];
   onChange: (members: DirectoryMember[]) => void;
 }) {
-  const { rows } = useRealtimeList<DirectoryMember>("directory_members");
+  const { rows } = useList<DirectoryMember>("directory_members");
   const { t } = useHomeTheme();
   const [query, setQuery] = useState("");
 

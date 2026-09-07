@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
@@ -30,8 +30,8 @@ const empty = { org_id: "", category: "notice" as OrgRecord["category"], title: 
 export default function OrgRecordsManager() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
-  const { rows: records, reload } = useRealtimeList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
+  const { rows: orgs } = useList<Organization>("organizations", { orderBy: { column: "order_index" } });
+  const { rows: records, reload } = useList<OrgRecord>("org_records", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });

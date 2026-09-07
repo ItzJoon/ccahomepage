@@ -3,7 +3,7 @@
 import AdminTable from "../AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import Badge from "@/components/Badge";
 import OrgEventsCalendarGrid from "@/components/OrgEventsCalendarGrid";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
@@ -40,7 +40,7 @@ const empty = {
 export default function JudiciaryEventsManager() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows: events, reload } = useRealtimeList<JudiciaryEvent>("judiciary_events", { orderBy: { column: "start_at" } });
+  const { rows: events, reload } = useList<JudiciaryEvent>("judiciary_events", { orderBy: { column: "start_at" } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });

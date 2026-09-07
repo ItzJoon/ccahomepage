@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { homeThemeStyles, THEME_LABELS, DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import type { SiteTheme } from "@/lib/types";
@@ -18,7 +18,7 @@ const SWATCHES: Record<string, string[]> = {
 
 export default function AdminThemePage() {
   const supabase = createClient();
-  const { rows } = useRealtimeList<SiteTheme>("site_theme");
+  const { rows, reload } = useList<SiteTheme>("site_theme");
   const current = rows.find((r) => r.id === "default");
   const currentKey = current && isHomeThemeKey(current.theme) ? current.theme : DEFAULT_HOME_THEME;
 
@@ -36,6 +36,7 @@ export default function AdminThemePage() {
       .update({ theme: key, updated_at: new Date().toISOString(), updated_by: myId })
       .eq("id", "default");
     setSaving(null);
+    reload(); // realtime이 아니므로 "현재 적용중" 표시를 직접 갱신
   };
 
   return (

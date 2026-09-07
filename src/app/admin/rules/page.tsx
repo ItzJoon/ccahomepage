@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
 import type { RuleDoc } from "@/lib/types";
@@ -17,7 +17,7 @@ const empty = { title: "", category: "공통", content: "", order_index: 0 };
 export default function AdminRulesPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows, reload } = useRealtimeList<RuleWithAttachments>("rules", {
+  const { rows, reload } = useList<RuleWithAttachments>("rules", {
     select: "*, attachments(*)",
     orderBy: { column: "order_index" },
   });

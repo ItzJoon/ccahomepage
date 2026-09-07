@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import type { BadgeDef, DirectoryMember, DirectoryProfileView } from "@/lib/types";
@@ -32,7 +33,7 @@ export default function DirectoryPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
-  const { rows } = useRealtimeList<DirectoryMember>("directory_members", {
+  const { rows } = useList<DirectoryMember>("directory_members", {
     orderBy: { column: "display_name" },
   });
   // 명단에는 있지만 아직 가입(첫 로그인)하지 않은 사람도 있을 수 있다. 그런 계정은 profiles

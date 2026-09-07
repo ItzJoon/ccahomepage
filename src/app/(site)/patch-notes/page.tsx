@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
@@ -31,7 +31,7 @@ export default function PatchNotesPage() {
   useTrackPageVisit("patch-notes");
   // RLS(patch_notes_read_published)가 is_published=true인 것만 비로그인 포함 누구에게나
   // 내려주므로 별도 필터 없이 그대로 목록으로 쓴다.
-  const { rows } = useRealtimeList<Row>("patch_notes", {
+  const { rows } = useList<Row>("patch_notes", {
     select: "*, patch_note_items(*)",
     orderBy: { column: "published_at", ascending: false },
   });

@@ -350,6 +350,7 @@ export interface SiteSettings {
   warning_suspend_days: number;
   warning_ban_threshold: number;
   dinner_switch_time: string;
+  dinner_days: number[];
   updated_at: string;
 }
 

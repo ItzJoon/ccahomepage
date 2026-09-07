@@ -3,7 +3,7 @@
 import AdminTable from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { todayKST } from "@/lib/date";
 import { safeStorageKey } from "@/lib/storageKey";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
@@ -11,14 +11,15 @@ import type { MealPlan, MealType, SiteSettings } from "@/lib/types";
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1);
 const MEAL_TYPE_LABEL: Record<MealType, string> = { lunch: "중식", dinner: "석식" };
+const DAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 
 export default function AdminMealPlansPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows, reload } = useRealtimeList<MealPlan>("meal_plans", {
+  const { rows, reload } = useList<MealPlan>("meal_plans", {
     orderBy: { column: "year", ascending: false },
   });
-  const { rows: settingsRows, reload: reloadSettings } = useRealtimeList<SiteSettings>("site_settings");
+  const { rows: settingsRows, reload: reloadSettings } = useList<SiteSettings>("site_settings");
   const settings = settingsRows.find((s) => s.id === "default");
   const sorted = [...rows].sort((a, b) => (a.year !== b.year ? b.year - a.year : b.month - a.month));
   // 목록은 (year, month) 단위로 묶어서 중식/석식이 각각 등록됐는지 한 행에서 바로 보이게 한다.
@@ -31,6 +32,7 @@ export default function AdminMealPlansPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [switchTime, setSwitchTime] = useState<string | null>(null);
+  const [dinnerDays, setDinnerDays] = useState<number[] | null>(null);
   const [savingSwitchTime, setSavingSwitchTime] = useState(false);
 
   const existing = sorted.find((m) => m.year === year && m.month === month && m.meal_type === mealType) ?? null;
@@ -81,10 +83,24 @@ export default function AdminMealPlansPage() {
     reload();
   };
 
+  const effectiveDinnerDays = dinnerDays ?? settings?.dinner_days ?? [1, 3, 4];
+  const toggleDinnerDay = (day: number) => {
+    const next = effectiveDinnerDays.includes(day)
+      ? effectiveDinnerDays.filter((d) => d !== day)
+      : [...effectiveDinnerDays, day].sort();
+    setDinnerDays(next);
+  };
+
   const saveSwitchTime = async () => {
-    if (!switchTime) return;
+    if (!switchTime && !dinnerDays) return;
     setSavingSwitchTime(true);
-    await supabase.from("site_settings").update({ dinner_switch_time: switchTime }).eq("id", "default");
+    await supabase
+      .from("site_settings")
+      .update({
+        dinner_switch_time: switchTime ?? settings?.dinner_switch_time,
+        dinner_days: effectiveDinnerDays,
+      })
+      .eq("id", "default");
     setSavingSwitchTime(false);
     reloadSettings();
   };
@@ -211,9 +227,27 @@ export default function AdminMealPlansPage() {
             value={(switchTime ?? settings?.dinner_switch_time ?? "13:30:00").slice(0, 5)}
             onChange={(e) => setSwitchTime(e.target.value)}
           />
+          <label className="text-xs font-bold text-muted mt-2">석식 제공 요일</label>
+          <div className="flex gap-1.5 flex-wrap">
+            {DAY_LABELS.map((label, day) => (
+              <button
+                key={day}
+                type="button"
+                onClick={() => toggleDinnerDay(day)}
+                className={`w-9 h-9 rounded-lg text-sm font-bold border ${
+                  effectiveDinnerDays.includes(day)
+                    ? "bg-navy text-white border-navy"
+                    : "bg-white text-muted border-border"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <p className="text-muted text-xs">선택한 요일에만 전환 시각 기준으로 석식이 표시됩니다. 그 외 요일은 항상 중식입니다.</p>
           <button
             onClick={saveSwitchTime}
-            disabled={!switchTime || savingSwitchTime}
+            disabled={(!switchTime && !dinnerDays) || savingSwitchTime}
             className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed w-fit mt-1`}
           >
             저장

@@ -3,7 +3,7 @@
 import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
 import ImageUpload from "@/components/ImageUpload";
@@ -85,13 +85,13 @@ const compareBadges = (a: BadgeDef, b: BadgeDef) => {
 export default function AdminBadgesPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows, reload } = useRealtimeList<BadgeDef>("badges", { orderBy: { column: "order_index" } });
-  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
-  // 뱃지별 보유 인원 수 — user_badges 전체를 실시간 구독해두고 badge_id별로 세기만
-  // 하면 되므로(학교 규모상 전체 행 수가 적어 부담 없음), 지급/회수가 있을 때마다
-  // 자동으로 숫자가 갱신된다. developer 계정(superadmin)은 실제 구성원 통계가 아니므로
-  // 이 숫자에서 뺀다(admin은 학생회 임원 등 실제 구성원인 경우가 많아 그대로 포함).
-  const { rows: userBadgeRows } = useRealtimeList<{ id: string; badge_id: string; user: { role: string } | null }>(
+  const { rows, reload } = useList<BadgeDef>("badges", { orderBy: { column: "order_index" } });
+  const { rows: profiles } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  // 뱃지별 보유 인원 수 — user_badges 전체를 한 번 조회해서 badge_id별로 세기만 하면
+  // 되므로(학교 규모상 전체 행 수가 적어 부담 없음) 충분하고, 지급/회수 직후에는 이
+  // 화면 자신의 reload()로 갱신된다. developer 계정(superadmin)은 실제 구성원 통계가
+  // 아니므로 이 숫자에서 뺀다(admin은 학생회 임원 등 실제 구성원인 경우가 많아 그대로 포함).
+  const { rows: userBadgeRows, reload: reloadUserBadges } = useList<{ id: string; badge_id: string; user: { role: string } | null }>(
     "user_badges",
     { select: "id, badge_id, user:profiles(role)" }
   );
@@ -296,6 +296,7 @@ export default function AdminBadgesPage() {
       // 학생 선택은 유지해서, 같은 학생에게 다른 뱃지도 이어서 줄 수 있게 한다.
       setGrantUserEarnedIds((prev) => new Set([...prev, grantBadgeId]));
       setGrantBadgeId("");
+      reloadUserBadges(); // 보유 인원 수(badgeCounts)는 realtime이 아니므로 직접 갱신한다.
     }
     setTimeout(() => setGrantMsg(null), 3000);
   };
@@ -305,6 +306,7 @@ export default function AdminBadgesPage() {
     if (!confirm("이 학생에게서 이 뱃지를 회수할까요?")) return;
     const { error } = await supabase.from("user_badges").delete().eq("user_id", grantUser.id).eq("badge_id", badgeId);
     if (!error) {
+      reloadUserBadges();
       setGrantUserEarnedIds((prev) => {
         const next = new Set(prev);
         next.delete(badgeId);

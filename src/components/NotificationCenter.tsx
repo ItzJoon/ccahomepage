@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import type { UserNotification } from "@/lib/types";
 
 function fmtDateTime(iso: string) {
@@ -21,13 +21,15 @@ function targetHref(n: UserNotification) {
 /**
  * 헤더의 알림 종/벨 아이콘. 내 게시판 글/댓글에 댓글·답글이 달렸을 때, 내 Q&A 질문에
  * 답변이 달렸을 때만 알림이 온다(다이렉트 메시지는 보류 상태라 이번 대상에서 제외).
- * 알림 생성 자체는 DB 트리거가 하고, 여기서는 실시간 구독으로 목록/안읽음 개수만 보여준다.
+ * 알림 생성 자체는 DB 트리거가 하고, 여기서는 페이지 진입 시 한 번 조회한다(본인에게만
+ * 영향 있는 정보라 realtime 없이도 무방 — realtime 감사 결과). 읽음 처리는 그 자리에서
+ * reload()로 직접 갱신한다.
  */
 export default function NotificationCenter({ userId }: { userId: string | null }) {
   const supabase = createClient();
   // RLS가 auth.uid() = user_id인 행만 돌려주므로(비로그인이면 auth.uid()가 없어 항상
   // 0건), 여기서 별도로 user_id 필터를 걸 필요는 없다.
-  const { rows, reload } = useRealtimeList<UserNotification>("user_notifications", {
+  const { rows, reload } = useList<UserNotification>("user_notifications", {
     orderBy: { column: "created_at", ascending: false },
     limit: 30,
   });

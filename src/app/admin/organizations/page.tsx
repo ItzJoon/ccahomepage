@@ -4,7 +4,7 @@ import AdminTable from "@/components/admin/AdminTable";
 import OrgMembersManager from "@/components/admin/OrgMembersManager";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import AccountPicker, { accountDisplayName } from "@/components/admin/AccountPicker";
@@ -26,12 +26,12 @@ export default function AdminOrganizationsPage() {
   // 메인 헤더의 "구성원"(학교 전체 명단, /members)과 이름이 겹쳐 헷갈리지 않도록, 부서
   // 구성원 관리(옛 /admin/members)를 별도 메뉴 대신 이 화면의 탭으로 옮겼다.
   const [tab, setTab] = useState<"orgs" | "members">("orgs");
-  const { rows, reload } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
-  const { rows: members } = useRealtimeList<MemberRow>("members", {
+  const { rows, reload } = useList<Organization>("organizations", { orderBy: { column: "order_index" } });
+  const { rows: members, reload: reloadMembers } = useList<MemberRow>("members", {
     select: "*, profile:profiles(profile_image)",
     orderBy: { column: "order_index" },
   });
-  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  const { rows: profiles } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });
@@ -95,11 +95,13 @@ export default function AdminOrganizationsPage() {
     });
     setMemberForm({ ...emptyMember });
     setAddingMember(false);
+    reloadMembers(); // realtime이 아니므로 직접 갱신
   };
 
   const removeMember = async (id: string) => {
     if (!confirm("이 구성원을 삭제하시겠습니까?")) return;
     await supabase.from("members").delete().eq("id", id);
+    reloadMembers();
   };
 
   const linkMemberAccount = (p: Profile) => setMemberForm((f) => ({ ...f, user_id: p.id, name: accountDisplayName(p) }));

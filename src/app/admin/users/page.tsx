@@ -3,7 +3,7 @@
 import AdminTable from "@/components/admin/AdminTable";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { fakeName, fakeEmail } from "@/lib/fakeData";
 import { roleLabel } from "@/lib/roleLabel";
@@ -15,8 +15,8 @@ const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3:
 export default function AdminUsersPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows, reload } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
-  const { rows: directory } = useRealtimeList<DirectoryMember>("directory_members");
+  const { rows, reload } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  const { rows: directory } = useList<DirectoryMember>("directory_members");
   const [q, setQ] = useState("");
   const [gradeFilter, setGradeFilter] = useState("전체");
   const [myId, setMyId] = useState<string | null>(null);

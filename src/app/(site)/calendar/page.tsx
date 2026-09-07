@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
@@ -18,7 +18,7 @@ type EventWithCreator = EventItem & { creator_name: string | null };
 
 export default function CalendarPage() {
   useTrackPageVisit("calendar"); // "탐험가" 뱃지용 방문 기록
-  const { rows: events } = useRealtimeList<EventWithCreator>("events", {
+  const { rows: events } = useList<EventWithCreator>("events", {
     selectFrom: "events_with_creator",
     orderBy: { column: "start_at" },
   });

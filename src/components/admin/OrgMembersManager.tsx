@@ -3,7 +3,7 @@
 import AdminTable from "./AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
 import ImageUpload from "@/components/ImageUpload";
@@ -21,12 +21,12 @@ const empty = { org_id: "", user_id: "", name: "", position: "", bio: "", photo_
 export default function OrgMembersManager() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows: orgs } = useRealtimeList<Organization>("organizations", { orderBy: { column: "order_index" } });
-  const { rows: members, reload } = useRealtimeList<MemberRow>("members", {
+  const { rows: orgs } = useList<Organization>("organizations", { orderBy: { column: "order_index" } });
+  const { rows: members, reload } = useList<MemberRow>("members", {
     select: "*, profile:profiles(profile_image)",
     orderBy: { column: "order_index" },
   });
-  const { rows: profiles } = useRealtimeList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  const { rows: profiles } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...empty });
   const [initialForm, setInitialForm] = useState({ ...empty });

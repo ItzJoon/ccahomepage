@@ -3,7 +3,7 @@
 import Link from "next/link";
 import AdminTable from "@/components/admin/AdminTable";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { adminDisplayName } from "@/lib/displayName";
@@ -29,10 +29,10 @@ export default function AdminModerationPage() {
   // is_admin() 전용이라 designer는 그 버튼은 못 쓴다 — RLS 범위와 정확히 맞춘다.
   const canModerate = iAmAdmin || role === "designer";
 
-  const { rows: profiles, reload: reloadProfiles } = useRealtimeList<Profile>("profiles", {
+  const { rows: profiles, reload: reloadProfiles } = useList<Profile>("profiles", {
     orderBy: { column: "created_at", ascending: false },
   });
-  const { rows: directory, reload: reloadDirectory } = useRealtimeList<DirectoryMember>("directory_members");
+  const { rows: directory, reload: reloadDirectory } = useList<DirectoryMember>("directory_members");
 
   const suspended = profiles
     .filter((p) => p.suspended_until && new Date(p.suspended_until).getTime() > Date.now())

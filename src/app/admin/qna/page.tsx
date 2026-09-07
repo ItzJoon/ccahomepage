@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
@@ -31,7 +31,7 @@ interface QuestionWithAnswer {
 
 export default function AdminQnaPage() {
   const supabase = createClient();
-  const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
+  const { rows, reload } = useList<QuestionWithAnswer>("questions", {
     select: "*, answers(*), asker:profiles(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });

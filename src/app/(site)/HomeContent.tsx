@@ -3,14 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { useStudentPreview } from "@/lib/studentPreviewContext";
-import { todayKST, nowKSTTime } from "@/lib/date";
+import { todayKST, nowKSTTime, nowKSTDayOfWeek } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock, MealPlan, SiteSettings } from "@/lib/types";
 
@@ -90,10 +90,10 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   // 실제 세션(superadmin)의 RLS 예외 때문에 그대로 딸려오므로, 진짜 학생이 보는 모습과
   // 같아지도록 여기서 한 번 더 걸러낸다.
   const previewAsStudent = useStudentPreview();
-  const { rows: blocks } = useRealtimeList<MainBlock>("main_blocks", {
+  const { rows: blocks } = useList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
-  const { rows: notices } = useRealtimeList<Post>("posts", {
+  const { rows: notices } = useList<Post>("posts", {
     filter: (q) => {
       let query = q.eq("type", "notice").eq("status", "published");
       if (previewAsStudent) query = query.eq("is_hidden", false);
@@ -101,11 +101,11 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     },
     orderBy: { column: "created_at", ascending: false },
   });
-  const { rows: events } = useRealtimeList<EventItem>("events", {
+  const { rows: events } = useList<EventItem>("events", {
     filter: (q) => (previewAsStudent ? q.eq("is_hidden", false) : q),
     orderBy: { column: "start_at" },
   });
-  const { rows: news } = useRealtimeList<Post>("posts", {
+  const { rows: news } = useList<Post>("posts", {
     filter: (q) => {
       let query = q.eq("type", "news").eq("status", "published");
       if (previewAsStudent) query = query.eq("is_hidden", false);
@@ -113,8 +113,8 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     },
     orderBy: { column: "created_at", ascending: false },
   });
-  const { rows: mealPlans } = useRealtimeList<MealPlan>("meal_plans");
-  const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
+  const { rows: mealPlans } = useList<MealPlan>("meal_plans");
+  const { rows: settingsRows } = useList<SiteSettings>("site_settings");
   const settings = settingsRows.find((s) => s.id === "default");
 
   useEffect(() => {
@@ -135,7 +135,11 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   const today = todayKST();
   const upcoming = events.filter((e) => e.start_at >= today).slice(0, 3);
   const dinnerSwitchTime = (settings?.dinner_switch_time ?? "13:30:00").slice(0, 5);
-  const activeMealType = nowTime >= dinnerSwitchTime ? "dinner" : "lunch";
+  // 석식은 실제로 제공되는 요일(기본값: 월/수/목)에만 전환한다 — 그 외 요일은 전환
+  // 시각이 지나도 계속 중식으로 남는다.
+  const dinnerDays = settings?.dinner_days ?? [1, 3, 4];
+  const isDinnerDay = dinnerDays.includes(nowKSTDayOfWeek());
+  const activeMealType = isDinnerDay && nowTime >= dinnerSwitchTime ? "dinner" : "lunch";
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
   const thisMonth = mealPlans.find(
     (m) =>

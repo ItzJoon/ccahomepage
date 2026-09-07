@@ -3,7 +3,7 @@
 import AdminTable, { truncateCellProps, actionCellClass } from "../AdminTable";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
@@ -31,7 +31,7 @@ const empty = { category: "notice" as JudiciaryRecord["category"], title: "", co
 export default function JudiciaryRecordsManager() {
   const supabase = createClient();
   const { t } = useHomeTheme();
-  const { rows: records, reload } = useRealtimeList<JudiciaryRecord>("judiciary_records", {
+  const { rows: records, reload } = useList<JudiciaryRecord>("judiciary_records", {
     orderBy: { column: "created_at", ascending: false },
   });
   const [editing, setEditing] = useState<string | "new" | null>(null);
