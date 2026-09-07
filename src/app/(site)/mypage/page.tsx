@@ -167,7 +167,7 @@ export default function MyPage() {
           {freezeCredits > 0 ? (
             <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
           ) : (
-            <div className="text-muted text-[11px]">연속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
+            <div className="text-muted text-[11px]">누적 접속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
           )}
           {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
         </div>

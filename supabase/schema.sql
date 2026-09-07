@@ -4572,3 +4572,85 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function check_in_attendance(uuid, boolean) to authenticated;
+
+-- ------------------------------------------------------------
+-- 111. 프리즈 재충전 기준을 "연속 접속 7의 배수"에서 "누적 접속일수 7의 배수"로 변경
+-- ------------------------------------------------------------
+-- 110번에서는 연속 스트릭(streak_count)이 7의 배수를 새로 찍을 때마다 재충전했는데,
+-- 이러면 중간에 스트릭이 한 번이라도 끊기면 다시 7일을 연속으로 채우기 전까지는 절대
+-- 재충전되지 않는다. 연속 여부와 무관하게 "총 몇 번째로 접속한 날인지"(user_attendance
+-- 누적 행 수)가 7의 배수가 될 때마다 재충전하도록 바꾼다 — 재충전 기회가 스트릭이
+-- 끊겼다고 사라지지 않는다.
+create or replace function check_in_attendance(p_user_id uuid, p_use_freeze boolean default false)
+returns json as $$
+declare
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_yesterday date := v_today - 1;
+  v_day_before date := v_today - 2;
+  v_last_date date;
+  v_last_streak int;
+  v_freeze_credits int;
+  v_freeze_eligible boolean;
+  v_use_freeze boolean;
+  v_next_streak int;
+  v_inserted_streak int;
+  v_total_visits int;
+  v_freeze_delta int := 0;
+  v_new_freeze_credits int;
+begin
+  if p_user_id is distinct from auth.uid() then
+    raise exception '본인만 체크인할 수 있습니다';
+  end if;
+
+  if exists (select 1 from user_attendance where user_id = p_user_id and visit_date = v_today) then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select visit_date, streak_count into v_last_date, v_last_streak
+    from user_attendance where user_id = p_user_id order by visit_date desc limit 1;
+
+  select freeze_credits into v_freeze_credits from profiles where id = p_user_id;
+
+  v_freeze_eligible := (v_last_date is distinct from v_yesterday)
+    and v_last_date = v_day_before
+    and coalesce(v_freeze_credits, 0) > 0;
+
+  v_use_freeze := v_freeze_eligible and p_use_freeze;
+
+  v_next_streak := case
+    when v_last_date = v_yesterday then coalesce(v_last_streak, 0) + 1
+    when v_use_freeze then coalesce(v_last_streak, 0) + 1
+    else 1
+  end;
+
+  insert into user_attendance (user_id, visit_date, streak_count, is_freeze)
+  values (p_user_id, v_today, v_next_streak, v_use_freeze)
+  on conflict (user_id, visit_date) do nothing
+  returning streak_count into v_inserted_streak;
+
+  if not found then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select count(*) into v_total_visits from user_attendance where user_id = p_user_id;
+
+  if v_use_freeze then
+    v_freeze_delta := v_freeze_delta - 1;
+  end if;
+  if v_total_visits % 7 = 0 then
+    v_freeze_delta := v_freeze_delta + 1;
+  end if;
+
+  if v_freeze_delta <> 0 then
+    update profiles set freeze_credits = greatest(least(freeze_credits + v_freeze_delta, 3), 0)
+      where id = p_user_id
+      returning freeze_credits into v_new_freeze_credits;
+  else
+    v_new_freeze_credits := coalesce(v_freeze_credits, 0);
+  end if;
+
+  return json_build_object('streak', v_inserted_streak, 'used_freeze', v_use_freeze, 'freeze_credits', v_new_freeze_credits);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function check_in_attendance(uuid, boolean) to authenticated;
