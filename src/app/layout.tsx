@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notoSansKR, notoSerifKR, jua, caveat } from "@/lib/fonts";
 import "./globals.css";
 
 // 카카오톡/문자/디스코드 등에 링크를 공유하거나 구글 검색 결과에 뜰 때 사이트 이름이
@@ -59,7 +60,7 @@ const websiteJsonLd = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko">
+    <html lang="ko" className={`${notoSansKR.variable} ${notoSerifKR.variable} ${jua.variable} ${caveat.variable}`}>
       <body>
         <script
           type="application/ld+json"
