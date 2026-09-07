@@ -6,11 +6,12 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
+import ImageUpload from "@/components/ImageUpload";
 import type { Member, Organization, Profile } from "@/lib/types";
 
 type MemberRow = Member & { profile: { profile_image: string | null } | null };
 
-const empty = { org_id: "", user_id: "", name: "", position: "", bio: "", order_index: 1 };
+const empty = { org_id: "", user_id: "", name: "", position: "", bio: "", photo_url: "", order_index: 1 };
 
 /**
  * 부서 구성원 관리. 예전에는 /admin/members라는 별도 메뉴였는데, 메인 헤더의
@@ -38,7 +39,7 @@ export default function OrgMembersManager() {
     setEditing("new");
   };
   const startEdit = (m: MemberRow) => {
-    const next = { org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", order_index: m.order_index };
+    const next = { org_id: m.org_id, user_id: m.user_id || "", name: m.name, position: m.position || "", bio: m.bio || "", photo_url: m.photo_url || "", order_index: m.order_index };
     setForm(next);
     setInitialForm(next);
     setEditing(m.id);
@@ -46,7 +47,7 @@ export default function OrgMembersManager() {
 
   const save = async () => {
     if (!form.name.trim() || !form.org_id) return;
-    const payload = { ...form, user_id: form.user_id || null };
+    const payload = { ...form, user_id: form.user_id || null, photo_url: form.photo_url || null };
     if (editing === "new") await supabase.from("members").insert(payload);
     else if (editing) await supabase.from("members").update(payload).eq("id", editing);
     setEditing(null);
@@ -145,6 +146,16 @@ export default function OrgMembersManager() {
 
           <label className="text-xs font-bold text-muted mt-2">계정 연결 (선택 — 마이페이지 프로필 사진·이름 연동)</label>
           <AccountPicker profiles={profiles} linkedProfile={linkedProfile} onLink={linkAccount} onUnlink={unlinkAccount} />
+
+          <label className="text-xs font-bold text-muted mt-2">
+            사진 {form.user_id && "(직접 올리면 계정의 프로필 사진 대신 이 사진이 우선 표시됩니다)"}
+          </label>
+          <ImageUpload
+            userId={editing || "new"}
+            value={form.photo_url || null}
+            onChange={(url) => setForm({ ...form, photo_url: url || "" })}
+            bucket="profile-photos"
+          />
 
           <label className="text-xs font-bold text-muted mt-2">이름</label>
           <input className={t.adminInput} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

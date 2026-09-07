@@ -1,6 +1,9 @@
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import DetailBackLink from "@/components/DetailBackLink";
+import type { Member } from "@/lib/types";
+
+type MemberRow = Member & { profile: { profile_image: string | null } | null };
 
 const COLOR_VAR: Record<string, string> = {
   navy: "var(--navy)",
@@ -16,9 +19,10 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
 
   const { data: members } = await supabase
     .from("members")
-    .select("*")
+    .select("*, profile:profiles(profile_image)")
     .eq("org_id", org.id)
-    .order("order_index");
+    .order("order_index")
+    .returns<MemberRow[]>();
 
   return (
     <div className="bg-white border border-border rounded-2xl p-7">
@@ -37,19 +41,30 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
       <div className="mt-6 pt-5 border-t border-border">
         <h3>구성원</h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5">
-          {(members ?? []).map((m) => (
-            <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
-              <div
-                className="w-[52px] h-[52px] rounded-full text-white flex items-center justify-center font-bold mx-auto mb-2.5"
-                style={{ background: COLOR_VAR[org.color] || COLOR_VAR.navy, width: 52, height: 52 }}
-              >
-                {m.name[0]}
+          {(members ?? []).map((m) => {
+            const photo = m.photo_url || m.profile?.profile_image;
+            return (
+              <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
+                {photo ? (
+                  <img
+                    src={photo}
+                    alt={m.name}
+                    className="w-[52px] h-[52px] rounded-full object-cover mx-auto mb-2.5"
+                  />
+                ) : (
+                  <div
+                    className="w-[52px] h-[52px] rounded-full text-white flex items-center justify-center font-bold mx-auto mb-2.5"
+                    style={{ background: COLOR_VAR[org.color] || COLOR_VAR.navy, width: 52, height: 52 }}
+                  >
+                    {m.name[0]}
+                  </div>
+                )}
+                <div className="font-bold">{m.name}</div>
+                <div className="text-blue text-sm mb-1.5">{m.position}</div>
+                <div className="text-muted text-xs">{m.bio}</div>
               </div>
-              <div className="font-bold">{m.name}</div>
-              <div className="text-blue text-sm mb-1.5">{m.position}</div>
-              <div className="text-muted text-xs">{m.bio}</div>
-            </div>
-          ))}
+            );
+          })}
           {(!members || members.length === 0) && (
             <div className="text-muted text-center py-6 text-sm col-span-4">등록된 구성원이 없습니다.</div>
           )}
