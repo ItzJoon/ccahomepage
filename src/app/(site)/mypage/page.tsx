@@ -164,11 +164,8 @@ export default function MyPage() {
         <div className="bg-white border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
           <div className="text-muted text-sm">연속 접속일수</div>
-          {freezeCredits > 0 ? (
-            <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
-          ) : (
-            <div className="text-muted text-[11px]">누적 접속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
-          )}
+          <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
+          <div className="text-muted text-[11px]">누적 접속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
           {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
         </div>
         <div className="bg-white border border-border rounded-2xl p-5">
