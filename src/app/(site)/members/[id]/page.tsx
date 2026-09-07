@@ -20,10 +20,15 @@ export default function MemberProfilePage() {
   const [profile, setProfile] = useState<DirectoryProfileView | null>(null);
   const [badges, setBadges] = useState<(BadgeDef & { earned_at: string })[]>([]);
   const [editingProfile, setEditingProfile] = useState(false);
-  const { isAdmin, role } = useMyRole();
+  const { isAdmin, isSuperadmin, myId, role } = useMyRole();
   // designer도 admin과 동일하게 프로필에서 경고/정지/영구차단 조치를 쓸 수 있다(reports
   // 페이지와 동일한 이슈 — RLS의 user_warnings_insert_admin 등이 is_designer()를 허용).
   const canModerate = isAdmin || role === "designer";
+  // 히든 뱃지(secret_tier)는 "이 프로필의 주인이 획득했는지"가 아니라 "지금 보고 있는
+  // 나(뷰어)도 이미 그 뱃지를 획득했는지"로 공개 여부를 가려야 한다 — 안 그러면 남의
+  // 프로필에서 아직 내가 못 찾은 히든 뱃지의 이름/설명이 그대로 노출돼 버린다(실제 신고된
+  // 버그). 마이페이지와 동일한 기준(secret_tier + 본인 earnedIds)을 여기서도 적용한다.
+  const [viewerEarnedIds, setViewerEarnedIds] = useState<Set<string>>(new Set());
 
   const loadProfile = async () => {
     const { data: profileRow } = await supabase
@@ -62,6 +67,21 @@ export default function MemberProfilePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, params.id]);
 
+  useEffect(() => {
+    if (!myId) return;
+    let active = true;
+    supabase
+      .from("user_badges")
+      .select("badge_id")
+      .eq("user_id", myId)
+      .then(({ data }) => {
+        if (active) setViewerEarnedIds(new Set((data ?? []).map((r) => r.badge_id)));
+      });
+    return () => {
+      active = false;
+    };
+  }, [myId, supabase]);
+
   if (loading) return null;
 
   if (!profile) {
@@ -82,6 +102,12 @@ export default function MemberProfilePage() {
     profile.member_type === "student"
       ? `${profile.grade}학년 ${profile.homeroom ? HOMEROOM_LABEL[profile.homeroom] : ""}`
       : profile.subject || "-";
+
+  // 슈퍼시크릿은 뷰어가 아직 획득 못 했으면 목록에서 아예 제외한다(존재 자체를 숨김) —
+  // 마이페이지의 visibleBadges와 동일한 기준.
+  const visibleBadges = badges.filter(
+    (b) => isSuperadmin || b.secret_tier !== "super_secret" || viewerEarnedIds.has(b.id)
+  );
 
   return (
     <div>
@@ -135,17 +161,30 @@ export default function MemberProfilePage() {
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
         <h3 className="mb-3">획득한 뱃지</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
-          {badges.map((b) => (
-            <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
-              <div className="text-3xl cursor-default">{b.icon}</div>
-              <div className="text-[11px] text-muted leading-tight">{b.label}</div>
-              <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
-                <div className="font-bold mb-0.5">{b.label}</div>
-                {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
+          {visibleBadges.map((b) => {
+            const viewerUnlocked = isSuperadmin || viewerEarnedIds.has(b.id);
+            // 시크릿(뷰어가 아직 못 찾은 히든 뱃지) — 이 프로필 주인이 획득했다는 사실은
+            // 보이되 실루엣 처리하고 이름/설명은 가린다. 슈퍼시크릿은 아래 필터에서 이미
+            // 목록 자체에서 제외된다.
+            const secretLocked = b.secret_tier === "secret" && !viewerUnlocked;
+            return (
+              <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
+                <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
+                <div className="text-[11px] text-muted leading-tight">{secretLocked ? "???" : b.label}</div>
+                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
+                  {secretLocked ? (
+                    <div className="font-bold">???? (히든 뱃지)</div>
+                  ) : (
+                    <>
+                      <div className="font-bold mb-0.5">{b.label}</div>
+                      {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
-          {badges.length === 0 && (
+            );
+          })}
+          {visibleBadges.length === 0 && (
             <div className="text-muted text-sm col-span-full text-center py-4">아직 획득한 뱃지가 없습니다.</div>
           )}
         </div>
