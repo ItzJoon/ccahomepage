@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
+import ImageUpload from "@/components/ImageUpload";
 import { adminDisplayName } from "@/lib/displayName";
-import type { BadgeDef, Profile } from "@/lib/types";
+import type { BadgeDef, Profile, SecretTriggerType } from "@/lib/types";
 
 interface BadgeHolder {
   id: string;
@@ -22,7 +23,7 @@ const empty = {
   label: "",
   description: "",
   icon: "🏅",
-  award_type: "auto" as "auto" | "manual" | "date" | "action",
+  award_type: "auto" as "auto" | "manual" | "date" | "action" | "secret_trigger",
   streak_threshold: 3,
   date_condition: "before" as "before" | "after" | "on" | "between",
   date_condition_value: "",
@@ -32,6 +33,30 @@ const empty = {
   secret_tier: "none" as "none" | "secret" | "super_secret",
   easter_egg_names: [] as string[],
   condition_text: "",
+  max_holders: "",
+  trigger_type: "" as "" | SecretTriggerType,
+  // hidden_click
+  hcImageUrl: "",
+  hcPagePath: "",
+  hcXPct: 50,
+  hcYPct: 50,
+  hcSizePx: 20,
+  // flash_button
+  fbButtonLabel: "발견!",
+  fbPages: "*",
+  fbProbabilityPct: 5,
+  fbIntervalSeconds: 30,
+  fbDurationMs: 800,
+  // timed_page
+  tpSlug: "",
+  tpDayOfWeek: 2,
+  tpStartTime: "16:44",
+  tpEndTime: "16:45",
+  tpContentText: "",
+  tpImageUrl: "",
+  tpLinkLabel: "???",
+  // daily_chance
+  dcProbabilityPct: 5,
 };
 
 const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> = {
@@ -39,6 +64,14 @@ const dateConditionLabel: Record<"before" | "after" | "on" | "between", string> 
   after: "이후에 로그인",
   on: "당일에 로그인",
   between: "사이에 로그인",
+};
+
+const DAY_OF_WEEK_LABEL = ["일", "월", "화", "수", "목", "금", "토"];
+const TRIGGER_TYPE_LABEL: Record<SecretTriggerType, string> = {
+  hidden_click: "숨겨진 요소 클릭형",
+  flash_button: "잠깐 나타나는 버튼형",
+  timed_page: "시간대 한정 숨은 페이지형",
+  daily_chance: "하루 한 번 랜덤 확률형",
 };
 
 // 시크릿은 항상 뒤로, 슈퍼시크릿은 더 뒤로 보낸다 — secret_tier 문자열값이 마침
@@ -132,7 +165,9 @@ export default function AdminBadgesPage() {
     setEditing("new");
   };
   const startEdit = (b: BadgeDef) => {
+    const cfg = (b.trigger_config ?? {}) as Record<string, any>;
     const next = {
+      ...empty,
       code: b.code,
       label: b.label,
       description: b.description || "",
@@ -147,6 +182,26 @@ export default function AdminBadgesPage() {
       secret_tier: b.secret_tier,
       easter_egg_names: b.easter_egg_names ?? [],
       condition_text: b.condition_text ?? "",
+      max_holders: b.max_holders != null ? String(b.max_holders) : "",
+      trigger_type: (b.trigger_type ?? "") as "" | SecretTriggerType,
+      hcImageUrl: cfg.image_url ?? "",
+      hcPagePath: cfg.page_path ?? "",
+      hcXPct: cfg.x_pct ?? 50,
+      hcYPct: cfg.y_pct ?? 50,
+      hcSizePx: cfg.size_px ?? 20,
+      fbButtonLabel: b.trigger_type === "flash_button" ? cfg.button_label ?? "발견!" : empty.fbButtonLabel,
+      fbPages: b.trigger_type === "flash_button" ? (Array.isArray(cfg.pages) ? cfg.pages.join(",") : cfg.pages ?? "*") : empty.fbPages,
+      fbProbabilityPct: b.trigger_type === "flash_button" && cfg.probability != null ? Math.round(cfg.probability * 100) : empty.fbProbabilityPct,
+      fbIntervalSeconds: cfg.interval_seconds ?? empty.fbIntervalSeconds,
+      fbDurationMs: cfg.duration_ms ?? empty.fbDurationMs,
+      tpSlug: cfg.slug ?? "",
+      tpDayOfWeek: cfg.day_of_week ?? empty.tpDayOfWeek,
+      tpStartTime: cfg.start_time ?? empty.tpStartTime,
+      tpEndTime: cfg.end_time ?? empty.tpEndTime,
+      tpContentText: cfg.content_text ?? "",
+      tpImageUrl: cfg.image_url ?? "",
+      tpLinkLabel: cfg.link_label ?? empty.tpLinkLabel,
+      dcProbabilityPct: b.trigger_type === "daily_chance" && cfg.probability != null ? Math.round(cfg.probability * 100) : empty.dcProbabilityPct,
     };
     setForm(next);
     setInitialForm(next);
@@ -158,6 +213,45 @@ export default function AdminBadgesPage() {
     if (form.award_type === "auto" && form.streak_threshold <= 0) return;
     if (form.award_type === "date" && !form.date_condition_value) return;
     if (form.award_type === "date" && form.date_condition === "between" && !form.date_condition_value_end) return;
+    if (form.award_type === "secret_trigger") {
+      if (!form.trigger_type) return;
+      if (form.trigger_type === "hidden_click" && (!form.hcImageUrl || !form.hcPagePath)) return;
+      if (form.trigger_type === "timed_page" && (!form.tpSlug || !form.tpContentText)) return;
+    }
+    // 시크릿 트리거 타입별 설정값만 trigger_config에 담는다(선택 안 한 타입의 값은
+    // 저장하지 않음 — 나중에 타입을 바꾸면 이전 타입의 설정이 섞여 남지 않게 한다).
+    let triggerConfig: Record<string, unknown> = {};
+    if (form.award_type === "secret_trigger") {
+      if (form.trigger_type === "hidden_click") {
+        triggerConfig = {
+          image_url: form.hcImageUrl,
+          page_path: form.hcPagePath,
+          x_pct: form.hcXPct,
+          y_pct: form.hcYPct,
+          size_px: form.hcSizePx,
+        };
+      } else if (form.trigger_type === "flash_button") {
+        triggerConfig = {
+          button_label: form.fbButtonLabel,
+          pages: form.fbPages.trim() === "*" ? "*" : form.fbPages.split(",").map((p) => p.trim()).filter(Boolean),
+          probability: form.fbProbabilityPct / 100,
+          interval_seconds: form.fbIntervalSeconds,
+          duration_ms: form.fbDurationMs,
+        };
+      } else if (form.trigger_type === "timed_page") {
+        triggerConfig = {
+          slug: form.tpSlug.trim(),
+          day_of_week: form.tpDayOfWeek,
+          start_time: form.tpStartTime,
+          end_time: form.tpEndTime,
+          content_text: form.tpContentText,
+          image_url: form.tpImageUrl || undefined,
+          link_label: form.tpLinkLabel,
+        };
+      } else if (form.trigger_type === "daily_chance") {
+        triggerConfig = { probability: form.dcProbabilityPct / 100 };
+      }
+    }
     const payload = {
       code: form.code,
       label: form.label,
@@ -173,6 +267,9 @@ export default function AdminBadgesPage() {
       secret_tier: form.secret_tier,
       easter_egg_names: form.easter_egg_names.filter((n) => n.trim()),
       condition_text: form.condition_text.trim() || null,
+      max_holders: form.max_holders.trim() === "" ? null : Number(form.max_holders),
+      trigger_type: form.award_type === "secret_trigger" ? form.trigger_type || null : null,
+      trigger_config: triggerConfig,
     };
     if (editing === "new") await supabase.from("badges").insert(payload);
     else if (editing) await supabase.from("badges").update(payload).eq("id", editing);
@@ -272,6 +369,10 @@ export default function AdminBadgesPage() {
                       : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
                     : b.award_type === "action"
                     ? "특정 행동 시 자동"
+                    : b.award_type === "secret_trigger"
+                    ? b.trigger_type
+                      ? TRIGGER_TYPE_LABEL[b.trigger_type]
+                      : "시크릿 트리거"
                     : "수동 부여"}
                 </td>
                 <td className={t.adminTableCell}>
@@ -381,13 +482,26 @@ export default function AdminBadgesPage() {
           <select
             className={t.adminInput}
             value={form.award_type}
-            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" | "action" })}
+            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" | "action" | "secret_trigger" })}
           >
             <option value="auto">자동 (연속 접속일수 조건 도달 시)</option>
             <option value="date">날짜 조건 (특정 날짜 이전/이후/당일 로그인)</option>
             <option value="manual">수동 (자유 조건, 관리자가 확인 후 직접 부여)</option>
             <option value="action">특정 행동 (Q&A 첫 작성 등, 코드로 직접 연결됨)</option>
+            <option value="secret_trigger">시크릿 트리거 (직접 찾거나 반응해야 하는 숨은 뱃지)</option>
           </select>
+
+          <label className="text-xs font-bold text-muted mt-2">
+            정원 (최대 보유 인원, 개발자 계정은 제외하고 셈 — 비워두면 무제한)
+          </label>
+          <input
+            type="number"
+            min={1}
+            className={t.adminInput}
+            placeholder="무제한"
+            value={form.max_holders}
+            onChange={(e) => setForm({ ...form, max_holders: e.target.value })}
+          />
 
           <label className="text-xs font-bold text-muted mt-2">설명</label>
           <textarea
@@ -472,6 +586,117 @@ export default function AdminBadgesPage() {
               지급 조건은 개발자가 직접 코드로 연결해야 하며, 이 화면에서는 설정할 수 없습니다
               — 새로 만들려면 개발자에게 요청하세요.
             </p>
+          )}
+          {form.award_type === "secret_trigger" && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">발견 방식</label>
+              <select
+                className={t.adminInput}
+                value={form.trigger_type}
+                onChange={(e) => setForm({ ...form, trigger_type: e.target.value as "" | SecretTriggerType })}
+              >
+                <option value="">선택하세요</option>
+                {(Object.keys(TRIGGER_TYPE_LABEL) as SecretTriggerType[]).map((tt) => (
+                  <option key={tt} value={tt}>{TRIGGER_TYPE_LABEL[tt]}</option>
+                ))}
+              </select>
+
+              {form.trigger_type === "hidden_click" && (
+                <>
+                  <p className="text-muted text-xs">지정한 페이지의 지정한 위치에 작은 이미지를 숨겨두고, 클릭하면 지급합니다.</p>
+                  <label className="text-xs font-bold text-muted mt-1">숨길 이미지</label>
+                  <ImageUpload
+                    userId={editing || "new"}
+                    value={form.hcImageUrl || null}
+                    onChange={(url) => setForm({ ...form, hcImageUrl: url || "" })}
+                    bucket="attachments"
+                  />
+                  <label className="text-xs font-bold text-muted mt-1">등장 페이지 경로 (예: /organizations)</label>
+                  <input className={t.adminInput} value={form.hcPagePath} onChange={(e) => setForm({ ...form, hcPagePath: e.target.value })} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-muted">가로 위치 (%)</label>
+                      <input type="number" min={0} max={100} className={t.adminInput} value={form.hcXPct} onChange={(e) => setForm({ ...form, hcXPct: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">세로 위치 (%)</label>
+                      <input type="number" min={0} max={100} className={t.adminInput} value={form.hcYPct} onChange={(e) => setForm({ ...form, hcYPct: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">크기 (px)</label>
+                      <input type="number" min={4} className={t.adminInput} value={form.hcSizePx} onChange={(e) => setForm({ ...form, hcSizePx: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {form.trigger_type === "flash_button" && (
+                <>
+                  <p className="text-muted text-xs">설정한 페이지에서, 설정한 주기마다 확률을 굴려 당첨되면 버튼이 잠깐 나타났다 사라집니다.</p>
+                  <label className="text-xs font-bold text-muted mt-1">버튼 문구</label>
+                  <input className={t.adminInput} value={form.fbButtonLabel} onChange={(e) => setForm({ ...form, fbButtonLabel: e.target.value })} />
+                  <label className="text-xs font-bold text-muted mt-1">등장 가능 페이지 (쉼표로 구분, "*"=전체 페이지)</label>
+                  <input className={t.adminInput} placeholder="* 또는 /,/notices" value={form.fbPages} onChange={(e) => setForm({ ...form, fbPages: e.target.value })} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-muted">굴림 주기 (초)</label>
+                      <input type="number" min={1} className={t.adminInput} value={form.fbIntervalSeconds} onChange={(e) => setForm({ ...form, fbIntervalSeconds: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">당첨 확률 (%)</label>
+                      <input type="number" min={0} max={100} className={t.adminInput} value={form.fbProbabilityPct} onChange={(e) => setForm({ ...form, fbProbabilityPct: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">노출 시간 (ms)</label>
+                      <input type="number" min={100} className={t.adminInput} value={form.fbDurationMs} onChange={(e) => setForm({ ...form, fbDurationMs: Number(e.target.value) })} />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {form.trigger_type === "timed_page" && (
+                <>
+                  <p className="text-muted text-xs">설정한 요일·시간대에만 접속 가능한 숨은 페이지입니다. 그 시간대엔 이미 사이트를 열어둔 학생 화면에도 새로고침 없이 링크가 나타납니다.</p>
+                  <label className="text-xs font-bold text-muted mt-1">페이지 주소 (영문, /secret/ 뒤에 붙음)</label>
+                  <input className={t.adminInput} placeholder="예: midnight" value={form.tpSlug} onChange={(e) => setForm({ ...form, tpSlug: e.target.value })} />
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-xs font-bold text-muted">요일</label>
+                      <select className={t.adminInput} value={form.tpDayOfWeek} onChange={(e) => setForm({ ...form, tpDayOfWeek: Number(e.target.value) })}>
+                        {DAY_OF_WEEK_LABEL.map((d, i) => <option key={i} value={i}>{d}요일</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">시작 시각</label>
+                      <input type="time" className={t.adminInput} value={form.tpStartTime} onChange={(e) => setForm({ ...form, tpStartTime: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold text-muted">종료 시각</label>
+                      <input type="time" className={t.adminInput} value={form.tpEndTime} onChange={(e) => setForm({ ...form, tpEndTime: e.target.value })} />
+                    </div>
+                  </div>
+                  <label className="text-xs font-bold text-muted mt-1">나타날 링크 문구</label>
+                  <input className={t.adminInput} value={form.tpLinkLabel} onChange={(e) => setForm({ ...form, tpLinkLabel: e.target.value })} />
+                  <label className="text-xs font-bold text-muted mt-1">페이지 안 문구</label>
+                  <textarea rows={2} className={t.adminInput} value={form.tpContentText} onChange={(e) => setForm({ ...form, tpContentText: e.target.value })} />
+                  <label className="text-xs font-bold text-muted mt-1">페이지 안 이미지 (선택)</label>
+                  <ImageUpload
+                    userId={editing || "new"}
+                    value={form.tpImageUrl || null}
+                    onChange={(url) => setForm({ ...form, tpImageUrl: url || "" })}
+                    bucket="attachments"
+                  />
+                </>
+              )}
+
+              {form.trigger_type === "daily_chance" && (
+                <>
+                  <p className="text-muted text-xs">하루 중 처음 접속했을 때 이 확률로 당첨되어 지급됩니다(하루 한 번만 시도).</p>
+                  <label className="text-xs font-bold text-muted mt-1">당첨 확률 (%)</label>
+                  <input type="number" min={0} max={100} className={t.adminInput} value={form.dcProbabilityPct} onChange={(e) => setForm({ ...form, dcProbabilityPct: Number(e.target.value) })} />
+                </>
+              )}
+            </>
           )}
 
           <label className="flex items-center gap-2 text-sm mt-2">

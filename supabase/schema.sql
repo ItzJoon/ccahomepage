@@ -4674,3 +4674,277 @@ alter table meal_plans add constraint meal_plans_year_month_meal_type_key unique
 -- 필요한 게 아니다 — 별도 테이블을 만들 이유가 없어 기존 site_settings 싱글턴에
 -- 컬럼만 추가한다.
 alter table site_settings add column if not exists dinner_switch_time time not null default '13:30:00';
+
+-- ------------------------------------------------------------
+-- 113. 시크릿 뱃지 트리거 시스템 (숨은 클릭/순간 버튼/시간대 한정 페이지/일일 확률) 4종
+-- ------------------------------------------------------------
+-- 지금까지 뱃지 지급(award_type: auto/manual/date/action)은 전부 "서버가 조건을 계산해서
+-- 조용히 지급"하는 방식뿐이었다. "화면에서 뭔가를 직접 찾거나 순간적으로 반응해야 하는"
+-- 숨은 재미 요소형 뱃지를 코드 수정 없이 관리자가 소재/조건만 바꿔 만들 수 있도록
+-- award_type='secret_trigger' + trigger_type + trigger_config(jsonb)로 일반화한다.
+-- 소재(이미지 경로, 페이지, 좌표, 요일/시각, 확률)는 전부 trigger_config에 데이터로만
+-- 존재하므로, 나중에 다른 소재로 바꾸는 것도 관리자 화면에서 값만 바꾸면 된다.
+alter table badges add column if not exists max_holders int;
+alter table badges add column if not exists trigger_type text
+  check (trigger_type in ('hidden_click', 'flash_button', 'timed_page', 'daily_chance'));
+alter table badges add column if not exists trigger_config jsonb not null default '{}'::jsonb;
+
+alter table badges drop constraint if exists badges_award_type_check;
+alter table badges add constraint badges_award_type_check
+  check (award_type = any (array['auto', 'manual', 'date', 'action', 'secret_trigger']));
+
+-- phantom_member("넌 누구야")의 정원 10명이 RPC 안에 하드코딩돼 있었는데, 새로 만드는
+-- max_holders 컬럼으로 일원화한다(카운트/자동마감 로직 자체는 그대로 — 정원 숫자만 데이터화).
+update badges set max_holders = 10 where code = 'phantom_member';
+
+create or replace function claim_easter_egg_badge()
+returns json as $$
+declare
+  v_badge_id uuid;
+  v_max_holders int;
+  v_is_developer boolean;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id, max_holders into v_badge_id, v_max_holders
+    from badges where code = 'phantom_member' and is_active = true;
+  if v_badge_id is null then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+
+  select (role = 'superadmin') into v_is_developer from profiles where id = auth.uid();
+  if v_is_developer then
+    return json_build_object('badge_id', v_badge_id, 'developer', true);
+  end if;
+
+  if v_max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+        and not exists (select 1 from members m where m.user_id = p.id);
+    if v_holder_count >= v_max_holders then
+      update badges set is_active = false where id = v_badge_id;
+      raise exception '이미 정원이 마감된 뱃지입니다';
+    end if;
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), v_badge_id)
+  on conflict (user_id, badge_id) do nothing;
+
+  if v_max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = v_badge_id and p.role <> 'superadmin'
+        and not exists (select 1 from members m where m.user_id = p.id);
+    if v_holder_count >= v_max_holders then
+      update badges set is_active = false where id = v_badge_id;
+    end if;
+  end if;
+
+  return json_build_object('badge_id', v_badge_id);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- 개발자(superadmin) 계정은 앞으로 생기는 모든 뱃지를 자동으로 보유한다(이번 4종에
+-- 국한되지 않는 전역 규칙). 뱃지가 나중에 비활성화돼도 이미 지급된 user_badges 행은
+-- 지우지 않으므로 비활성화된 뱃지도 계속 보유한 상태로 남는다. 정원(max_holders) 카운트는
+-- 위 claim_easter_egg_badge/아래 claim_secret_trigger_badge/roll_daily_secret_badge 모두
+-- role<>'superadmin'만 세므로 개발자가 전부 갖고 있어도 학생 몫 정원을 갉아먹지 않는다.
+create or replace function grant_new_badge_to_developer()
+returns trigger as $$
+begin
+  insert into user_badges (user_id, badge_id)
+  select id, new.id from profiles where role = 'superadmin'
+  on conflict (user_id, badge_id) do nothing;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists trg_grant_new_badge_to_developer on badges;
+create trigger trg_grant_new_badge_to_developer after insert on badges
+  for each row execute function grant_new_badge_to_developer();
+
+-- 이미 존재하는 뱃지도 한 번 백필해서 개발자 계정이 지금 즉시 전부 보유하게 만든다.
+insert into user_badges (user_id, badge_id)
+select p.id, b.id from profiles p cross join badges b where p.role = 'superadmin'
+on conflict (user_id, badge_id) do nothing;
+
+-- "하루 한 번 랜덤 확률 지급형"의 오늘 시도 여부/결과를 기록한다. 클라이언트가 직접 쓸 수
+-- 없고(insert 정책 없음, SECURITY DEFINER 함수만 기록) 본인 것만 열람 가능.
+create table if not exists secret_daily_attempts (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid references profiles(id) on delete cascade,
+  badge_id uuid references badges(id) on delete cascade,
+  attempt_date date not null,
+  won boolean not null,
+  created_at timestamptz not null default now(),
+  unique (user_id, badge_id, attempt_date)
+);
+alter table secret_daily_attempts enable row level security;
+drop policy if exists "secret_daily_attempts_select_self" on secret_daily_attempts;
+create policy "secret_daily_attempts_select_self" on secret_daily_attempts for select
+  using (auth.uid() = user_id);
+
+-- "시간대 한정 숨은 페이지형"이 지금 이 순간(KST) 활성 창 안인지. 요일(0=일~6=토)+시작/종료
+-- 시각을 trigger_config에서 읽는다. site_restrictions.windows(시각만, 요일 없음)와 달리
+-- 요일 조건이 필요해서 새로 만든다. 페이지 접근(notFound 여부)과 지급(claim 시 재검증)
+-- 양쪽에서 이 함수 하나를 공유해서 로직이 어긋나지 않게 한다.
+create or replace function is_timed_secret_badge_active(p_badge_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select b.is_active
+        and extract(dow from timezone('Asia/Seoul', now()))::int = (b.trigger_config->>'day_of_week')::int
+        and (timezone('Asia/Seoul', now()))::time
+          between (b.trigger_config->>'start_time')::time and (b.trigger_config->>'end_time')::time
+      from badges b
+      where b.id = p_badge_id and b.trigger_type = 'timed_page'
+    ), false
+  );
+$$;
+
+grant execute on function is_timed_secret_badge_active(uuid) to authenticated;
+
+-- hidden_click(숨은 요소 클릭) / flash_button(순간 등장 버튼) / timed_page(방문 시 지급) 공용
+-- 지급 RPC. phantom_member의 "카운트 → 체크 → insert → 재카운트 → 정원 초과 시 자동
+-- is_active=false" 패턴을 그대로 재사용하되 max_holders를 데이터로 읽는다. timed_page는
+-- 클라이언트가 뭘 보내든 믿지 않고 여기서 다시 is_timed_secret_badge_active로 재검증한다.
+create or replace function claim_secret_trigger_badge(p_badge_id uuid)
+returns json as $$
+declare
+  v_id uuid;
+  v_is_active boolean;
+  v_award_type text;
+  v_trigger_type text;
+  v_max_holders int;
+  v_holder_count int;
+  v_granted_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id, is_active, award_type, trigger_type, max_holders
+    into v_id, v_is_active, v_award_type, v_trigger_type, v_max_holders
+    from badges where id = p_badge_id;
+
+  if v_id is null or v_award_type <> 'secret_trigger' or not v_is_active then
+    raise exception '지금은 획득할 수 없는 뱃지입니다';
+  end if;
+  if v_trigger_type not in ('hidden_click', 'flash_button', 'timed_page') then
+    raise exception '이 방식으로는 지급할 수 없는 뱃지입니다';
+  end if;
+  if v_trigger_type = 'timed_page' and not is_timed_secret_badge_active(p_badge_id) then
+    raise exception '지금은 활성화된 시간이 아닙니다';
+  end if;
+
+  if v_max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = p_badge_id and p.role <> 'superadmin';
+    if v_holder_count >= v_max_holders then
+      update badges set is_active = false where id = p_badge_id;
+      raise exception '이미 정원이 마감된 뱃지입니다';
+    end if;
+  end if;
+
+  insert into user_badges (user_id, badge_id)
+  values (auth.uid(), p_badge_id)
+  on conflict (user_id, badge_id) do nothing
+  returning id into v_granted_id;
+
+  if v_max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = p_badge_id and p.role <> 'superadmin';
+    if v_holder_count >= v_max_holders then
+      update badges set is_active = false where id = p_badge_id;
+    end if;
+  end if;
+
+  return json_build_object('badge_id', p_badge_id, 'granted', v_granted_id is not null);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function claim_secret_trigger_badge(uuid) to authenticated;
+
+-- daily_chance("오늘의 운빨") 전용. 하루 한 번만 시도되도록 secret_daily_attempts로
+-- 멱등 처리한다(이미 오늘 시도했으면 그 결과를 그대로 돌려주고 다시 굴리지 않음).
+create or replace function roll_daily_secret_badge(p_badge_id uuid)
+returns json as $$
+declare
+  v_id uuid;
+  v_is_active boolean;
+  v_award_type text;
+  v_trigger_type text;
+  v_trigger_config jsonb;
+  v_max_holders int;
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_existing_won boolean;
+  v_probability numeric;
+  v_won boolean;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select id, is_active, award_type, trigger_type, trigger_config, max_holders
+    into v_id, v_is_active, v_award_type, v_trigger_type, v_trigger_config, v_max_holders
+    from badges where id = p_badge_id;
+
+  if v_id is null or v_award_type <> 'secret_trigger' or v_trigger_type <> 'daily_chance' or not v_is_active then
+    raise exception '지금은 시도할 수 없는 뱃지입니다';
+  end if;
+
+  select won into v_existing_won from secret_daily_attempts
+    where user_id = auth.uid() and badge_id = p_badge_id and attempt_date = v_today;
+  if found then
+    return json_build_object('already_attempted', true, 'won', v_existing_won);
+  end if;
+
+  v_probability := coalesce((v_trigger_config->>'probability')::numeric, 0);
+  v_won := random() < v_probability;
+
+  if v_won and v_max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = p_badge_id and p.role <> 'superadmin';
+    if v_holder_count >= v_max_holders then
+      v_won := false;
+      update badges set is_active = false where id = p_badge_id;
+    end if;
+  end if;
+
+  insert into secret_daily_attempts (user_id, badge_id, attempt_date, won)
+  values (auth.uid(), p_badge_id, v_today, v_won);
+
+  if v_won then
+    insert into user_badges (user_id, badge_id)
+    values (auth.uid(), p_badge_id)
+    on conflict (user_id, badge_id) do nothing;
+
+    if v_max_holders is not null then
+      select count(*) into v_holder_count
+        from user_badges ub join profiles p on p.id = ub.user_id
+        where ub.badge_id = p_badge_id and p.role <> 'superadmin';
+      if v_holder_count >= v_max_holders then
+        update badges set is_active = false where id = p_badge_id;
+      end if;
+    end if;
+  end if;
+
+  return json_build_object('already_attempted', false, 'won', v_won);
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function roll_daily_secret_badge(uuid) to authenticated;

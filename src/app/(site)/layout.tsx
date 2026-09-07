@@ -9,6 +9,7 @@ import PrevPathProvider from "@/components/PrevPathProvider";
 import StudentPreviewBanner from "@/components/StudentPreviewBanner";
 import SuspensionWatcher from "@/components/SuspensionWatcher";
 import RestrictionGuardWatcher from "@/components/RestrictionGuardWatcher";
+import SecretBadgeWatchers from "@/components/secret/SecretBadgeWatchers";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import { StudentPreviewProvider } from "@/lib/studentPreviewContext";
@@ -164,6 +165,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           )}
           {profile && <SuspensionWatcher userId={profile.id} email={profile.email} />}
           <RestrictionGuardWatcher role={profile?.role ?? null} />
+          <SecretBadgeWatchers userId={profile?.id ?? null} />
           <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
           <Footer initialThemeKey={initialThemeKey} />
         </div>

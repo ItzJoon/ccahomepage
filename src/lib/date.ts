@@ -18,6 +18,14 @@ export function nowKSTTime(): string {
   }).format(new Date());
 }
 
+const WEEKDAY_ORDER = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+/** 한국 시간(Asia/Seoul) 기준 오늘 요일(0=일 ~ 6=토) — is_timed_secret_badge_active()의 day_of_week와 같은 기준. */
+export function nowKSTDayOfWeek(): number {
+  const short = new Intl.DateTimeFormat("en-US", { timeZone: "Asia/Seoul", weekday: "short" }).format(new Date());
+  return WEEKDAY_ORDER.indexOf(short);
+}
+
 /** "YYYY-MM-DD" 문자열에 일수를 더하고(음수면 뺀 뒤) 다시 "YYYY-MM-DD"로 돌려준다. */
 export function addDaysKST(dateStr: string, delta: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);

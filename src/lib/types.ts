@@ -181,13 +181,45 @@ export interface MealPlan {
   created_at: string;
 }
 
+export type SecretTriggerType = "hidden_click" | "flash_button" | "timed_page" | "daily_chance";
+
+export interface HiddenClickTriggerConfig {
+  image_url: string;
+  page_path: string;
+  x_pct: number;
+  y_pct: number;
+  size_px: number;
+}
+
+export interface FlashButtonTriggerConfig {
+  button_label: string;
+  pages: string[] | "*";
+  probability: number;
+  interval_seconds: number;
+  duration_ms: number;
+}
+
+export interface TimedPageTriggerConfig {
+  slug: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+  content_text: string;
+  image_url?: string;
+  link_label: string;
+}
+
+export interface DailyChanceTriggerConfig {
+  probability: number;
+}
+
 export interface BadgeDef {
   id: string;
   code: string;
   label: string;
   description: string | null;
   icon: string;
-  award_type: "auto" | "manual" | "date" | "action";
+  award_type: "auto" | "manual" | "date" | "action" | "secret_trigger";
   streak_threshold: number | null;
   date_condition: "before" | "after" | "on" | "between" | null;
   date_condition_value: string | null;
@@ -197,6 +229,9 @@ export interface BadgeDef {
   secret_tier: "none" | "secret" | "super_secret";
   easter_egg_names: string[];
   condition_text: string | null;
+  max_holders: number | null;
+  trigger_type: SecretTriggerType | null;
+  trigger_config: Record<string, any>;
 }
 
 export interface UserBadge {
