@@ -8,6 +8,16 @@ export function todayKST(): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Seoul" }).format(new Date());
 }
 
+/** 한국 시간(Asia/Seoul) 기준 현재 시각 문자열(HH:MM) — DB의 time 컬럼(예: 급식 전환 시각)과 비교할 때 쓴다. */
+export function nowKSTTime(): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Seoul",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date());
+}
+
 /** "YYYY-MM-DD" 문자열에 일수를 더하고(음수면 뺀 뒤) 다시 "YYYY-MM-DD"로 돌려준다. */
 export function addDaysKST(dateStr: string, delta: number): string {
   const [y, m, d] = dateStr.split("-").map(Number);

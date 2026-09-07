@@ -10,9 +10,9 @@ import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { useStudentPreview } from "@/lib/studentPreviewContext";
-import { todayKST } from "@/lib/date";
+import { todayKST, nowKSTTime } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
-import type { Post, EventItem, MainBlock, MealPlan } from "@/lib/types";
+import type { Post, EventItem, MainBlock, MealPlan, SiteSettings } from "@/lib/types";
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
@@ -114,17 +114,34 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     orderBy: { column: "created_at", ascending: false },
   });
   const { rows: mealPlans } = useRealtimeList<MealPlan>("meal_plans");
+  const { rows: settingsRows } = useRealtimeList<SiteSettings>("site_settings");
+  const settings = settingsRows.find((s) => s.id === "default");
 
   useEffect(() => {
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
 
+  // 석식 전환 시각을 지난 채로 화면을 계속 열어두고 있어도(새로고침 없이) 자동으로
+  // 중식->석식이 바뀌도록, 사이트 제한(RestrictionGuardWatcher)과 같은 방식으로 현재
+  // 시각을 주기적으로 다시 읽는다. 1분 간격이면 급식 전환처럼 초 단위로 민감하지 않은
+  // 용도로는 충분하다.
+  const [nowTime, setNowTime] = useState(() => nowKSTTime());
+  useEffect(() => {
+    const timer = setInterval(() => setNowTime(nowKSTTime()), 60_000);
+    return () => clearInterval(timer);
+  }, []);
+
   const today = todayKST();
   const upcoming = events.filter((e) => e.start_at >= today).slice(0, 3);
+  const dinnerSwitchTime = (settings?.dinner_switch_time ?? "13:30:00").slice(0, 5);
+  const activeMealType = nowTime >= dinnerSwitchTime ? "dinner" : "lunch";
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
   const thisMonth = mealPlans.find(
-    (m) => m.year === Number(today.slice(0, 4)) && m.month === Number(today.slice(5, 7))
+    (m) =>
+      m.year === Number(today.slice(0, 4)) &&
+      m.month === Number(today.slice(5, 7)) &&
+      m.meal_type === activeMealType
   );
 
   return (
@@ -232,10 +249,11 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 </div>
               </div>
             );
-          if (b.id === "meal")
+          if (b.id === "meal") {
+            const mealLabel = activeMealType === "dinner" ? "석식" : "중식";
             return (
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`} style={heightStyle}>
-                <BlockTitle t={t} eyebrow="MEAL" title="이번 달 급식표" />
+                <BlockTitle t={t} eyebrow="MEAL" title={`이번 달 급식표 (${mealLabel})`} />
                 {thisMonth ? (
                   // 높이가 지정돼 있으면 이미지가 그 안에서 스크롤되게 해서(그 값이 없을 땐
                   // 기존처럼 이미지 원본 크기만큼 카드가 늘어남), 세로로 긴 급식표 이미지가
@@ -243,15 +261,21 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                   <div style={b.height_px ? { maxHeight: `${b.height_px - 60}px`, overflowY: "auto" } : undefined}>
                     <ImageLightbox
                       src={thisMonth.image_url}
-                      alt={`${thisMonth.year}년 ${thisMonth.month}월 급식표`}
+                      alt={`${thisMonth.year}년 ${thisMonth.month}월 ${mealLabel} 급식표`}
                       className="w-full rounded-lg border border-border object-contain"
                     />
                   </div>
                 ) : (
-                  <EmptyState icon="🍽️" title="등록된 이번 달 급식표가 없습니다" desc="관리자가 급식표를 업로드하면 이곳에 표시됩니다." t={t} />
+                  <EmptyState
+                    icon="🍽️"
+                    title={`등록된 이번 달 ${mealLabel} 급식표가 없습니다`}
+                    desc="관리자가 급식표를 업로드하면 이곳에 표시됩니다."
+                    t={t}
+                  />
                 )}
               </div>
             );
+          }
           if (b.id === "quick")
             return (
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`} style={heightStyle}>

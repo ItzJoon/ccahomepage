@@ -4654,3 +4654,23 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function check_in_attendance(uuid, boolean) to authenticated;
+
+-- ------------------------------------------------------------
+-- 112. 급식표를 중식/석식으로 분리 + 전환 시각 설정
+-- ------------------------------------------------------------
+-- 지금까지는 (year, month)당 이미지 1장뿐이라 중식/석식을 구분할 수 없었다. meal_type을
+-- 추가해서 같은 (year, month)에 중식/석식 이미지를 각각 별도 행으로 관리한다. 기존에
+-- 이미 올라와 있던 이미지는 전부 중식으로 간주한다(컬럼 기본값이 'lunch'라 기존 행에도
+-- 그대로 채워짐 — 별도 UPDATE 불필요).
+alter table meal_plans add column if not exists meal_type text not null default 'lunch'
+  check (meal_type in ('lunch', 'dinner'));
+
+alter table meal_plans drop constraint if exists meal_plans_year_month_key;
+alter table meal_plans add constraint meal_plans_year_month_meal_type_key unique (year, month, meal_type);
+
+-- 몇 시부터 석식 이미지로 전환할지. 이 설정은 site_settings의 다른 값들(예:
+-- restrict_external_checkin)과 마찬가지로 admin 이상이면 바꿀 수 있어야 하므로(요건:
+-- "developer 또는 관리자") site_theme/site_restrictions처럼 superadmin 전용 정책이
+-- 필요한 게 아니다 — 별도 테이블을 만들 이유가 없어 기존 site_settings 싱글턴에
+-- 컬럼만 추가한다.
+alter table site_settings add column if not exists dinner_switch_time time not null default '13:30:00';

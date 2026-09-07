@@ -167,10 +167,13 @@ export interface MainBlock {
   height_px: number | null;
 }
 
+export type MealType = "lunch" | "dinner";
+
 export interface MealPlan {
   id: string;
   year: number;
   month: number;
+  meal_type: MealType;
   image_url: string;
   image_path: string | null;
   original_file_name: string | null;
@@ -311,6 +314,7 @@ export interface SiteSettings {
   warning_suspend_threshold: number;
   warning_suspend_days: number;
   warning_ban_threshold: number;
+  dinner_switch_time: string;
   updated_at: string;
 }
 
