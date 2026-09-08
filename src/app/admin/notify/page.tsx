@@ -38,7 +38,8 @@ export default function AdminNotifyPage() {
   const [sending, setSending] = useState(false);
 
   const send = async () => {
-    if (!title.trim() || !message.trim()) return;
+    if (!title.trim()) return;
+    if (!imageUrl && !message.trim()) return; // 이미지가 없으면 텍스트 알림이므로 내용이 필수
     if (durationMode === "custom" && !customUntil) return;
     setSending(true);
     const {
@@ -60,9 +61,17 @@ export default function AdminNotifyPage() {
     reload();
   };
 
-  const remove = async (id: string) => {
+  const remove = async (n: NotificationItem) => {
     if (!confirm("이 알림을 삭제하시겠습니까? 지금 떠 있는 팝업/배너도 즉시 닫힙니다.")) return;
-    await supabase.from("notifications").delete().eq("id", id);
+    await supabase.from("notifications").delete().eq("id", n.id);
+    // 첨부 이미지가 있었으면 Storage에도 고아 파일로 남지 않도록 같이 지운다.
+    if (n.image_url) {
+      const marker = "/attachments/";
+      const idx = n.image_url.indexOf(marker);
+      if (idx !== -1) {
+        await supabase.storage.from("attachments").remove([n.image_url.slice(idx + marker.length)]);
+      }
+    }
     reload();
   };
 
@@ -111,14 +120,21 @@ export default function AdminNotifyPage() {
       <div className={`${t.adminEditPanel} flex flex-col gap-1.5 max-w-lg`}>
         <label className="text-xs font-bold text-muted mt-2">알림 제목</label>
         <input className={t.adminInput} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 긴급 하교 안내" />
-        <label className="text-xs font-bold text-muted mt-2">알림 내용</label>
-        <textarea rows={3} className={t.adminInput} value={message} onChange={(e) => setMessage(e.target.value)} />
+        <label className="text-xs font-bold text-muted mt-2">알림 내용{imageUrl && " (선택)"}</label>
+        <textarea
+          rows={3}
+          className={t.adminInput}
+          value={message}
+          onChange={(e) => setMessage(e.target.value)}
+          placeholder={imageUrl ? "비워두면 이미지만 표시됩니다" : ""}
+        />
         <label className="text-xs font-bold text-muted mt-2">이미지 첨부 (선택)</label>
         <ImageUpload userId={myId || "notify"} value={imageUrl} onChange={setImageUrl} bucket="attachments" />
         {imageUrl && (
           <p className="text-muted text-xs mt-1">
-            이미지를 첨부하면 위 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다
-            (노출 방식은 자동으로 팝업이 됩니다).
+            {message.trim()
+              ? "이미지와 함께 위 제목/내용도 팝업에 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."
+              : "알림 내용을 비워두면 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."}
           </p>
         )}
         <label className="text-xs font-bold text-muted mt-2">중요도</label>
@@ -180,7 +196,7 @@ export default function AdminNotifyPage() {
                 <button onClick={() => stopNow(n)} className="text-blue text-xs font-bold">지금 바로 내리기</button>
               )}
               {canManageNotify ? (
-                <button onClick={() => remove(n.id)} className={t.adminBtnDanger}>삭제</button>
+                <button onClick={() => remove(n)} className={t.adminBtnDanger}>삭제</button>
               ) : (
                 <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
               )}

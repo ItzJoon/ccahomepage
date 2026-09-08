@@ -121,6 +121,8 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
   };
 
   if (current.image_url) {
+    // 알림 내용이 비어있으면 이미지+X 버튼만, 내용이 있으면 이미지와 함께 제목/내용도 보여준다.
+    const hasText = !!current.message?.trim();
     return (
       <div
         className={`fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 transition-opacity duration-[250ms] ${
@@ -128,23 +130,51 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
         }`}
         onClick={() => setCurrent(null)}
       >
-        <div className="relative" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            onClick={() => setCurrent(null)}
-            className="absolute z-10 -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
-            aria-label="닫기"
-          >
-            ✕
-          </button>
-          <img
-            src={current.image_url}
-            alt={current.title}
-            className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
+        {hasText ? (
+          <div
+            className={`relative bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl flex flex-col transition-transform duration-[250ms] ${
               visible ? "scale-100" : "scale-95"
             }`}
-          />
-        </div>
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setCurrent(null)}
+              className="absolute z-10 top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white text-lg leading-none"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+            <div className="bg-bg flex items-center justify-center">
+              <img src={current.image_url} alt={current.title} className="max-w-full max-h-[45vh] object-contain" />
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${current.level === "urgent" ? "text-red" : "text-gold"}`}>
+                {current.level === "urgent" ? "긴급 공지" : "공지"}
+              </div>
+              <h3 className="text-lg font-bold mb-2">{current.title}</h3>
+              <p className="text-sm text-muted whitespace-pre-wrap">{current.message}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="relative" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setCurrent(null)}
+              className="absolute z-10 -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
+              aria-label="닫기"
+            >
+              ✕
+            </button>
+            <img
+              src={current.image_url}
+              alt={current.title}
+              className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
+                visible ? "scale-100" : "scale-95"
+              }`}
+            />
+          </div>
+        )}
       </div>
     );
   }
