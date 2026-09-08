@@ -138,7 +138,7 @@ export default function AdminNotifyPage() {
             <p className="text-muted text-xs mt-1">
               {message.trim()
                 ? "이미지와 함께 위 제목/내용도 팝업에 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."
-                : "알림 내용을 비워두면 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."}
+                : "알림 내용을 비워두면 제목/내용 없이 이미지 중심의 팝업으로 표시됩니다 (확인/오늘 하루 안 보기 버튼 포함, 노출 방식은 자동으로 팝업이 됩니다)."}
             </p>
             <label className="text-xs font-bold text-muted mt-2">이미지 클릭 시 이동할 링크 (선택)</label>
             <input

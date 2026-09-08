@@ -151,6 +151,7 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
                   href={current.link_url}
                   target={current.link_url.startsWith("http") ? "_blank" : undefined}
                   rel={current.link_url.startsWith("http") ? "noopener noreferrer" : undefined}
+                  onClick={hideToday}
                 >
                   <img src={current.image_url} alt={current.title} className="max-w-full max-h-[45vh] object-contain cursor-pointer" />
                 </a>
@@ -163,11 +164,19 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
                 {current.level === "urgent" ? "긴급 공지" : "공지"}
               </div>
               <h3 className="text-lg font-bold mb-2">{current.title}</h3>
-              <p className="text-sm text-muted whitespace-pre-wrap">{current.message}</p>
+              <p className="text-sm text-muted whitespace-pre-wrap mb-5">{current.message}</p>
+              <div className="flex gap-2 justify-end flex-wrap">
+                <button onClick={hideToday} className="border border-border text-sm rounded-lg px-4 py-2">
+                  오늘 하루 안 보기
+                </button>
+                <button onClick={() => setCurrent(null)} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2">
+                  확인
+                </button>
+              </div>
             </div>
           </div>
         ) : (
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div className="relative flex flex-col items-center gap-3" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={() => setCurrent(null)}
@@ -181,11 +190,12 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
                 href={current.link_url}
                 target={current.link_url.startsWith("http") ? "_blank" : undefined}
                 rel={current.link_url.startsWith("http") ? "noopener noreferrer" : undefined}
+                onClick={hideToday}
               >
                 <img
                   src={current.image_url}
                   alt={current.title}
-                  className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl cursor-pointer transition-transform duration-[250ms] ${
+                  className={`max-w-[min(420px,85vw)] max-h-[min(420px,75vh)] object-contain rounded-lg shadow-2xl cursor-pointer transition-transform duration-[250ms] ${
                     visible ? "scale-100" : "scale-95"
                   }`}
                 />
@@ -194,11 +204,19 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
               <img
                 src={current.image_url}
                 alt={current.title}
-                className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
+                className={`max-w-[min(420px,85vw)] max-h-[min(420px,75vh)] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
                   visible ? "scale-100" : "scale-95"
                 }`}
               />
             )}
+            <div className="flex gap-2 bg-white rounded-lg p-1.5 shadow-lg">
+              <button onClick={hideToday} className="border border-border text-sm rounded-lg px-4 py-2">
+                오늘 하루 안 보기
+              </button>
+              <button onClick={() => setCurrent(null)} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2">
+                확인
+              </button>
+            </div>
           </div>
         )}
       </div>
