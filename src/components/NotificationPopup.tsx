@@ -29,6 +29,7 @@ function isExpired(n: NotificationItem) {
  */
 export default function NotificationPopup({ initial }: { initial: NotificationItem | null }) {
   const [current, setCurrent] = useState<NotificationItem | null>(null);
+  const [visible, setVisible] = useState(false);
   const currentRef = useRef<NotificationItem | null>(null);
   currentRef.current = current;
 
@@ -84,12 +85,69 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
     return () => clearTimeout(timer);
   }, [current]);
 
+  // 이미지 전용 팝업의 등장 애니메이션(ImageLightbox와 동일하게 더블 rAF로 "닫힘" 상태를
+  // 먼저 한 번 그리게 한 뒤 "열림"으로 넘겨야 transition이 실제로 애니메이션된다).
+  useEffect(() => {
+    if (!current) {
+      setVisible(false);
+      return;
+    }
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => setVisible(true));
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
+  }, [current?.id]);
+
+  // 이미지 전용 팝업만 ESC로 닫히게 한다 — 텍스트 팝업은 요구사항대로 기존 동작(확인/오늘
+  // 하루 안 보기 버튼으로만 닫힘)을 그대로 유지한다.
+  useEffect(() => {
+    if (!current?.image_url) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCurrent(null);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [current]);
+
   if (!current) return null;
 
   const hideToday = () => {
     localStorage.setItem(`notif_hide_${current.id}`, todayKST());
     setCurrent(null);
   };
+
+  if (current.image_url) {
+    return (
+      <div
+        className={`fixed inset-0 z-50 bg-black/70 flex items-center justify-center p-4 transition-opacity duration-[250ms] ${
+          visible ? "opacity-100" : "opacity-0"
+        }`}
+        onClick={() => setCurrent(null)}
+      >
+        <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => setCurrent(null)}
+            className="absolute -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
+            aria-label="닫기"
+          >
+            ✕
+          </button>
+          <img
+            src={current.image_url}
+            alt={current.title}
+            className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
+              visible ? "scale-100" : "scale-95"
+            }`}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4">

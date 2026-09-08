@@ -6,6 +6,7 @@ import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
+import ImageUpload from "@/components/ImageUpload";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import { adminDisplayName } from "@/lib/displayName";
 import { DURATION_PRESETS, computeDisplayUntil, type DurationMode } from "@/lib/notificationDuration";
@@ -22,7 +23,7 @@ export default function AdminNotifyPage() {
     select: "*, sender:profiles(name, nickname, email)",
     orderBy: { column: "sent_at", ascending: false },
   });
-  const { isAdmin: iAmAdmin, role } = useMyRole();
+  const { myId, isAdmin: iAmAdmin, role } = useMyRole();
   // designer도 admin과 동일하게 알림 삭제 및 발송 이력 전체 범위 열람을 쓸 수 있다(RLS의
   // notifications_delete_admin이 is_designer()를 허용).
   const canManageNotify = iAmAdmin || role === "designer";
@@ -33,6 +34,7 @@ export default function AdminNotifyPage() {
   const [displayType, setDisplayType] = useState<"banner" | "popup">("banner");
   const [durationMode, setDurationMode] = useState<DurationMode>("indefinite");
   const [customUntil, setCustomUntil] = useState(""); // datetime-local 값, durationMode==="custom"일 때만 사용
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -46,12 +48,14 @@ export default function AdminNotifyPage() {
       title,
       message,
       level,
-      display_type: displayType,
+      display_type: imageUrl ? "popup" : displayType,
       display_until: computeDisplayUntil(durationMode, customUntil),
+      image_url: imageUrl,
       sent_by: user?.id,
     });
     setTitle("");
     setMessage("");
+    setImageUrl(null);
     setSending(false);
     reload();
   };
@@ -109,6 +113,14 @@ export default function AdminNotifyPage() {
         <input className={t.adminInput} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="예: 긴급 하교 안내" />
         <label className="text-xs font-bold text-muted mt-2">알림 내용</label>
         <textarea rows={3} className={t.adminInput} value={message} onChange={(e) => setMessage(e.target.value)} />
+        <label className="text-xs font-bold text-muted mt-2">이미지 첨부 (선택)</label>
+        <ImageUpload userId={myId || "notify"} value={imageUrl} onChange={setImageUrl} bucket="attachments" />
+        {imageUrl && (
+          <p className="text-muted text-xs mt-1">
+            이미지를 첨부하면 위 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다
+            (노출 방식은 자동으로 팝업이 됩니다).
+          </p>
+        )}
         <label className="text-xs font-bold text-muted mt-2">중요도</label>
         <select className={t.adminInput} value={level} onChange={(e) => setLevel(e.target.value as any)}>
           <option value="info">일반 안내</option>
@@ -117,7 +129,8 @@ export default function AdminNotifyPage() {
         <label className="text-xs font-bold text-muted mt-2">노출 방식</label>
         <select
           className={t.adminInput}
-          value={displayType}
+          value={imageUrl ? "popup" : displayType}
+          disabled={!!imageUrl}
           onChange={(e) => setDisplayType(e.target.value as "banner" | "popup")}
         >
           <option value="banner">상단 배너 (작게 표시, 학생이 언제든 닫기 가능)</option>
@@ -157,7 +170,10 @@ export default function AdminNotifyPage() {
               {n.level === "urgent" && <Badge color="red">긴급</Badge>}
               <span className="flex-1 text-sm">{n.title}</span>
               <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
-              <span className="text-xs text-muted">{n.display_type === "popup" ? "팝업" : "배너"}</span>
+              <span className="text-xs text-muted">
+                {n.display_type === "popup" ? "팝업" : "배너"}
+                {n.image_url && " · 이미지"}
+              </span>
               <span className={`text-xs ${status.className}`}>{status.text}</span>
               <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
               {!isEnded(n) && (

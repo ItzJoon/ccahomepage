@@ -4956,3 +4956,11 @@ grant execute on function roll_daily_secret_badge(uuid) to authenticated;
 -- site_settings에 추가한다(0=일~6=토, JS Date.getDay()/Postgres extract(dow)와 동일 기준).
 -- 해당 요일이 아니면 전환 시각이 지났어도 항상 중식으로 남는다.
 alter table site_settings add column if not exists dinner_days int[] not null default '{1,3,4}';
+
+-- ------------------------------------------------------------
+-- 115. 공지 팝업에 이미지 전용 모드 추가 (#139)
+-- ------------------------------------------------------------
+-- 이미지가 첨부된 알림은 제목/본문 없이 이미지만 크게 보여주는 팝업으로 표시한다.
+-- 기존 배너/텍스트 팝업과 같은 notifications 테이블을 그대로 쓰고, image_url 유무로
+-- 클라이언트에서 렌더링 형태만 분기한다(노출 기간/발송 이력 등 나머지 로직은 공유).
+alter table notifications add column if not exists image_url text;
