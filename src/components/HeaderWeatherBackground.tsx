@@ -25,12 +25,14 @@ const SUN_TRAIL = [
   { x: 62, y: 136, r: 10, o: 0.16 },
 ];
 
+// 크기·속도가 서로 다른 구름 5개가 좌→우로 천천히 가로지른다(delay를 음수로 줘서
+// 처음부터 서로 다른 위치에서 시작한 것처럼 보이게 한다).
 const CLOUD_CONFIGS = [
-  { top: 15, left: 8, size: 90, duration: 20, delay: -4, opacity: 0.92 },
-  { top: 45, left: 32, size: 130, duration: 26, delay: -14, opacity: 0.85 },
-  { top: 20, left: 58, size: 100, duration: 22, delay: -8, opacity: 0.9 },
-  { top: 55, left: 78, size: 110, duration: 28, delay: -18, opacity: 0.85 },
-  { top: 8, left: 82, size: 70, duration: 18, delay: -2, opacity: 0.92 },
+  { top: 8, size: 170, duration: 70, delay: -10, opacity: 0.9 },
+  { top: 40, size: 230, duration: 95, delay: -45, opacity: 0.85 },
+  { top: 18, size: 190, duration: 80, delay: -62, opacity: 0.88 },
+  { top: 55, size: 210, duration: 110, delay: -20, opacity: 0.82 },
+  { top: 2, size: 140, duration: 60, delay: -32, opacity: 0.9 },
 ];
 
 // 눈 쌓임을 가로 여러 구간(bucket)으로 나눠서, 실제로 눈송이가 많이 떨어진 구간이 더
@@ -213,10 +215,11 @@ export default function HeaderWeatherBackground() {
         CLOUD_CONFIGS.map((c, i) => (
           <div
             key={i}
-            className={`absolute animate-weather-bg-fog motion-reduce:animate-none ${i >= 3 ? "hidden sm:block" : ""}`}
+            className={`absolute animate-weather-bg-cloud-drift motion-reduce:animate-none motion-reduce:left-1/4 ${
+              i >= 3 ? "hidden sm:block" : ""
+            }`}
             style={{
               top: `${c.top}%`,
-              left: `${c.left}%`,
               width: c.size,
               height: c.size * 0.6,
               opacity: c.opacity,

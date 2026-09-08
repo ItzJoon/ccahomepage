@@ -73,20 +73,20 @@ const config: Config = {
           "0%, 100%": { opacity: "0.85", transform: "scale(0.94)" },
           "50%": { opacity: "1", transform: "scale(1.08)" },
         },
-        // 흐림 — 뭉게뭉게 안개 덩어리. 제자리에서 아주 느리게 좌우로 흔들리며 옅어졌다 짙어짐.
-        "weather-bg-fog": {
-          "0%, 100%": { transform: "translateX(-8px)", opacity: "0.45" },
-          "50%": { transform: "translateX(8px)", opacity: "0.7" },
+        // 흐림 — 뭉게구름이 화면 왼쪽 바깥에서 오른쪽 바깥까지 천천히 가로지른다(각
+        // 구름마다 duration/delay가 달라서 서로 다른 속도로 어긋나게 지나간다).
+        "weather-bg-cloud-drift": {
+          "0%": { left: "-30%", opacity: "0.5" },
+          "50%": { opacity: "0.85" },
+          "100%": { left: "130%", opacity: "0.5" },
         },
-        // 비 — 뷰포트 위쪽 바깥(-translate)에서 이미 낙하 중인 상태로 시작해서 대각선으로
-        // 떨어진다(rotate는 고정, translate만 애니메이션돼서 기울어진 채로 이동). 낙하
-        // 방향(오른쪽 아래로 이동)과 기울기가 같은 방향(\ 모양)이어야 자연스럽다 —
-        // rotate(12deg)로 하면 기울기가 반대(/ 모양)로 나와서 -12deg로 맞췄다.
+        // 비 — 뷰포트 위쪽 바깥(top:-40px, 고정)에서 이미 낙하 중인 상태로 시작해서
+        // 일직선으로 곧장 떨어진다.
         "weather-bg-rainfall": {
-          "0%": { transform: "translate(0px, 0px) rotate(-12deg)", opacity: "0" },
+          "0%": { transform: "translateY(0px)", opacity: "0" },
           "10%": { opacity: "0.55" },
           "90%": { opacity: "0.55" },
-          "100%": { transform: "translate(40px, 380px) rotate(-12deg)", opacity: "0" },
+          "100%": { transform: "translateY(380px)", opacity: "0" },
         },
         // 눈 — 위쪽 바깥에서 시작해 좌우로 흔들리며(sway) 낙하. 실제 쌓임 높이는 각
         // 눈송이의 onAnimationIteration에서 별도로 계산한다(이 keyframe은 순수 낙하 모션만).
@@ -108,7 +108,7 @@ const config: Config = {
         "weather-drop": "weather-drop 1.1s ease-in infinite",
         "weather-bg-glow": "weather-bg-glow 6s ease-in-out infinite",
         "weather-bg-sparkle": "weather-bg-sparkle 2.4s ease-in-out infinite",
-        "weather-bg-fog": "weather-bg-fog 22s ease-in-out infinite",
+        "weather-bg-cloud-drift": "weather-bg-cloud-drift 90s linear infinite",
         "weather-bg-rainfall": "weather-bg-rainfall 1.1s linear infinite",
         "weather-bg-snowfall": "weather-bg-snowfall 7s linear infinite",
       },
