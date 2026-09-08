@@ -68,10 +68,10 @@ const config: Config = {
           "0%, 100%": { opacity: "0.15", transform: "scale(0.9)" },
           "50%": { opacity: "0.45", transform: "scale(1.15)" },
         },
-        // 맑음 — 해 주위 8방향 광선이 하나씩 어긋난 타이밍(delay)으로 반짝이는 만화풍 연출.
-        "weather-bg-ray": {
-          "0%, 100%": { opacity: "0.35" },
-          "50%": { opacity: "1" },
+        // 맑음 — 렌즈플레어풍 스파클이 살짝 커졌다 작아지며 반짝이는 연출.
+        "weather-bg-sparkle": {
+          "0%, 100%": { opacity: "0.85", transform: "scale(0.94)" },
+          "50%": { opacity: "1", transform: "scale(1.08)" },
         },
         // 흐림 — 뭉게뭉게 안개 덩어리. 제자리에서 아주 느리게 좌우로 흔들리며 옅어졌다 짙어짐.
         "weather-bg-fog": {
@@ -79,12 +79,14 @@ const config: Config = {
           "50%": { transform: "translateX(8px)", opacity: "0.7" },
         },
         // 비 — 뷰포트 위쪽 바깥(-translate)에서 이미 낙하 중인 상태로 시작해서 대각선으로
-        // 떨어진다(rotate는 고정, translate만 애니메이션돼서 기울어진 채로 이동).
+        // 떨어진다(rotate는 고정, translate만 애니메이션돼서 기울어진 채로 이동). 낙하
+        // 방향(오른쪽 아래로 이동)과 기울기가 같은 방향(\ 모양)이어야 자연스럽다 —
+        // rotate(12deg)로 하면 기울기가 반대(/ 모양)로 나와서 -12deg로 맞췄다.
         "weather-bg-rainfall": {
-          "0%": { transform: "translate(0px, 0px) rotate(12deg)", opacity: "0" },
-          "10%": { opacity: "0.75" },
-          "90%": { opacity: "0.75" },
-          "100%": { transform: "translate(40px, 380px) rotate(12deg)", opacity: "0" },
+          "0%": { transform: "translate(0px, 0px) rotate(-12deg)", opacity: "0" },
+          "10%": { opacity: "0.55" },
+          "90%": { opacity: "0.55" },
+          "100%": { transform: "translate(40px, 380px) rotate(-12deg)", opacity: "0" },
         },
         // 눈 — 위쪽 바깥에서 시작해 좌우로 흔들리며(sway) 낙하. 실제 쌓임 높이는 각
         // 눈송이의 onAnimationIteration에서 별도로 계산한다(이 keyframe은 순수 낙하 모션만).
@@ -105,7 +107,7 @@ const config: Config = {
         "weather-drift": "weather-drift 3.5s ease-in-out infinite",
         "weather-drop": "weather-drop 1.1s ease-in infinite",
         "weather-bg-glow": "weather-bg-glow 6s ease-in-out infinite",
-        "weather-bg-ray": "weather-bg-ray 1.8s ease-in-out infinite",
+        "weather-bg-sparkle": "weather-bg-sparkle 2.4s ease-in-out infinite",
         "weather-bg-fog": "weather-bg-fog 22s ease-in-out infinite",
         "weather-bg-rainfall": "weather-bg-rainfall 1.1s linear infinite",
         "weather-bg-snowfall": "weather-bg-snowfall 7s linear infinite",

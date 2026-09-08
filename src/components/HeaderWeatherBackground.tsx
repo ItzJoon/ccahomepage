@@ -12,14 +12,25 @@ function getVariant(pty: WeatherOk["pty"], sky: WeatherOk["sky"]): Variant {
   return sky;
 }
 
-const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+// 렌즈플레어풍 4방향 스파클(별) — 중심(150,55) 기준으로 긴 축(반지름 42, 상하좌우)과
+// 짧은 축(반지름 7, 대각선)이 번갈아 나오는 8개 꼭짓점을 이어서 만든 고정 도형이다
+// (사인/코사인으로 매번 계산할 필요 없이 각도 0/45/90/135/180/225/270/315도의 좌표를
+// 미리 구해뒀다). 만화풍 사각 광선 대신, 실제 사진 렌즈플레어처럼 뾰족한 별 형태.
+const SUN_SPARKLE_PATH = "M192,55 L154.95,59.95 L150,97 L145.05,59.95 L108,55 L145.05,50.05 L150,13 L154.95,50.05 Z";
+// 스파클에서 대각선 아래쪽으로 흩어지는 작은 빛망울(렌즈플레어 트레일) — 갈수록 작고 옅어진다.
+const SUN_TRAIL = [
+  { x: 128, y: 78, r: 9, o: 0.55 },
+  { x: 108, y: 98, r: 13, o: 0.4 },
+  { x: 85, y: 118, r: 16, o: 0.28 },
+  { x: 62, y: 136, r: 10, o: 0.16 },
+];
 
-const FOG_CONFIGS = [
-  { top: 15, left: 8, size: 90, duration: 20, delay: -4, opacity: 0.5 },
-  { top: 45, left: 32, size: 130, duration: 26, delay: -14, opacity: 0.4 },
-  { top: 20, left: 58, size: 100, duration: 22, delay: -8, opacity: 0.45 },
-  { top: 55, left: 78, size: 110, duration: 28, delay: -18, opacity: 0.4 },
-  { top: 8, left: 82, size: 70, duration: 18, delay: -2, opacity: 0.5 },
+const CLOUD_CONFIGS = [
+  { top: 15, left: 8, size: 90, duration: 20, delay: -4, opacity: 0.92 },
+  { top: 45, left: 32, size: 130, duration: 26, delay: -14, opacity: 0.85 },
+  { top: 20, left: 58, size: 100, duration: 22, delay: -8, opacity: 0.9 },
+  { top: 55, left: 78, size: 110, duration: 28, delay: -18, opacity: 0.85 },
+  { top: 8, left: 82, size: 70, duration: 18, delay: -2, opacity: 0.92 },
 ];
 
 // 눈 쌓임을 가로 여러 구간(bucket)으로 나눠서, 실제로 눈송이가 많이 떨어진 구간이 더
@@ -167,58 +178,68 @@ export default function HeaderWeatherBackground() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
       {variant === "clear" && (
-        <svg className="absolute top-2 right-2 w-20 h-20 sm:w-28 sm:h-28" viewBox="0 0 100 100">
+        <svg className="absolute -top-4 -right-4 w-56 h-56 sm:w-72 sm:h-72" viewBox="0 0 200 200">
           <defs>
             <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(251,191,36,0.9)" />
-              <stop offset="60%" stopColor="rgba(251,191,36,0.35)" />
-              <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+              <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
+              <stop offset="35%" stopColor="rgba(253,224,71,0.45)" />
+              <stop offset="100%" stopColor="rgba(253,224,71,0)" />
             </radialGradient>
           </defs>
+          {/* 은은하게 퍼지는 배경 glow */}
           <circle
-            cx="50"
-            cy="50"
-            r="45"
+            cx="150"
+            cy="55"
+            r="90"
             fill="url(#headerSunGlow)"
             className="animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
           />
-          {RAY_ANGLES.map((angle, i) => (
-            <rect
-              key={angle}
-              x="47"
-              y="12"
-              width="6"
-              height="14"
-              rx="2"
-              fill="#f59e0b"
-              transform={`rotate(${angle} 50 50)`}
-              className="animate-weather-bg-ray motion-reduce:animate-none motion-reduce:opacity-70"
-              style={{ animationDelay: `${i * 0.15}s` }}
-            />
+          {/* 대각선으로 흩어지는 작은 빛망울(렌즈플레어 트레일) */}
+          {SUN_TRAIL.map((t, i) => (
+            <circle key={i} cx={t.x} cy={t.y} r={t.r} fill="white" opacity={t.o} />
           ))}
-          <circle cx="50" cy="50" r="16" fill="#fbbf24" />
+          {/* 4방향으로 뾰족하게 뻗는 스파클 본체 */}
+          <path
+            d={SUN_SPARKLE_PATH}
+            fill="white"
+            className="animate-weather-bg-sparkle motion-reduce:animate-none"
+            style={{ transformOrigin: "150px 55px" }}
+          />
+          <circle cx="150" cy="55" r="5" fill="white" />
         </svg>
       )}
 
       {variant === "cloudy" &&
-        FOG_CONFIGS.map((f, i) => (
+        CLOUD_CONFIGS.map((c, i) => (
           <div
             key={i}
             className={`absolute animate-weather-bg-fog motion-reduce:animate-none ${i >= 3 ? "hidden sm:block" : ""}`}
             style={{
-              top: `${f.top}%`,
-              left: `${f.left}%`,
-              width: f.size,
-              height: f.size * 0.65,
-              filter: "blur(10px)",
-              animationDuration: `${f.duration}s`,
-              animationDelay: `${f.delay}s`,
+              top: `${c.top}%`,
+              left: `${c.left}%`,
+              width: c.size,
+              height: c.size * 0.6,
+              opacity: c.opacity,
+              animationDuration: `${c.duration}s`,
+              animationDelay: `${c.delay}s`,
             }}
           >
-            {/* 뚜렷한 윤곽 없이 여러 원을 겹쳐서 blur로 뭉개면 뭉게뭉게한 안개 덩어리처럼 보인다. */}
-            <div className="absolute inset-0 rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
-            <div className="absolute left-[18%] top-0 w-[65%] h-[80%] rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
-            <div className="absolute right-[8%] bottom-0 w-[55%] h-[75%] rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
+            {/* 뭉게구름 실루엣 — 크기가 다른 타원 여러 개를 겹쳐 윤곽을 만들고, 위는 밝고
+                아래는 살짝 그늘진 그라데이션으로 입체감을 준 뒤 아주 살짝만 블러 처리해서
+                (윤곽 자체는 또렷하게 남기고 경계 이음매만 부드럽게) 사진 속 뭉게구름
+                느낌을 낸다 — 안개처럼 형체가 없는 것과는 다르게 "구름"으로 알아볼 수 있게. */}
+            <svg viewBox="0 0 100 60" width="100%" height="100%" style={{ filter: "blur(1.5px)" }}>
+              <defs>
+                <linearGradient id={`cloudGrad${i}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ffffff" />
+                  <stop offset="100%" stopColor="#d6dee8" />
+                </linearGradient>
+              </defs>
+              <ellipse cx="45" cy="46" rx="32" ry="12" fill={`url(#cloudGrad${i})`} />
+              <ellipse cx="28" cy="38" rx="20" ry="16" fill={`url(#cloudGrad${i})`} />
+              <ellipse cx="50" cy="28" rx="22" ry="18" fill={`url(#cloudGrad${i})`} />
+              <ellipse cx="68" cy="36" rx="18" ry="15" fill={`url(#cloudGrad${i})`} />
+            </svg>
           </div>
         ))}
 
@@ -226,7 +247,7 @@ export default function HeaderWeatherBackground() {
         raindrops.map((r, i) => (
           <span
             key={i}
-            className={`absolute w-[2px] h-4 rounded-full bg-appleBlue animate-weather-bg-rainfall motion-reduce:animate-none motion-reduce:opacity-0 ${
+            className={`absolute w-[2px] h-4 rounded-full bg-[#bfdbfe] animate-weather-bg-rainfall motion-reduce:animate-none motion-reduce:opacity-0 ${
               i >= 12 ? "hidden sm:block" : ""
             }`}
             style={{ left: `${r.left}%`, top: "-40px", animationDuration: `${r.duration}s`, animationDelay: `${r.delay}s` }}
