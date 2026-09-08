@@ -61,6 +61,38 @@ const config: Config = {
           "30%": { opacity: "1" },
           "100%": { transform: "translateY(9px)", opacity: "0" },
         },
+        // 헤더 배경 날씨 애니메이션 전용(HeaderWeatherBackground.tsx 참고, 실험적/로컬
+        // 전용 기능 — NEXT_PUBLIC_ENABLE_HEADER_WEATHER_BG). 위 weather-* 는 작은 위젯
+        // 아이콘용이라 그대로 두고, 배경 전체에 깔리는 큰 요소들은 별도 이름으로 분리했다.
+        "weather-bg-glow": {
+          "0%, 100%": { opacity: "0.15", transform: "scale(0.9)" },
+          "50%": { opacity: "0.45", transform: "scale(1.15)" },
+        },
+        "weather-bg-cloud": {
+          "0%": { left: "-25%" },
+          "100%": { left: "125%" },
+        },
+        "weather-bg-rain": {
+          "0%": { transform: "translateY(-10px)", opacity: "0" },
+          "15%": { opacity: "0.7" },
+          "85%": { opacity: "0.7" },
+          "100%": { transform: "translateY(280px)", opacity: "0" },
+        },
+        "weather-bg-streak": {
+          "0%": { transform: "translateY(-20px)", opacity: "0" },
+          "20%": { opacity: "0.35" },
+          "80%": { opacity: "0.35" },
+          "100%": { transform: "translateY(260px)", opacity: "0" },
+        },
+        "weather-bg-snow": {
+          "0%": { transform: "translate(0px, -10px)", opacity: "0" },
+          "10%": { opacity: "0.9" },
+          "25%": { transform: "translate(8px, 70px)" },
+          "50%": { transform: "translate(-8px, 150px)" },
+          "75%": { transform: "translate(8px, 230px)" },
+          "90%": { opacity: "0.9" },
+          "100%": { transform: "translate(0px, 300px)", opacity: "0" },
+        },
       },
       animation: {
         "confetti-fall": "confetti-fall 1.8s ease-in forwards",
@@ -68,6 +100,11 @@ const config: Config = {
         "weather-spin": "weather-spin 12s linear infinite",
         "weather-drift": "weather-drift 3.5s ease-in-out infinite",
         "weather-drop": "weather-drop 1.1s ease-in infinite",
+        "weather-bg-glow": "weather-bg-glow 6s ease-in-out infinite",
+        "weather-bg-cloud": "weather-bg-cloud 90s linear infinite",
+        "weather-bg-rain": "weather-bg-rain 1.1s linear infinite",
+        "weather-bg-streak": "weather-bg-streak 2.6s linear infinite",
+        "weather-bg-snow": "weather-bg-snow 7s linear infinite",
       },
     },
   },

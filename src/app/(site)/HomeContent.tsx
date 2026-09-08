@@ -8,6 +8,7 @@ import { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
+import HeaderWeatherBackground from "@/components/HeaderWeatherBackground";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { useStudentPreview } from "@/lib/studentPreviewContext";
 import { todayKST, nowKSTTime, nowKSTDayOfWeek } from "@/lib/date";
@@ -83,6 +84,10 @@ function EmptyState({ icon, title, desc, t }: { icon: string; title: string; des
   );
 }
 
+// 실험적 배경 날씨 애니메이션 — 로컬(.env.local)에서만 켜고, main 배포 환경에는 절대
+// true로 반영하지 않는다. 꺼져 있으면 기존 WeatherWidget(작은 아이콘)만 그대로 보인다.
+const ENABLE_HEADER_WEATHER_BG = process.env.NEXT_PUBLIC_ENABLE_HEADER_WEATHER_BG === "true";
+
 export default function HomeContent({ initialThemeKey }: { initialThemeKey?: HomeThemeKey }) {
   const [userId, setUserId] = useState<string | null>(null);
   const { t } = useHomeTheme(initialThemeKey);
@@ -154,16 +159,17 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
   return (
     <div>
-      <div className={t.heroCard}>
-        <div className="flex items-start justify-between gap-3">
+      <div className={`${t.heroCard} relative overflow-hidden`}>
+        {ENABLE_HEADER_WEATHER_BG && <HeaderWeatherBackground />}
+        <div className="relative z-10 flex items-start justify-between gap-3">
           <div>
             <div className={t.heroEyebrow}>{t.heroEyebrowText}</div>
             <h1 className={t.heroHeadingClass}>{t.heroTitleText}</h1>
           </div>
-          <WeatherWidget />
+          {!ENABLE_HEADER_WEATHER_BG && <WeatherWidget />}
         </div>
-        <p className={t.heroSubtextClass}>{t.heroSubtitleText}</p>
-        <div className="flex gap-2.5 flex-wrap">
+        <p className={`relative z-10 ${t.heroSubtextClass}`}>{t.heroSubtitleText}</p>
+        <div className="relative z-10 flex gap-2.5 flex-wrap">
           <Link href="/notices" className={t.heroPrimaryBtn}>
             공지사항 보기
           </Link>
