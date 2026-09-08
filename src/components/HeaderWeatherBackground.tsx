@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type WeatherOk = { ok: true; temp: number; sky: "clear" | "cloudy"; pty: "none" | "rain" | "rainsnow" | "snow" | "shower" };
 type WeatherState = WeatherOk | { ok: false } | null;
@@ -12,34 +12,71 @@ function getVariant(pty: WeatherOk["pty"], sky: WeatherOk["sky"]): Variant {
   return sky;
 }
 
-// 눈 쌓임 진행도를 세션스토리지에 "오늘 날짜 + 시작 시각"으로 기록해둔다. 같은 탭에서
-// 새로고침해도 자연스럽게 이어서 쌓이지만, 새 탭/새 세션으로 열거나 날짜가 바뀌면
-// 저장된 값이 "오늘"과 안 맞거나 없으므로 낮은 높이(0)부터 다시 시작한다.
-const SNOW_STORAGE_KEY = "headerWeatherSnowAccum";
-const SNOW_MAX_HEIGHT_PCT = 18; // 헤더(부모 컨테이너) 높이 대비 최대 비율
-const SNOW_RAMP_MINUTES = 12; // 이 시간에 걸쳐 서서히 최대 높이까지 쌓인다
+const RAY_ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
 
-const CLOUD_CONFIGS = [
-  { top: 12, size: 64, duration: 60, delay: -10, opacity: 0.22 },
-  { top: 35, size: 96, duration: 90, delay: -40, opacity: 0.18 },
-  { top: 55, size: 52, duration: 75, delay: -20, opacity: 0.2 },
-  { top: 20, size: 110, duration: 120, delay: -70, opacity: 0.15 },
-  { top: 68, size: 70, duration: 100, delay: -55, opacity: 0.17 },
+const FOG_CONFIGS = [
+  { top: 15, left: 8, size: 90, duration: 20, delay: -4, opacity: 0.5 },
+  { top: 45, left: 32, size: 130, duration: 26, delay: -14, opacity: 0.4 },
+  { top: 20, left: 58, size: 100, duration: 22, delay: -8, opacity: 0.45 },
+  { top: 55, left: 78, size: 110, duration: 28, delay: -18, opacity: 0.4 },
+  { top: 8, left: 82, size: 70, duration: 18, delay: -2, opacity: 0.5 },
 ];
 
-function Cloud({ top, size, duration, delay, opacity, hideOnMobile }: (typeof CLOUD_CONFIGS)[number] & { hideOnMobile?: boolean }) {
-  return (
-    <div
-      className={`absolute animate-weather-bg-cloud motion-reduce:animate-none motion-reduce:left-1/4 ${hideOnMobile ? "hidden sm:block" : ""}`}
-      style={{ top: `${top}%`, width: size, height: size * 0.55, animationDuration: `${duration}s`, animationDelay: `${delay}s` }}
-    >
-      <div className="relative w-full h-full" style={{ opacity }}>
-        <div className="absolute inset-x-[15%] bottom-0 h-[70%] rounded-full bg-appleInk" />
-        <div className="absolute left-0 bottom-0 w-[55%] h-[55%] rounded-full bg-appleInk" />
-        <div className="absolute right-0 bottom-0 w-[60%] h-[65%] rounded-full bg-appleInk" />
-      </div>
-    </div>
-  );
+// 눈 쌓임을 가로 여러 구간(bucket)으로 나눠서, 실제로 눈송이가 많이 떨어진 구간이 더
+// 높이 쌓이도록 한다. 각 구간은 SVG viewBox 기준 0(안 쌓임)~SNOW_BUCKET_MAX(이 구간의
+// 한계, 이 값에 도달하면 그 구간은 더 이상 안 쌓인다) 사이 값을 갖는다.
+const BUCKET_COUNT = 20;
+const SNOW_BUCKET_MAX = 20;
+const SNOW_BUCKET_INCREMENT = 0.5;
+const SNOW_BUCKETS_KEY = "headerWeatherSnowBuckets";
+const SNOW_PERSIST_INTERVAL_MS = 2000;
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function loadStoredBuckets(): number[] {
+  try {
+    const raw = sessionStorage.getItem(SNOW_BUCKETS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as { date: string; buckets: number[] };
+      if (parsed.date === todayKey() && Array.isArray(parsed.buckets) && parsed.buckets.length === BUCKET_COUNT) {
+        return parsed.buckets;
+      }
+    }
+  } catch {
+    // sessionStorage 접근 불가(프라이빗 모드 등) — 0부터 시작
+  }
+  return new Array(BUCKET_COUNT).fill(0);
+}
+
+// 인접 구간끼리 높이 차이가 너무 튀지 않도록 3점 가중평균으로 살짝 부드럽게 만든다.
+function smoothBuckets(buckets: number[]): number[] {
+  return buckets.map((v, i) => {
+    const prev = buckets[i - 1] ?? v;
+    const next = buckets[i + 1] ?? v;
+    return (prev + v * 2 + next) / 4;
+  });
+}
+
+// 구간별 높이 배열을 부드러운 곡선(연속된 2차 베지어)으로 잇는 SVG path를 만든다 —
+// 각 점을 다음 점과의 중점까지 곡선으로 이어가는 표준적인 "smooth curve through points"
+// 기법이라 임의의 높이 배열에도 안전하게 매끄러운 형태가 나온다.
+function bucketsToPath(buckets: number[]): string {
+  const n = buckets.length;
+  const step = 100 / n;
+  const points = buckets.map((v, i) => ({ x: (i + 0.5) * step, y: SNOW_BUCKET_MAX - Math.min(v, SNOW_BUCKET_MAX) }));
+  let d = `M 0,${points[0].y} L ${points[0].x},${points[0].y}`;
+  for (let i = 0; i < points.length - 1; i++) {
+    const cur = points[i];
+    const next = points[i + 1];
+    const midX = (cur.x + next.x) / 2;
+    const midY = (cur.y + next.y) / 2;
+    d += ` Q ${cur.x},${cur.y} ${midX},${midY}`;
+  }
+  const last = points[points.length - 1];
+  d += ` L ${last.x},${last.y} L 100,${last.y} L 100,${SNOW_BUCKET_MAX} L 0,${SNOW_BUCKET_MAX} Z`;
+  return d;
 }
 
 /**
@@ -51,7 +88,8 @@ function Cloud({ top, size, duration, delay, opacity, hideOnMobile }: (typeof CL
 export default function HeaderWeatherBackground() {
   const [weather, setWeather] = useState<WeatherState>(null);
   const [debugVariant, setDebugVariant] = useState<Variant | null>(null);
-  const [snowHeightPct, setSnowHeightPct] = useState(0);
+  const [, setRenderTick] = useState(0);
+  const bucketsRef = useRef<number[]>(new Array(BUCKET_COUNT).fill(0));
 
   useEffect(() => {
     let active = true;
@@ -77,47 +115,46 @@ export default function HeaderWeatherBackground() {
     if (v === "clear" || v === "cloudy" || v === "rain" || v === "snow") setDebugVariant(v);
   }, []);
 
+  // 눈 쌓임 진행도를 세션(같은 탭) + 오늘 날짜 기준으로 기억한다. 새 탭/새 세션으로
+  // 열거나 날짜가 바뀌면 저장된 값이 "오늘"과 안 맞으므로 0부터 다시 시작한다.
   useEffect(() => {
-    const todayKey = new Date().toISOString().slice(0, 10);
-    let startedAt = Date.now();
-    try {
-      const raw = sessionStorage.getItem(SNOW_STORAGE_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as { date: string; startedAt: number };
-        if (parsed.date === todayKey) startedAt = parsed.startedAt;
+    bucketsRef.current = loadStoredBuckets();
+    setRenderTick((t) => t + 1);
+    const timer = setInterval(() => {
+      try {
+        sessionStorage.setItem(SNOW_BUCKETS_KEY, JSON.stringify({ date: todayKey(), buckets: bucketsRef.current }));
+      } catch {
+        // 무시 — 저장 안 돼도 이번 세션 내 애니메이션 자체는 계속 동작한다
       }
-      sessionStorage.setItem(SNOW_STORAGE_KEY, JSON.stringify({ date: todayKey, startedAt }));
-    } catch {
-      // 프라이빗 모드 등으로 sessionStorage를 못 쓰면 이번 페이지 진입 기준으로만 쌓인다.
-    }
-
-    const compute = () => {
-      const elapsedMin = (Date.now() - startedAt) / 60000;
-      setSnowHeightPct(Math.min(SNOW_MAX_HEIGHT_PCT, (elapsedMin / SNOW_RAMP_MINUTES) * SNOW_MAX_HEIGHT_PCT));
-    };
-    compute();
-    const timer = setInterval(compute, 5000);
+      setRenderTick((t) => t + 1);
+    }, SNOW_PERSIST_INTERVAL_MS);
     return () => clearInterval(timer);
   }, []);
 
-  // 빗방울/물줄기/눈송이의 x 위치는 매번 랜덤해야 자연스러우므로 마운트 시 한 번만 뽑아서
-  // 고정한다(리렌더마다 위치가 바뀌면 오히려 부자연스럽다).
+  const handleSnowLanding = (bucketIndex: number) => {
+    const cur = bucketsRef.current[bucketIndex] ?? 0;
+    if (cur >= SNOW_BUCKET_MAX) return;
+    bucketsRef.current = bucketsRef.current.map((v, i) => (i === bucketIndex ? Math.min(SNOW_BUCKET_MAX, v + SNOW_BUCKET_INCREMENT) : v));
+  };
+
+  // 빗줄기/눈송이의 x 위치·속도·지연은 마운트 시 한 번만 뽑아서 고정한다(매 렌더마다
+  // 위치가 바뀌면 오히려 부자연스럽다).
   const raindrops = useMemo(
     () => Array.from({ length: 22 }, () => ({ left: Math.random() * 100, duration: 0.7 + Math.random() * 0.6, delay: Math.random() * 2 })),
     []
   );
-  const streaks = useMemo(
-    () => Array.from({ length: 7 }, () => ({ left: Math.random() * 100, duration: 2 + Math.random() * 1.4, delay: Math.random() * 3 })),
-    []
-  );
   const snowflakes = useMemo(
     () =>
-      Array.from({ length: 16 }, () => ({
-        left: Math.random() * 100,
-        size: 3 + Math.random() * 4,
-        duration: 5 + Math.random() * 4,
-        delay: Math.random() * 6,
-      })),
+      Array.from({ length: 16 }, () => {
+        const left = Math.random() * 100;
+        return {
+          left,
+          bucket: Math.min(BUCKET_COUNT - 1, Math.floor((left / 100) * BUCKET_COUNT)),
+          size: 3 + Math.random() * 4,
+          duration: 5 + Math.random() * 4,
+          delay: Math.random() * 6,
+        };
+      }),
     []
   );
 
@@ -130,42 +167,71 @@ export default function HeaderWeatherBackground() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
       {variant === "clear" && (
-        <div
-          className="absolute -top-1/3 -right-1/4 w-2/3 h-full rounded-full animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
-          style={{ background: "radial-gradient(circle, rgba(217,119,6,0.35) 0%, rgba(217,119,6,0) 70%)" }}
-        />
-      )}
-
-      {(variant === "cloudy" || variant === "rain" || variant === "snow") &&
-        CLOUD_CONFIGS.map((c, i) => <Cloud key={i} {...c} hideOnMobile={i >= 3} />)}
-
-      {variant === "rain" && (
-        <>
-          {raindrops.map((r, i) => (
-            <span
-              key={i}
-              className={`absolute top-0 w-[2px] h-[10px] rounded-full bg-appleBlue animate-weather-bg-rain motion-reduce:animate-none motion-reduce:opacity-0 ${
-                i >= 12 ? "hidden sm:block" : ""
-              }`}
-              style={{ left: `${r.left}%`, animationDuration: `${r.duration}s`, animationDelay: `${r.delay}s` }}
+        <svg className="absolute top-2 right-2 w-20 h-20 sm:w-28 sm:h-28" viewBox="0 0 100 100">
+          <defs>
+            <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="rgba(251,191,36,0.9)" />
+              <stop offset="60%" stopColor="rgba(251,191,36,0.35)" />
+              <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+            </radialGradient>
+          </defs>
+          <circle
+            cx="50"
+            cy="50"
+            r="45"
+            fill="url(#headerSunGlow)"
+            className="animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+          />
+          {RAY_ANGLES.map((angle, i) => (
+            <rect
+              key={angle}
+              x="47"
+              y="12"
+              width="6"
+              height="14"
+              rx="2"
+              fill="#f59e0b"
+              transform={`rotate(${angle} 50 50)`}
+              className="animate-weather-bg-ray motion-reduce:animate-none motion-reduce:opacity-70"
+              style={{ animationDelay: `${i * 0.15}s` }}
             />
           ))}
-          {streaks.map((s, i) => (
-            <span
-              key={i}
-              className={`absolute top-0 w-px h-16 animate-weather-bg-streak motion-reduce:animate-none motion-reduce:opacity-0 ${
-                i >= 4 ? "hidden sm:block" : ""
-              }`}
-              style={{
-                left: `${s.left}%`,
-                animationDuration: `${s.duration}s`,
-                animationDelay: `${s.delay}s`,
-                background: "linear-gradient(to bottom, rgba(37,99,235,0.3), rgba(37,99,235,0))",
-              }}
-            />
-          ))}
-        </>
+          <circle cx="50" cy="50" r="16" fill="#fbbf24" />
+        </svg>
       )}
+
+      {variant === "cloudy" &&
+        FOG_CONFIGS.map((f, i) => (
+          <div
+            key={i}
+            className={`absolute animate-weather-bg-fog motion-reduce:animate-none ${i >= 3 ? "hidden sm:block" : ""}`}
+            style={{
+              top: `${f.top}%`,
+              left: `${f.left}%`,
+              width: f.size,
+              height: f.size * 0.65,
+              filter: "blur(10px)",
+              animationDuration: `${f.duration}s`,
+              animationDelay: `${f.delay}s`,
+            }}
+          >
+            {/* 뚜렷한 윤곽 없이 여러 원을 겹쳐서 blur로 뭉개면 뭉게뭉게한 안개 덩어리처럼 보인다. */}
+            <div className="absolute inset-0 rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
+            <div className="absolute left-[18%] top-0 w-[65%] h-[80%] rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
+            <div className="absolute right-[8%] bottom-0 w-[55%] h-[75%] rounded-full bg-appleMuted" style={{ opacity: f.opacity }} />
+          </div>
+        ))}
+
+      {variant === "rain" &&
+        raindrops.map((r, i) => (
+          <span
+            key={i}
+            className={`absolute w-[2px] h-4 rounded-full bg-appleBlue animate-weather-bg-rainfall motion-reduce:animate-none motion-reduce:opacity-0 ${
+              i >= 12 ? "hidden sm:block" : ""
+            }`}
+            style={{ left: `${r.left}%`, top: "-40px", animationDuration: `${r.duration}s`, animationDelay: `${r.delay}s` }}
+          />
+        ))}
 
       {variant === "snow" && (
         <>
@@ -173,28 +239,33 @@ export default function HeaderWeatherBackground() {
             <span
               key={i}
               // 헤더 배경이 흰색이라 순백색 눈송이는 거의 안 보인다 — 옅은 하늘색 톤 +
-              // 그림자로 구별되게 한다.
-              className={`absolute top-0 rounded-full bg-[#dbeafe] shadow-[0_0_3px_rgba(37,99,235,0.35)] animate-weather-bg-snow motion-reduce:animate-none motion-reduce:opacity-0 ${
+              // 그림자로 구별되게 한다. onAnimationIteration으로 한 번 낙하를 마칠
+              // 때마다(=바닥에 도달할 때마다) 배정된 구간의 쌓임 높이를 조금씩 올린다.
+              className={`absolute rounded-full bg-[#dbeafe] shadow-[0_0_3px_rgba(37,99,235,0.35)] animate-weather-bg-snowfall motion-reduce:animate-none motion-reduce:opacity-0 ${
                 i >= 9 ? "hidden sm:block" : ""
               }`}
-              style={{ left: `${s.left}%`, width: s.size, height: s.size, animationDuration: `${s.duration}s`, animationDelay: `${s.delay}s` }}
+              style={{
+                left: `${s.left}%`,
+                top: "-16px",
+                width: s.size,
+                height: s.size,
+                animationDuration: `${s.duration}s`,
+                animationDelay: `${s.delay}s`,
+              }}
+              onAnimationIteration={() => handleSnowLanding(s.bucket)}
             />
           ))}
           <svg
-            className="absolute bottom-0 left-0 w-full transition-[height] duration-1000 ease-linear"
-            style={{ height: `${snowHeightPct}%` }}
-            viewBox="0 0 100 20"
+            className="absolute bottom-0 left-0 w-full"
+            style={{ height: "18%" }}
+            viewBox={`0 0 100 ${SNOW_BUCKET_MAX}`}
             preserveAspectRatio="none"
           >
             {/* 흰 배경 위에서도 구별되도록 옅은 하늘색 톤으로 채우고, 윗변에 살짝 진한
-                선을 둘러 경계를 잡아준다(순백색 fill은 흰 카드 배경과 구분이 안 됨). */}
-            <path
-              d="M0,8 Q 8,2 16,8 T 32,8 T 48,8 T 64,8 T 80,8 T 100,8 V20 H0 Z"
-              fill="#eef2ff"
-              fillOpacity="0.95"
-              stroke="#c7d2fe"
-              strokeWidth="0.6"
-            />
+                선을 둘러 경계를 잡아준다(순백색 fill은 흰 카드 배경과 구분이 안 됨).
+                구간별 높이를 3점 평균으로 부드럽게 만든 뒤 연속 베지어 곡선으로 이어서
+                울퉁불퉁하되 튀지 않는 눈 더미 모양을 만든다. */}
+            <path d={bucketsToPath(smoothBuckets(bucketsRef.current))} fill="#eef2ff" fillOpacity="0.95" stroke="#c7d2fe" strokeWidth="0.6" />
           </svg>
         </>
       )}
