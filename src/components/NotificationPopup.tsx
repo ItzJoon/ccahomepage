@@ -132,7 +132,7 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
           <button
             type="button"
             onClick={() => setCurrent(null)}
-            className="absolute -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
+            className="absolute z-10 -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
             aria-label="닫기"
           >
             ✕
