@@ -157,8 +157,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             initialThemeKey={initialThemeKey}
             disabledFeatures={disabledFeatures}
           />
-          {showNotifications && <NotificationBanner initial={latestBanner as any} />}
-          {showNotifications && <NotificationPopup initial={latestPopup as any} />}
+          {/* 로그인 화면 등 비로그인 상태에서도 (site) layout이 그려지는 페이지가 있는데,
+              배너/팝업이 로그인 폼 자체를 덮어버리는 문제가 있었다 — patch_notePopup과
+              동일하게 로그인한 사용자에게만 보여준다. */}
+          {showNotifications && profile && <NotificationBanner initial={latestBanner as any} />}
+          {showNotifications && profile && <NotificationPopup initial={latestPopup as any} />}
           {showNotifications && <PatchNotePopup initial={unreadPatchNote as any} userId={profile?.id ?? null} />}
           {showNotifications && (
             <BadgeGrantWatcher userId={profile?.id ?? null} soundEnabled={profile?.badge_sound_enabled ?? true} />
