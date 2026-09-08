@@ -139,6 +139,10 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   // 시각이 지나도 계속 중식으로 남는다.
   const dinnerDays = settings?.dinner_days ?? [1, 3, 4];
   const isDinnerDay = dinnerDays.includes(nowKSTDayOfWeek());
+  // /notices 목록과 동일한 기준 — 고정(is_pinned)이 항상 최상단, 그 안에서는 최신순.
+  const sortedNotices = [...notices].sort(
+    (a, b) => Number(b.is_pinned) - Number(a.is_pinned) || b.created_at.localeCompare(a.created_at)
+  );
   const activeMealType = isDinnerDay && nowTime >= dinnerSwitchTime ? "dinner" : "lunch";
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
   const thisMonth = mealPlans.find(
@@ -181,7 +185,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <div className="flex-1 flex flex-col justify-center">
                   <ul className="list-none m-0 p-0">
-                    {notices.slice(0, 5).map((n) => (
+                    {sortedNotices.slice(0, 5).map((n) => (
                       <li key={n.id} className="border-b border-border py-2.5">
                         <Link href={`/notices/${n.id}`} className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}>
                           {n.is_pinned && <Pin />}
