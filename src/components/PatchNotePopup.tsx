@@ -100,11 +100,11 @@ export default function PatchNotePopup({
   // 반영되지 않았거나 일시적인 네트워크 오류로 insert가 실패해도 화면에서는 조용히
   // 닫히고 아무 신호도 남지 않았던 것이다(patch_note_reads에 기록이 안 남으니 다음
   // 접속/새로고침 때 서버가 "안 읽음"으로 다시 판단해 팝업을 또 띄운다). 이제 결과를
-  // 확인해서 실패하면 짧게 한 번 재시도하고, upsert + onConflict로 이미 기록돼 있는
+  // 확인해서 실패하면 짧게 재시도하고, upsert + onConflict로 이미 기록돼 있는
   // 경우(중복 클릭 등)도 에러 없이 안전하게 처리한다.
   const markRead = async (uid: string, patchNoteId: string) => {
     const supabase = createClient();
-    for (let attempt = 0; attempt < 2; attempt++) {
+    for (let attempt = 0; attempt < 3; attempt++) {
       const { error } = await supabase
         .from("patch_note_reads")
         .upsert({ user_id: uid, patch_note_id: patchNoteId }, { onConflict: "user_id,patch_note_id", ignoreDuplicates: true });
@@ -114,14 +114,20 @@ export default function PatchNotePopup({
     }
   };
 
+  // 재발했던 문제(2): setNote(null)로 팝업을 먼저 지워버리면 그 순간 화면 전체가 다시
+  // 클릭 가능해지는데, markRead()의 네트워크 요청(+재시도)이 아직 끝나기 전에 사용자가
+  // 곧바로 다른 페이지로 이동하거나 탭을 닫으면 요청이 완료되지 못하고 유실될 수 있다
+  // (기록이 안 남으니 다음 접속 때 또 뜬다 — 이번에 재발한 것과 동일한 증상). 그래서
+  // markRead가 끝난 뒤에만 setNote(null)을 호출하도록 순서를 반드시 지켜야 한다. 화면이
+  // 잠깐(보통 수백 ms) 안 닫히는 것처럼 보일 수 있지만, "확인 기록 보장"이 우선이다.
   const close = async () => {
     if (!note || !userId) {
       setNote(null);
       return;
     }
     const patchNoteId = note.id;
-    setNote(null);
     await markRead(userId, patchNoteId);
+    setNote(null);
   };
 
   if (!note || !userId) return null;
