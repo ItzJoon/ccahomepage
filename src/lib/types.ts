@@ -13,6 +13,7 @@ export interface Profile {
   is_judiciary: boolean;
   email_notifications: boolean;
   badge_sound_enabled: boolean;
+  notification_sound_enabled: boolean;
   warning_count: number;
   suspended_until: string | null;
   suspended_reason: string | null;
@@ -156,6 +157,7 @@ export interface NotificationItem {
   popup_active: boolean;
   image_url: string | null;
   link_url: string | null;
+  sound_url: string | null;
   sent_by: string | null;
   sent_at: string;
 }
@@ -522,6 +524,7 @@ export interface PatchNote {
   published_at: string;
   author_id: string | null;
   is_published: boolean;
+  sound_url: string | null;
   created_at: string;
 }
 

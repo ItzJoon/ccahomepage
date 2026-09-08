@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
+import { playAttachedSound } from "@/lib/notificationSound";
 import type { NotificationItem } from "@/lib/types";
 
 function isHiddenToday(id: string) {
@@ -27,7 +28,13 @@ function isExpired(n: NotificationItem) {
  * 팝업은 layout.tsx의 초기 조회 단계에서부터 서버가 내려주지 않으므로, 여기서의
  * isExpired 체크는 방어적 목적(페이지를 오래 열어둔 사이 만료된 경우)입니다.
  */
-export default function NotificationPopup({ initial }: { initial: NotificationItem | null }) {
+export default function NotificationPopup({
+  initial,
+  soundEnabled = true,
+}: {
+  initial: NotificationItem | null;
+  soundEnabled?: boolean;
+}) {
   const [current, setCurrent] = useState<NotificationItem | null>(null);
   const [visible, setVisible] = useState(false);
   const currentRef = useRef<NotificationItem | null>(null);
@@ -36,6 +43,12 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
   useEffect(() => {
     if (initial && initial.popup_active && !isExpired(initial) && !isHiddenToday(initial.id)) setCurrent(initial);
   }, [initial]);
+
+  // 팝업이 새로 뜨는 시점에 첨부된 사운드를 한 번 재생한다(마이페이지에서 꺼뒀으면 생략).
+  useEffect(() => {
+    if (current && soundEnabled) playAttachedSound(current.sound_url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id]);
 
   useEffect(() => {
     const supabase = createClient();

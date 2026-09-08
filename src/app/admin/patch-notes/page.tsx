@@ -6,7 +6,9 @@ import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import SoundUpload from "@/components/SoundUpload";
 import { computeNextPatchNoteVersion } from "@/lib/patchNotes";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 interface Row extends PatchNote {
@@ -28,6 +30,7 @@ const emptyForm = () => ({
   version: "",
   title: "",
   published_at: new Date().toISOString().slice(0, 10),
+  soundUrl: null as string | null,
   items: [{ categories: ["feature"] as PatchNoteCategory[], content: "" }] as ItemForm[],
 });
 
@@ -87,11 +90,18 @@ export default function AdminPatchNotesPage() {
       version: n.version ?? "",
       title: n.title,
       published_at: n.published_at.slice(0, 10),
+      soundUrl: n.sound_url,
       items: n.patch_note_items
         .sort((a, b) => a.order_index - b.order_index)
         .map((i) => ({ categories: i.categories, content: i.content })),
     });
     setOpenId(n.id);
+  };
+
+  // 사운드를 다른 파일로 교체할 때, storage에 남는 이전 파일이 고아로 남지 않게 먼저 지운다.
+  const changeSound = (url: string | null) => {
+    if (form.soundUrl) removeStorageFile(supabase, "attachments", form.soundUrl);
+    setForm((f) => ({ ...f, soundUrl: url }));
   };
 
   const addItem = () =>
@@ -150,14 +160,21 @@ export default function AdminPatchNotesPage() {
     if (openId === "new") {
       const { data, error } = await supabase
         .from("patch_notes")
-        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, is_published: false })
+        .insert({
+          version: form.version || null,
+          title: form.title,
+          published_at: form.published_at,
+          author_id: myId,
+          is_published: false,
+          sound_url: form.soundUrl,
+        })
         .select("id")
         .single();
       if (!error && data) await saveItems(data.id);
     } else if (openId) {
       await supabase
         .from("patch_notes")
-        .update({ version: form.version || null, title: form.title, published_at: form.published_at })
+        .update({ version: form.version || null, title: form.title, published_at: form.published_at, sound_url: form.soundUrl })
         .eq("id", openId);
       await saveItems(openId);
     }
@@ -181,7 +198,14 @@ export default function AdminPatchNotesPage() {
     if (openId === "new") {
       const { data, error } = await supabase
         .from("patch_notes")
-        .insert({ version: form.version || null, title: form.title, published_at: form.published_at, author_id: myId, is_published: true })
+        .insert({
+          version: form.version || null,
+          title: form.title,
+          published_at: form.published_at,
+          author_id: myId,
+          is_published: true,
+          sound_url: form.soundUrl,
+        })
         .select("id")
         .single();
       if (!error && data) {
@@ -191,7 +215,13 @@ export default function AdminPatchNotesPage() {
     } else if (noteId) {
       await supabase
         .from("patch_notes")
-        .update({ version: form.version || null, title: form.title, published_at: form.published_at, is_published: true })
+        .update({
+          version: form.version || null,
+          title: form.title,
+          published_at: form.published_at,
+          is_published: true,
+          sound_url: form.soundUrl,
+        })
         .eq("id", noteId);
       await saveItems(noteId);
     }
@@ -205,9 +235,10 @@ export default function AdminPatchNotesPage() {
     reload();
   };
 
-  const remove = async (id: string) => {
+  const remove = async (n: Row) => {
     if (!confirm("이 패치노트를 삭제하시겠습니까?")) return;
-    await supabase.from("patch_notes").delete().eq("id", id);
+    await supabase.from("patch_notes").delete().eq("id", n.id);
+    await removeStorageFile(supabase, "attachments", n.sound_url);
     reload();
   };
 
@@ -241,7 +272,7 @@ export default function AdminPatchNotesPage() {
                 </td>
                 <td className={t.adminTableCell} onClick={(e) => e.stopPropagation()}>
                   <div className={actionCellClass}>
-                    <button onClick={() => remove(n.id)} className={t.adminBtnDanger}>삭제</button>
+                    <button onClick={() => remove(n)} className={t.adminBtnDanger}>삭제</button>
                   </div>
                 </td>
               </tr>
@@ -270,6 +301,11 @@ export default function AdminPatchNotesPage() {
           <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
           <label className="text-xs font-bold text-muted mt-2">게시일</label>
           <input type="date" className={t.adminInput} value={form.published_at} onChange={(e) => setForm({ ...form, published_at: e.target.value })} />
+          <label className="text-xs font-bold text-muted mt-2">사운드 첨부 (선택)</label>
+          <SoundUpload userId={myId || "patch-notes"} value={form.soundUrl} onChange={changeSound} bucket="attachments" />
+          {form.soundUrl && (
+            <p className="text-muted text-xs m-0">게시하는 순간 뜨는 업데이트 팝업에서 이 사운드가 한 번 재생됩니다.</p>
+          )}
 
           <label className="text-xs font-bold text-muted mt-2">항목 (카테고리는 중첩 선택 가능)</label>
           <div className="flex flex-col gap-3">

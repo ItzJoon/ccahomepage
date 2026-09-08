@@ -1,15 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import Badge from "@/components/Badge";
 import ImageUpload from "@/components/ImageUpload";
+import SoundUpload from "@/components/SoundUpload";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
 import { adminDisplayName } from "@/lib/displayName";
 import { DURATION_PRESETS, computeDisplayUntil, type DurationMode } from "@/lib/notificationDuration";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import type { NotificationItem } from "@/lib/types";
 
 interface NotificationWithSender extends NotificationItem {
@@ -36,6 +38,7 @@ export default function AdminNotifyPage() {
   const [customUntil, setCustomUntil] = useState(""); // datetime-local 값, durationMode==="custom"일 때만 사용
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [linkUrl, setLinkUrl] = useState("");
+  const [soundUrl, setSoundUrl] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -54,43 +57,69 @@ export default function AdminNotifyPage() {
       display_until: computeDisplayUntil(durationMode, customUntil),
       image_url: imageUrl,
       link_url: imageUrl && linkUrl.trim() ? linkUrl.trim() : null,
+      sound_url: soundUrl,
       sent_by: user?.id,
     });
     setTitle("");
     setMessage("");
     setImageUrl(null);
     setLinkUrl("");
+    setSoundUrl(null);
     setSending(false);
     reload();
+  };
+
+  // 사운드를 다른 파일로 교체할 때, storage에 남는 이전 파일이 고아로 남지 않게 먼저 지운다.
+  const changeSound = (url: string | null) => {
+    if (soundUrl) removeStorageFile(supabase, "attachments", soundUrl);
+    setSoundUrl(url);
   };
 
   const remove = async (n: NotificationItem) => {
     if (!confirm("이 알림을 삭제하시겠습니까? 지금 떠 있는 팝업/배너도 즉시 닫힙니다.")) return;
     await supabase.from("notifications").delete().eq("id", n.id);
-    // 첨부 이미지가 있었으면 Storage에도 고아 파일로 남지 않도록 같이 지운다.
-    if (n.image_url) {
-      const marker = "/attachments/";
-      const idx = n.image_url.indexOf(marker);
-      if (idx !== -1) {
-        await supabase.storage.from("attachments").remove([n.image_url.slice(idx + marker.length)]);
-      }
-    }
+    // 첨부 이미지/사운드가 있었으면 Storage에도 고아 파일로 남지 않도록 같이 지운다.
+    await removeStorageFile(supabase, "attachments", n.image_url);
+    await removeStorageFile(supabase, "attachments", n.sound_url);
     reload();
   };
 
   // 배너/팝업 공통 조기 종료 — display_until을 지금 시각으로 당겨서 즉시 만료 처리한다
-  // (팝업은 기존 popup_active도 함께 꺼서 데이터 일관성을 유지한다).
+  // (팝업은 기존 popup_active도 함께 꺼서 데이터 일관성을 유지한다). 사운드는 알림이 뜨는
+  // 순간 한 번 재생되면 역할이 끝나므로, "무기한 노출" 알림을 관리자가 수동으로 끄는
+  // 이 시점에 맞춰 파일도 함께 정리한다(기록 자체는 남기고 sound_url만 비운다).
   const stopNow = async (n: NotificationItem) => {
     if (!confirm("지금 바로 노출을 종료하시겠습니까? 지금 떠 있는 팝업/배너도 즉시 닫히고, 발송 기록은 그대로 남습니다.")) return;
     await supabase
       .from("notifications")
-      .update({ display_until: new Date().toISOString(), ...(n.display_type === "popup" ? { popup_active: false } : {}) })
+      .update({
+        display_until: new Date().toISOString(),
+        ...(n.display_type === "popup" ? { popup_active: false } : {}),
+        ...(n.sound_url ? { sound_url: null } : {}),
+      })
       .eq("id", n.id);
+    if (n.sound_url) await removeStorageFile(supabase, "attachments", n.sound_url);
     reload();
   };
 
   const isEnded = (n: NotificationItem) =>
     (n.display_type === "popup" && !n.popup_active) || (!!n.display_until && new Date(n.display_until).getTime() <= Date.now());
+
+  // 노출 기간이 자연 만료(display_until 경과)된 알림은 별도로 끄는 액션이 없으므로,
+  // 이 관리자 화면을 열 때마다 한 번씩 훑어서 사운드 파일만 정리한다(텍스트/이미지
+  // 기록은 그대로 유지, 재생 역할이 끝난 mp3만 정리 대상). 같은 화면을 여러 번 열어도
+  // sound_url이 이미 비어 있으면 다시 처리되지 않는다.
+  const sweptRef = useRef(new Set<string>());
+  useEffect(() => {
+    for (const n of rows) {
+      if (!n.sound_url || !isEnded(n) || sweptRef.current.has(n.id)) continue;
+      sweptRef.current.add(n.id);
+      removeStorageFile(supabase, "attachments", n.sound_url).then(() => {
+        supabase.from("notifications").update({ sound_url: null }).eq("id", n.id).then(() => reload());
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rows]);
 
   const statusLabel = (n: NotificationItem) => {
     if (isEnded(n)) return { text: "노출 종료", className: "text-muted" };
@@ -149,6 +178,11 @@ export default function AdminNotifyPage() {
             />
           </>
         )}
+        <label className="text-xs font-bold text-muted mt-2">사운드 첨부 (선택)</label>
+        <SoundUpload userId={myId || "notify"} value={soundUrl} onChange={changeSound} bucket="attachments" />
+        {soundUrl && (
+          <p className="text-muted text-xs mt-1">알림이 화면에 뜨는 순간 이 사운드가 한 번 재생됩니다(마이페이지에서 알림 사운드를 꺼둔 학생에게는 재생되지 않습니다).</p>
+        )}
         <label className="text-xs font-bold text-muted mt-2">중요도</label>
         <select className={t.adminInput} value={level} onChange={(e) => setLevel(e.target.value as any)}>
           <option value="info">일반 안내</option>
@@ -201,6 +235,7 @@ export default function AdminNotifyPage() {
               <span className="text-xs text-muted">
                 {n.display_type === "popup" ? "팝업" : "배너"}
                 {n.image_url && " · 이미지"}
+                {n.sound_url && " · 사운드"}
               </span>
               <span className={`text-xs ${status.className}`}>{status.text}</span>
               <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>

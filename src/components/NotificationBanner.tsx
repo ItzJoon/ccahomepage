@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { playAttachedSound } from "@/lib/notificationSound";
 import type { NotificationItem } from "@/lib/types";
 
 /** display_until이 없으면 계속 표시(무기한), 있으면 그 시각이 지나면 만료 처리 */
@@ -16,9 +17,21 @@ function isExpired(n: NotificationItem) {
  * 이미 만료된 배너는 layout.tsx의 초기 조회 단계에서부터 서버가 내려주지 않으므로,
  * 여기서의 isExpired 체크는 방어적 목적(페이지를 오래 열어둔 사이 만료된 경우)입니다.
  */
-export default function NotificationBanner({ initial }: { initial: NotificationItem | null }) {
+export default function NotificationBanner({
+  initial,
+  soundEnabled = true,
+}: {
+  initial: NotificationItem | null;
+  soundEnabled?: boolean;
+}) {
   const [latest, setLatest] = useState<NotificationItem | null>(initial && !isExpired(initial) ? initial : null);
   const [dismissed, setDismissed] = useState<string[]>([]);
+
+  // 배너가 새로 뜨는 시점에 첨부된 사운드를 한 번 재생한다(마이페이지에서 꺼뒀으면 생략).
+  useEffect(() => {
+    if (latest && soundEnabled) playAttachedSound(latest.sound_url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latest?.id]);
 
   useEffect(() => {
     const supabase = createClient();

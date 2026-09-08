@@ -4971,3 +4971,14 @@ alter table notifications add column if not exists image_url text;
 -- 사진만(또는 사진+내용) 있는 팝업에서 이미지를 눌렀을 때 특정 페이지로 이동시키고
 -- 싶은 경우를 위한 선택 필드. 비어있으면 기존처럼 이미지가 클릭 동작 없이 표시된다.
 alter table notifications add column if not exists link_url text;
+
+-- ------------------------------------------------------------
+-- 117. 알림/패치노트에 사운드(mp3) 첨부 (#139)
+-- ------------------------------------------------------------
+-- 알림 배너/팝업, 패치노트 팝업이 화면에 뜰 때 함께 재생할 mp3를 선택적으로 붙일 수
+-- 있게 한다. 노출 종료 시 파일 자동 정리는 코드(관리자 화면 방문 시 정리)에서 처리하고,
+-- 여기서는 컬럼만 추가한다. 마이페이지의 "뱃지 효과음"과는 별개로 알림 사운드를
+-- 개별적으로 껐다 켰다 할 수 있는 설정도 함께 추가한다.
+alter table notifications add column if not exists sound_url text;
+alter table patch_notes add column if not exists sound_url text;
+alter table profiles add column if not exists notification_sound_enabled boolean not null default true;

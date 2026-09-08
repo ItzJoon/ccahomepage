@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import { sortPatchNoteItemsForDisplay } from "@/lib/patchNotes";
+import { playAttachedSound } from "@/lib/notificationSound";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
 const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
@@ -33,13 +34,21 @@ interface NoteWithItems extends PatchNote {
 export default function PatchNotePopup({
   initial,
   userId,
+  soundEnabled = true,
 }: {
   initial: NoteWithItems | null;
   userId: string | null;
+  soundEnabled?: boolean;
 }) {
   const [note, setNote] = useState<NoteWithItems | null>(initial);
   const noteRef = useRef<NoteWithItems | null>(note);
   noteRef.current = note;
+
+  // 패치노트 팝업이 새로 뜨는 시점에 첨부된 사운드를 한 번 재생한다.
+  useEffect(() => {
+    if (note && soundEnabled) playAttachedSound(note.sound_url);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note?.id]);
 
   useEffect(() => {
     if (!userId) return;

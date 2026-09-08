@@ -108,6 +108,13 @@ export default function MyPage() {
     await supabase.from("profiles").update({ badge_sound_enabled: checked }).eq("id", userId);
   };
 
+  // 알림/패치노트에 첨부된 사운드 재생 여부 — 뱃지 효과음과는 별개 설정이다.
+  const toggleNotificationSound = async (checked: boolean) => {
+    if (!userId) return;
+    setProfile((p) => (p ? { ...p, notification_sound_enabled: checked } : p));
+    await supabase.from("profiles").update({ notification_sound_enabled: checked }).eq("id", userId);
+  };
+
   const uploadPhoto = async (file: File) => {
     if (!userId) return;
     setUploading(true);
@@ -291,6 +298,14 @@ export default function MyPage() {
                 onChange={(e) => toggleBadgeSound(e.target.checked)}
               />
               뱃지 획득 효과음 재생
+            </label>
+            <label className="flex items-center gap-2 text-sm mt-2">
+              <input
+                type="checkbox"
+                checked={profile?.notification_sound_enabled ?? true}
+                onChange={(e) => toggleNotificationSound(e.target.checked)}
+              />
+              알림/패치노트 사운드 재생
             </label>
             <div className="flex items-center gap-2 mt-3">
               <button onClick={saveProfile} disabled={saving || !isProfileDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
