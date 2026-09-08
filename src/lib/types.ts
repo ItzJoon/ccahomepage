@@ -155,6 +155,7 @@ export interface NotificationItem {
   display_until: string | null;
   popup_active: boolean;
   image_url: string | null;
+  link_url: string | null;
   sent_by: string | null;
   sent_at: string;
 }

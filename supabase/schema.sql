@@ -4964,3 +4964,10 @@ alter table site_settings add column if not exists dinner_days int[] not null de
 -- 기존 배너/텍스트 팝업과 같은 notifications 테이블을 그대로 쓰고, image_url 유무로
 -- 클라이언트에서 렌더링 형태만 분기한다(노출 기간/발송 이력 등 나머지 로직은 공유).
 alter table notifications add column if not exists image_url text;
+
+-- ------------------------------------------------------------
+-- 116. 이미지 첨부 알림에 클릭 시 이동할 링크 추가 (#139)
+-- ------------------------------------------------------------
+-- 사진만(또는 사진+내용) 있는 팝업에서 이미지를 눌렀을 때 특정 페이지로 이동시키고
+-- 싶은 경우를 위한 선택 필드. 비어있으면 기존처럼 이미지가 클릭 동작 없이 표시된다.
+alter table notifications add column if not exists link_url text;

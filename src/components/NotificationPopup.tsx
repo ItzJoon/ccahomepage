@@ -146,7 +146,17 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
               ✕
             </button>
             <div className="bg-bg flex items-center justify-center">
-              <img src={current.image_url} alt={current.title} className="max-w-full max-h-[45vh] object-contain" />
+              {current.link_url ? (
+                <a
+                  href={current.link_url}
+                  target={current.link_url.startsWith("http") ? "_blank" : undefined}
+                  rel={current.link_url.startsWith("http") ? "noopener noreferrer" : undefined}
+                >
+                  <img src={current.image_url} alt={current.title} className="max-w-full max-h-[45vh] object-contain cursor-pointer" />
+                </a>
+              ) : (
+                <img src={current.image_url} alt={current.title} className="max-w-full max-h-[45vh] object-contain" />
+              )}
             </div>
             <div className="p-5 overflow-y-auto">
               <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${current.level === "urgent" ? "text-red" : "text-gold"}`}>
@@ -166,13 +176,29 @@ export default function NotificationPopup({ initial }: { initial: NotificationIt
             >
               ✕
             </button>
-            <img
-              src={current.image_url}
-              alt={current.title}
-              className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
-                visible ? "scale-100" : "scale-95"
-              }`}
-            />
+            {current.link_url ? (
+              <a
+                href={current.link_url}
+                target={current.link_url.startsWith("http") ? "_blank" : undefined}
+                rel={current.link_url.startsWith("http") ? "noopener noreferrer" : undefined}
+              >
+                <img
+                  src={current.image_url}
+                  alt={current.title}
+                  className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl cursor-pointer transition-transform duration-[250ms] ${
+                    visible ? "scale-100" : "scale-95"
+                  }`}
+                />
+              </a>
+            ) : (
+              <img
+                src={current.image_url}
+                alt={current.title}
+                className={`max-w-[92vw] max-h-[92vh] object-contain rounded-lg shadow-2xl transition-transform duration-[250ms] ${
+                  visible ? "scale-100" : "scale-95"
+                }`}
+              />
+            )}
           </div>
         )}
       </div>

@@ -35,6 +35,7 @@ export default function AdminNotifyPage() {
   const [durationMode, setDurationMode] = useState<DurationMode>("indefinite");
   const [customUntil, setCustomUntil] = useState(""); // datetime-local 값, durationMode==="custom"일 때만 사용
   const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [linkUrl, setLinkUrl] = useState("");
   const [sending, setSending] = useState(false);
 
   const send = async () => {
@@ -52,11 +53,13 @@ export default function AdminNotifyPage() {
       display_type: imageUrl ? "popup" : displayType,
       display_until: computeDisplayUntil(durationMode, customUntil),
       image_url: imageUrl,
+      link_url: imageUrl && linkUrl.trim() ? linkUrl.trim() : null,
       sent_by: user?.id,
     });
     setTitle("");
     setMessage("");
     setImageUrl(null);
+    setLinkUrl("");
     setSending(false);
     reload();
   };
@@ -131,11 +134,20 @@ export default function AdminNotifyPage() {
         <label className="text-xs font-bold text-muted mt-2">이미지 첨부 (선택)</label>
         <ImageUpload userId={myId || "notify"} value={imageUrl} onChange={setImageUrl} bucket="attachments" />
         {imageUrl && (
-          <p className="text-muted text-xs mt-1">
-            {message.trim()
-              ? "이미지와 함께 위 제목/내용도 팝업에 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."
-              : "알림 내용을 비워두면 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."}
-          </p>
+          <>
+            <p className="text-muted text-xs mt-1">
+              {message.trim()
+                ? "이미지와 함께 위 제목/내용도 팝업에 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."
+                : "알림 내용을 비워두면 제목/내용 없이 이미지와 닫기 버튼만 있는 팝업으로 표시됩니다 (노출 방식은 자동으로 팝업이 됩니다)."}
+            </p>
+            <label className="text-xs font-bold text-muted mt-2">이미지 클릭 시 이동할 링크 (선택)</label>
+            <input
+              className={t.adminInput}
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              placeholder="예: /events/xxxx 또는 https://..."
+            />
+          </>
         )}
         <label className="text-xs font-bold text-muted mt-2">중요도</label>
         <select className={t.adminInput} value={level} onChange={(e) => setLevel(e.target.value as any)}>
