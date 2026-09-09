@@ -11,7 +11,7 @@ import BadgeCelebration from "@/components/BadgeCelebration";
 import FreezeChoiceModal from "@/components/FreezeChoiceModal";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import NotificationCenter from "@/components/NotificationCenter";
-import ThemeToggle from "@/components/ThemeToggle";
+import ThemeMenuSection from "@/components/ThemeMenuSection";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { PageDoc, Profile } from "@/lib/types";
 
@@ -146,7 +146,6 @@ export default function Header({
         </nav>
 
         <div className="hidden md:flex items-center gap-2 shrink-0">
-          <ThemeToggle />
           {searchOpen ? (
             <input
               autoFocus
@@ -200,6 +199,9 @@ export default function Header({
                     >
                       닉네임 · 소개 수정
                     </button>
+                    <div className="my-1 border-t border-border" />
+                    <ThemeMenuSection itemClassName={`w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem}`} />
+                    <div className="my-1 border-t border-border" />
                     <button
                       onClick={signOut}
                       className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownDanger}`}
@@ -218,7 +220,6 @@ export default function Header({
         </div>
 
         <div className="md:hidden flex items-center gap-1 shrink-0">
-          <ThemeToggle />
           <button
             type="button"
             className={`w-9 h-9 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
@@ -282,6 +283,9 @@ export default function Header({
                 >
                   닉네임 · 소개 수정
                 </button>
+                <div className="my-1 border-t border-border" />
+                <ThemeMenuSection itemClassName={`px-2.5 py-2 rounded-md text-sm text-left ${t.navIdle}`} />
+                <div className="my-1 border-t border-border" />
                 {showAdminBtn && (
                   <Link href={adminHref} onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm ${t.navIdle}`}>
                     {adminBtnLabel}

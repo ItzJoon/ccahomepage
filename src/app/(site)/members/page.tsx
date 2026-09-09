@@ -167,7 +167,7 @@ export default function DirectoryPage() {
     return (
       <div>
         <SectionTitle eyebrow="DIRECTORY" title="구성원 조회" />
-        <div className="bg-white border border-border rounded-xl p-8 text-center text-muted text-sm">
+        <div className="bg-surface border border-border rounded-xl p-8 text-center text-muted text-sm">
           로그인한 학교 구성원만 열람할 수 있습니다.{" "}
           <Link href="/login" className="text-blue font-bold">
             로그인하기
@@ -201,7 +201,7 @@ export default function DirectoryPage() {
         <Link
           key={m.id}
           href="/members/mystery"
-          className="w-full min-w-0 bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
+          className="w-full min-w-0 bg-surface border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
         >
           {inner}
         </Link>
@@ -212,7 +212,7 @@ export default function DirectoryPage() {
         <Link
           key={m.id}
           href={`/members/${joined.id}`}
-          className="w-full min-w-0 bg-white border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
+          className="w-full min-w-0 bg-surface border border-border rounded-xl p-4 text-center hover:shadow-md hover:border-blue transition-shadow"
         >
           {inner}
         </Link>
@@ -222,7 +222,7 @@ export default function DirectoryPage() {
       <div
         key={m.id}
         title="아직 가입하지 않은 계정입니다"
-        className="w-full min-w-0 bg-[#F5F6F8] border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
+        className="w-full min-w-0 bg-[#F5F6F8] dark:bg-white/5 border border-border rounded-xl p-4 text-center text-muted cursor-not-allowed opacity-60"
       >
         {inner}
       </div>
@@ -245,7 +245,7 @@ export default function DirectoryPage() {
         <button
           onClick={() => setTab("student")}
           className={`px-5 py-2.5 rounded-lg text-sm font-bold ${
-            tab === "student" ? "bg-navy text-white" : "bg-white border border-border text-muted"
+            tab === "student" ? "bg-navy text-white" : "bg-surface border border-border text-muted"
           }`}
         >
           학생
@@ -253,7 +253,7 @@ export default function DirectoryPage() {
         <button
           onClick={() => setTab("teacher")}
           className={`px-5 py-2.5 rounded-lg text-sm font-bold ${
-            tab === "teacher" ? "bg-navy text-white" : "bg-white border border-border text-muted"
+            tab === "teacher" ? "bg-navy text-white" : "bg-surface border border-border text-muted"
           }`}
         >
           교사
@@ -266,7 +266,7 @@ export default function DirectoryPage() {
             <button
               onClick={() => setGrades(grades.size === GRADES.length ? new Set() : new Set(GRADES))}
               className={`px-4 py-1.5 rounded-full text-xs font-bold border-2 ${
-                grades.size === GRADES.length ? "bg-navy text-white border-navy" : "bg-white text-navy border-navy"
+                grades.size === GRADES.length ? "bg-navy text-white border-navy" : "bg-surface text-muted border-border"
               }`}
             >
               전체
@@ -276,7 +276,7 @@ export default function DirectoryPage() {
                 key={g}
                 onClick={() => toggleGrade(g)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold border ${
-                  grades.has(g) ? "bg-teal text-white border-teal" : "bg-white text-muted border-border"
+                  grades.has(g) ? "bg-teal text-white border-teal" : "bg-surface text-muted border-border"
                 }`}
               >
                 {g}학년
