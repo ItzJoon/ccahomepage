@@ -1,31 +1,41 @@
 import type { Config } from "tailwindcss";
 
 const config: Config = {
+  darkMode: "class",
   content: ["./src/**/*.{js,ts,jsx,tsx,mdx}"],
   theme: {
     extend: {
       colors: {
-        navy: "#16233F",
-        blue: "#2C4A7C",
-        red: "#C1272D",
-        gold: "#B8790F",
-        teal: "#1E8F6F",
-        bg: "#F7F8FB",
-        border: "#E5E8EF",
-        muted: "#6B7280",
-        // 홈 화면/헤더/푸터의 "green" 테마용 (src/lib/homeTheme.ts 참고)
-        ink: "#111111",
-        ccahGreen: "#1D6F42",
-        ccahGreenLight: "#E8F5EE",
-        ccahGreenBright: "#4ABA78",
+        // 라이트/다크 모드(next-themes, html.dark 클래스)와 src/lib/homeTheme.ts의
+        // classic/green/apple 테마(DB 저장, 관리자가 전환)는 서로 다른 축이라 색상
+        // 이름 자체는 그대로 두고 실제 값만 globals.css의 CSS 변수로 옮겼다 — :root에
+        // 라이트 값, .dark에 다크 값을 정의해두면 bg-navy/text-appleInk 같은 기존
+        // 클래스가 코드 수정 없이도 다크모드를 자동으로 따라간다.
+        navy: "var(--navy)",
+        blue: "var(--blue)",
+        red: "var(--red)",
+        gold: "var(--gold)",
+        teal: "var(--teal)",
+        bg: "var(--bg)",
+        border: "var(--border)",
+        muted: "var(--muted)",
+        // 홈 화면/헤더/푸터의 "green" 테마용 (src/lib/homeTheme.ts 참고). text-ink/60처럼
+        // 투명도 접미사와 함께 쓰이므로 "R G B" 변수를 rgb(.. / <alpha-value>)로 감싼다
+        // (globals.css의 --ink 정의 참고) — appleBlue도 bg-appleBlue/10 등으로 쓰여 동일하다.
+        ink: "rgb(var(--ink) / <alpha-value>)",
+        ccahGreen: "var(--ccah-green)",
+        ccahGreenLight: "var(--ccah-green-light)",
+        ccahGreenBright: "var(--ccah-green-bright)",
         // 홈 화면/헤더/푸터의 "apple" 테마용 (Figma "CCA-Hompage" 디자인 그대로)
-        appleBlue: "#2563eb",
-        appleBg: "#f2f2f7",
-        appleInk: "#111827",
-        appleMuted: "#6b7280",
-        appleBorder: "#e5e7eb",
-        appleAmber: "#d97706",
-        appleGreen: "#10b981",
+        appleBlue: "rgb(var(--apple-blue) / <alpha-value>)",
+        appleBg: "var(--apple-bg)",
+        appleInk: "var(--apple-ink)",
+        appleMuted: "var(--apple-muted)",
+        appleBorder: "var(--apple-border)",
+        appleAmber: "var(--apple-amber)",
+        appleGreen: "var(--apple-green)",
+        // bg-white(리터럴)를 점진적으로 대체해나가는 범용 "카드/헤더 표면" 색.
+        surface: "var(--surface)",
       },
       fontFamily: {
         // next/font(src/lib/fonts.ts)가 생성하는 CSS 변수를 그대로 쓴다. CDN 로딩이

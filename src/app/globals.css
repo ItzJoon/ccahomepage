@@ -2,12 +2,71 @@
 @tailwind components;
 @tailwind utilities;
 
+/* 라이트/다크 모드(next-themes, html.dark 클래스로 전환) 전용 색상 변수. 여기서
+   정의한 이름은 tailwind.config.ts의 colors(navy/blue/... 등)가 그대로 참조한다 —
+   컴포넌트는 지금까지처럼 bg-navy/text-appleInk 등을 그대로 쓰면 되고, 실제 값만
+   여기서 라이트/다크로 갈라진다. src/lib/homeTheme.ts의 classic/green/apple
+   테마와는 완전히 별개 축이라, 세 홈 테마 전부 이 변수들 위에 그대로 얹힌다.
+
+   navy/blue/red/gold/teal/ccahGreen 계열/apple(Blue|Amber|Green) 은 버튼·뱃지·강조
+   텍스트 같은 "브랜드 강조색" 용도라 어두운 배경에서도 이미 잘 보이므로 값을 그대로
+   유지하거나(navy/blue) 다크 배경 대비를 위해 살짝만 밝혔다(red/gold/teal 등).
+   반면 bg/border/muted/ink/apple(Bg|Ink|Muted|Border) 은 배경·테두리·본문 텍스트
+   "표면" 역할이라 다크모드에서 실제로 반전된다. body의 기본 글자색은 navy를 직접
+   쓰지 않고 별도의 --body-text로 분리했다 — navy는 버튼 강조색으로 다크모드에서도
+   그대로 쓰이는데, 본문 글자색까지 같은 값이면 다크 배경에서 글자가 안 보이게 된다. */
 :root {
   --navy: #16233f;
   --blue: #2c4a7c;
   --red: #c1272d;
   --gold: #b8790f;
   --teal: #1e8f6f;
+  --bg: #f7f8fb;
+  --border: #e5e8ef;
+  --muted: #6b7280;
+  /* ink/appleBlue는 코드에서 text-ink/60, bg-appleBlue/10 처럼 Tailwind 투명도(/) 접미사와
+     함께 쓰이는 곳이 있다 — Tailwind가 그 문법을 지원하려면 색을 "R G B"(공백 구분 숫자)로
+     정의하고 rgb(var(--x) / <alpha-value>)로 감싸야 한다(tailwind.config.ts 참고). 다른
+     색상들은 이 문법으로 안 쓰여서 평범한 hex 문자열로 남겨뒀다(NotificationBanner.tsx
+     등에서 var(--red)/var(--gold)를 직접 CSS 값으로도 쓰기 때문에 그쪽과도 호환된다). */
+  --ink: 17 17 17;
+  --ccah-green: #1d6f42;
+  --ccah-green-light: #e8f5ee;
+  --ccah-green-bright: #4aba78;
+  --apple-blue: 37 99 235;
+  --apple-bg: #f2f2f7;
+  --apple-ink: #111827;
+  --apple-muted: #6b7280;
+  --apple-border: #e5e7eb;
+  --apple-amber: #d97706;
+  --apple-green: #10b981;
+  --body-text: var(--navy);
+  /* 세 홈 테마 모두 카드/헤더/드롭다운 배경으로 그냥 bg-white(리터럴)를 즐겨 쓰는데,
+     이건 CSS 변수가 아니라서 다크모드에서 자동으로 안 바뀐다. 이런 "흰 표면" 자리를
+     점진적으로 bg-surface로 바꿔가면 다크모드에서 자연스러운 어두운 카드색으로
+     뒤집힌다(Header/Footer부터 시작, 이후 카드/버튼 공용 컴포넌트로 확장 예정). */
+  --surface: #ffffff;
+}
+
+:root.dark {
+  --bg: #0f1420;
+  --border: #262f3f;
+  --muted: #9aa4b5;
+  --ink: 232 234 240;
+  --ccah-green-light: #163527;
+  --apple-bg: #1c2128;
+  --apple-ink: #e5e7eb;
+  --apple-muted: #9aa4b5;
+  --apple-border: #2d333d;
+  --red: #e14853;
+  --gold: #e3a233;
+  --teal: #34b694;
+  --ccah-green: #3fae72;
+  --apple-blue: 91 141 239;
+  --apple-amber: #f0a94e;
+  --apple-green: #34d399;
+  --body-text: #e5e7eb;
+  --surface: #161a20;
 }
 
 /* Noto Sans KR은 fonts.googleapis.com CDN @import 대신 next/font(src/lib/fonts.ts)로
@@ -19,8 +78,8 @@
    fallback 체인을 명시한다(제네릭 sans-serif 하나만 믿지 않는다). */
 body {
   font-family: var(--font-noto-sans-kr), "Malgun Gothic", "Apple SD Gothic Neo", -apple-system, sans-serif;
-  color: var(--navy);
-  background: #f7f8fb;
+  color: var(--body-text);
+  background: var(--bg);
 }
 
 h1, h2, h3 {

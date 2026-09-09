@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ThemeProvider } from "next-themes";
 import { notoSansKR, notoSerifKR, jua, caveat } from "@/lib/fonts";
 import "./globals.css";
 
@@ -60,7 +61,15 @@ const websiteJsonLd = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="ko" className={`${notoSansKR.variable} ${notoSerifKR.variable} ${jua.variable} ${caveat.variable}`}>
+    // next-themes가 하이드레이션 전에 시스템/저장된 테마에 맞춰 클래스를 스크립트로
+    // 먼저 심어주는데, 서버가 렌더링한 초기 마크업(class 없음)과 달라서 React가
+    // hydration mismatch 경고를 내는 게 정상 동작이다 — suppressHydrationWarning으로
+    // html 태그 자체에 한해 그 경고만 끈다(공식 가이드).
+    <html
+      lang="ko"
+      suppressHydrationWarning
+      className={`${notoSansKR.variable} ${notoSerifKR.variable} ${jua.variable} ${caveat.variable}`}
+    >
       <body>
         <script
           type="application/ld+json"
@@ -70,7 +79,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteJsonLd) }}
         />
-        {children}
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          {children}
+        </ThemeProvider>
       </body>
     </html>
   );

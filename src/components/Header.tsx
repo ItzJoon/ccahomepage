@@ -11,6 +11,7 @@ import BadgeCelebration from "@/components/BadgeCelebration";
 import FreezeChoiceModal from "@/components/FreezeChoiceModal";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import NotificationCenter from "@/components/NotificationCenter";
+import ThemeToggle from "@/components/ThemeToggle";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { PageDoc, Profile } from "@/lib/types";
 
@@ -119,7 +120,7 @@ export default function Header({
     <header className={`sticky top-0 z-20 ${t.headerBg} ${t.headerText} ${t.headerBorder}`}>
       <div className="max-w-[1180px] mx-auto flex items-center justify-between gap-4 px-5 py-3">
         <Link href="/" className={`font-bold text-lg flex items-center gap-2 shrink-0 ${t.logoFont}`} onClick={closeMobile}>
-          <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white shrink-0" />
+          <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/90 shrink-0" />
           <span className="whitespace-nowrap">학생자치회</span>
         </Link>
 
@@ -145,6 +146,7 @@ export default function Header({
         </nav>
 
         <div className="hidden md:flex items-center gap-2 shrink-0">
+          <ThemeToggle />
           {searchOpen ? (
             <input
               autoFocus
@@ -215,15 +217,18 @@ export default function Header({
           )}
         </div>
 
-        <button
-          type="button"
-          className={`md:hidden shrink-0 w-9 h-9 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
-          onClick={() => setMobileOpen((v) => !v)}
-          aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
-          aria-expanded={mobileOpen}
-        >
-          {mobileOpen ? "✕" : "☰"}
-        </button>
+        <div className="md:hidden flex items-center gap-1 shrink-0">
+          <ThemeToggle />
+          <button
+            type="button"
+            className={`w-9 h-9 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
+            onClick={() => setMobileOpen((v) => !v)}
+            aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-expanded={mobileOpen}
+          >
+            {mobileOpen ? "✕" : "☰"}
+          </button>
+        </div>
       </div>
 
       {mobileOpen && (

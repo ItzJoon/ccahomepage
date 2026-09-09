@@ -32,7 +32,7 @@ export const homeThemeStyles = {
     profileDropdownItem: "text-[#C9D2E3] hover:bg-white/10 hover:text-white",
     profileDropdownDanger: "text-red hover:bg-white/10",
 
-    footerBg: "bg-[#EEF1F6]",
+    footerBg: "bg-[#EEF1F6] dark:bg-[#161b26]",
     footerText: "text-muted",
     footerBorder: "",
 
@@ -104,24 +104,30 @@ export const homeThemeStyles = {
   },
   /** Figma "Sneaker Product Page"(실제로는 학교 포털 목업) 참고 — 검정+초록 브루탈리즘 */
   green: {
-    headerBg: "bg-white",
+    headerBg: "bg-surface",
     headerText: "text-ink",
-    headerBorder: "border-b-2 border-ink shadow-[0_2px_0_#1D6F42]",
+    headerBorder: "border-b-2 border-ink shadow-[0_2px_0_var(--ccah-green)]",
     logoFont: "font-jua",
     navShape: "px-2.5 py-2 rounded-md text-sm",
     navActive: "text-ccahGreen font-bold",
     navIdle: "text-ink hover:text-ccahGreen",
     navText: "text-ink hover:text-ccahGreen",
-    authBtn: "rounded-none border-2 border-ink hover:bg-ink hover:text-white",
-    adminLogoutBtn: "rounded-none border-2 border-ink hover:bg-ink hover:text-white",
+    // ink는 라이트에서 거의 검정, 다크에서 거의 흰색으로 뒤집히는 변수라 hover:bg-ink 위에
+    // 고정된 하얀 글자(hover:text-white)만 두면 다크모드에서 흰 배경에 흰 글자가 된다 —
+    // 다크모드에서는 반대로(검정) 보이게 별도 지정한다.
+    authBtn: "rounded-none border-2 border-ink hover:bg-ink hover:text-white dark:hover:text-black",
+    adminLogoutBtn: "rounded-none border-2 border-ink hover:bg-ink hover:text-white dark:hover:text-black",
     iconBtnHover: "hover:bg-ccahGreenLight",
     mobileBorder: "border-t-2 border-ink",
-    profileTrigger: "rounded-none border-2 border-ink hover:bg-ink hover:text-white",
-    profileDropdown: "bg-white border-2 border-ink rounded-none shadow-lg",
+    profileTrigger: "rounded-none border-2 border-ink hover:bg-ink hover:text-white dark:hover:text-black",
+    profileDropdown: "bg-surface border-2 border-ink rounded-none shadow-lg",
     profileDropdownItem: "text-ink hover:bg-ccahGreenLight",
     profileDropdownDanger: "text-red hover:bg-ccahGreenLight",
 
-    footerBg: "bg-ink",
+    // footerBg는 ink를 "글자색"이 아니라 일부러 어두운 장식용 배경으로 쓰는 자리라(헤더/
+    // 히어로와 달리 다크모드에서도 계속 어두워야 함) ink 변수가 다크모드에서 밝은색으로
+    // 뒤집혀도 이 배경만은 원래 라이트 모드 ink 값(#111111)으로 고정해둔다.
+    footerBg: "bg-ink dark:bg-[#111111]",
     footerText: "text-white/60",
     footerBorder: "border-t-2 border-ccahGreen",
 
@@ -193,7 +199,7 @@ export const homeThemeStyles = {
    * 미니멀한 화이트/블루 톤. 색상·도형·타이포를 실제 디자인 값 그대로 옮겼다(단, 존재하지
    * 않는 링크를 새로 만들지는 않아서 푸터는 기존처럼 한 줄 카피만 유지). */
   apple: {
-    headerBg: "bg-white",
+    headerBg: "bg-surface",
     headerText: "text-appleInk",
     headerBorder: "border-b border-appleBorder",
     logoFont: "",
@@ -201,16 +207,16 @@ export const homeThemeStyles = {
     navActive: "text-appleInk font-bold",
     navIdle: "text-appleMuted hover:text-appleInk",
     navText: "text-appleMuted hover:text-appleInk",
-    authBtn: "rounded-full border border-appleBorder bg-white hover:bg-appleBg",
-    adminLogoutBtn: "rounded-lg border border-[#d9d9d9] bg-[#f2f2f2] text-[#4d4d4d] hover:bg-appleBg",
+    authBtn: "rounded-full border border-appleBorder bg-surface hover:bg-appleBg",
+    adminLogoutBtn: "rounded-lg border border-[#d9d9d9] bg-[#f2f2f2] text-[#4d4d4d] hover:bg-appleBg dark:bg-appleBg dark:border-appleBorder dark:text-appleInk",
     iconBtnHover: "hover:bg-appleBg",
     mobileBorder: "border-t border-appleBorder",
-    profileTrigger: "rounded-full border border-appleBorder bg-white hover:bg-appleBg",
-    profileDropdown: "bg-white border border-appleBorder rounded-2xl shadow-lg",
+    profileTrigger: "rounded-full border border-appleBorder bg-surface hover:bg-appleBg",
+    profileDropdown: "bg-surface border border-appleBorder rounded-2xl shadow-lg",
     profileDropdownItem: "text-appleInk hover:bg-appleBg",
     profileDropdownDanger: "text-red hover:bg-appleBg",
 
-    footerBg: "bg-white",
+    footerBg: "bg-surface",
     footerText: "text-appleMuted",
     footerBorder: "border-t border-appleBorder",
 
