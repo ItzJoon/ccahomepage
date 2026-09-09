@@ -131,13 +131,13 @@ export default function QnaPage() {
         action={
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "list" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "list" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setTab("list")}
             >
               목록
             </button>
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "write" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${tab === "write" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setTab("write")}
             >
               질문하기
@@ -146,14 +146,14 @@ export default function QnaPage() {
         }
       />
       {tab === "write" ? (
-        <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 max-w-xl">
+        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-1.5 max-w-xl">
           {userId === null && (
-            <div className="text-sm bg-[#FFF7E6] rounded-lg p-3 mb-2">
+            <div className="text-sm bg-[#FFF7E6] dark:bg-white/10 rounded-lg p-3 mb-2">
               <Link href="/login" className="text-blue font-bold">로그인</Link> 후 질문을 등록할 수 있습니다.
             </div>
           )}
           {hasDraft && (
-            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2">
+            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] dark:bg-white/10 rounded-lg px-3 py-2">
               <span>임시저장된 내용을 불러왔습니다.</span>
               <button type="button" onClick={discardDraft} className="text-red font-bold">
                 지우고 새로 쓰기

@@ -37,7 +37,7 @@ export default function OrganizationsPage() {
         <Link
           href={`/organizations/${o.slug}`}
           key={o.id}
-          className="bg-white border border-border rounded-xl p-5 block hover:shadow-md"
+          className="bg-surface border border-border rounded-xl p-5 block hover:shadow-md"
           style={{ borderTop: `5px solid ${COLOR_VAR[o.color] || COLOR_VAR.navy}` }}
         >
           <div className="font-bold text-lg mb-2">{o.name}</div>

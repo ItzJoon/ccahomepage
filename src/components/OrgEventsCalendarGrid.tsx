@@ -59,7 +59,7 @@ export default function OrgEventsCalendarGrid<T extends CalendarEventLike>({
       <div className="flex justify-center items-center gap-4 mb-3">
         <button
           type="button"
-          className="bg-[#F2F4F8] w-7 h-7 rounded-md"
+          className="bg-[#F2F4F8] dark:bg-white/10 w-7 h-7 rounded-md"
           onClick={() => setCursor(new Date(year, month - 1, 1))}
         >
           ‹
@@ -67,7 +67,7 @@ export default function OrgEventsCalendarGrid<T extends CalendarEventLike>({
         <strong>{year}년 {month + 1}월</strong>
         <button
           type="button"
-          className="bg-[#F2F4F8] w-7 h-7 rounded-md"
+          className="bg-[#F2F4F8] dark:bg-white/10 w-7 h-7 rounded-md"
           onClick={() => setCursor(new Date(year, month + 1, 1))}
         >
           ›
@@ -88,7 +88,7 @@ export default function OrgEventsCalendarGrid<T extends CalendarEventLike>({
             <div
               key={i}
               className={`min-h-[76px] border rounded-lg p-1 text-xs ${
-                isToday ? "border-gold bg-[#FFF9EE]" : "border-border"
+                isToday ? "border-gold bg-[#FFF9EE] dark:bg-white/10" : "border-border"
               }`}
             >
               <div className="font-bold mb-1">{d}</div>

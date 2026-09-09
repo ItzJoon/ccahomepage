@@ -146,13 +146,13 @@ export default function BoardPage() {
         action={
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${sort === "latest" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${sort === "latest" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setSort("latest")}
             >
               최신순
             </button>
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${sort === "popular" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${sort === "popular" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setSort("popular")}
             >
               인기순
@@ -168,12 +168,12 @@ export default function BoardPage() {
       </div>
 
       {writing && (
-        <div className="bg-white border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
+        <div className="bg-surface border border-border rounded-xl p-5 flex flex-col gap-1.5 mb-4">
           {userId === null && (
-            <div className="text-sm bg-[#FFF7E6] rounded-lg p-3 mb-2">로그인 후 글을 등록할 수 있습니다.</div>
+            <div className="text-sm bg-[#FFF7E6] dark:bg-white/10 rounded-lg p-3 mb-2">로그인 후 글을 등록할 수 있습니다.</div>
           )}
           {hasDraft && (
-            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2 mb-1">
+            <div className="flex items-center justify-between text-xs bg-[#EAF0FB] dark:bg-white/10 rounded-lg px-3 py-2 mb-1">
               <span>임시저장된 내용을 불러왔습니다.</span>
               <button type="button" onClick={discardDraft} className="text-red font-bold">
                 지우고 새로 쓰기
@@ -207,7 +207,7 @@ export default function BoardPage() {
         </div>
       )}
 
-      <table className="w-full border-collapse bg-white">
+      <table className="w-full border-collapse bg-surface">
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -219,7 +219,7 @@ export default function BoardPage() {
         </thead>
         <tbody>
           {rows.map((p) => (
-            <tr key={p.id} className="hover:bg-[#F2F4F8]">
+            <tr key={p.id} className="hover:bg-[#F2F4F8] dark:hover:bg-white/10">
               <td className="p-2.5 border-b border-border">
                 <Link href={`/board/${p.id}`} className={readPostIds.has(p.id) ? "text-muted" : ""}>
                   {p.title}

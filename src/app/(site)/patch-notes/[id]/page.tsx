@@ -37,7 +37,7 @@ export default async function PatchNoteDetailPage({ params }: { params: { id: st
   const items = sortPatchNoteItemsForDisplay(orderedItems);
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/patch-notes" label="패치노트로" />
       <div className="flex items-center gap-2 flex-wrap my-2">
         {note.version && <span className="text-sm font-bold text-muted">{note.version}</span>}

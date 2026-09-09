@@ -51,13 +51,13 @@ export default function CalendarPage() {
         action={
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "month" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "month" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setMode("month")}
             >
               월간
             </button>
             <button
-              className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "list" ? "bg-navy text-white" : "bg-white"}`}
+              className={`px-3.5 py-1.5 text-sm font-semibold ${mode === "list" ? "bg-navy text-white" : "bg-surface"}`}
               onClick={() => setMode("list")}
             >
               목록
@@ -66,17 +66,17 @@ export default function CalendarPage() {
         }
       />
       {mode === "month" ? (
-        <div className="bg-white border border-border rounded-2xl p-[18px]">
+        <div className="bg-surface border border-border rounded-2xl p-[18px]">
           <div className="flex justify-center items-center gap-4 mb-3">
             <button
-              className="bg-[#F2F4F8] w-7 h-7 rounded-md"
+              className="bg-[#F2F4F8] dark:bg-white/10 w-7 h-7 rounded-md"
               onClick={() => setCursor(new Date(year, month - 1, 1))}
             >
               ‹
             </button>
             <strong>{year}년 {month + 1}월</strong>
             <button
-              className="bg-[#F2F4F8] w-7 h-7 rounded-md"
+              className="bg-[#F2F4F8] dark:bg-white/10 w-7 h-7 rounded-md"
               onClick={() => setCursor(new Date(year, month + 1, 1))}
             >
               ›
@@ -97,7 +97,7 @@ export default function CalendarPage() {
                 <div
                   key={i}
                   className={`min-h-[76px] border rounded-lg p-1 text-xs ${
-                    isToday ? "border-gold bg-[#FFF9EE]" : "border-border"
+                    isToday ? "border-gold bg-[#FFF9EE] dark:bg-white/10" : "border-border"
                   }`}
                 >
                   <div className="font-bold mb-1">{d}</div>

@@ -45,7 +45,7 @@ export default function PatchNotesPage() {
           <Link
             key={n.id}
             href={`/patch-notes/${n.id}`}
-            className="block bg-white border border-border rounded-xl p-5 hover:border-blue transition-colors"
+            className="block bg-surface border border-border rounded-xl p-5 hover:border-blue transition-colors"
           >
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
               {n.version && <span className="text-xs font-bold text-muted">{n.version}</span>}

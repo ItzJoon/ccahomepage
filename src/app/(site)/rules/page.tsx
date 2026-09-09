@@ -54,14 +54,14 @@ export default function RulesPage() {
         />
       </div>
       <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start">
-        <ul className="list-none m-0 p-0 bg-white border border-border rounded-xl overflow-hidden h-fit md:sticky md:top-20 md:max-h-[75vh] overflow-y-auto">
+        <ul className="list-none m-0 p-0 bg-surface border border-border rounded-xl overflow-hidden h-fit md:sticky md:top-20 md:max-h-[75vh] overflow-y-auto">
           {q === ""
             ? categoryLinks.map((c) => (
                 <li key={c.category}>
                   <button
                     type="button"
                     onClick={() => scrollToRule(c.ruleId)}
-                    className="w-full text-left px-3.5 py-3 border-b border-border text-sm hover:bg-[#EAF0FB]"
+                    className="w-full text-left px-3.5 py-3 border-b border-border text-sm hover:bg-[#EAF0FB] dark:hover:bg-white/10"
                   >
                     {c.category}
                   </button>
@@ -72,7 +72,7 @@ export default function RulesPage() {
                   <button
                     type="button"
                     onClick={() => scrollToRule(r.id)}
-                    className="w-full text-left px-3.5 py-3 border-b border-border text-sm hover:bg-[#EAF0FB]"
+                    className="w-full text-left px-3.5 py-3 border-b border-border text-sm hover:bg-[#EAF0FB] dark:hover:bg-white/10"
                   >
                     <Badge color="navy">{r.category}</Badge> {r.title}
                   </button>
@@ -82,13 +82,13 @@ export default function RulesPage() {
             <li className="text-muted text-center py-6 text-sm">검색 결과가 없습니다.</li>
           )}
         </ul>
-        <div className="bg-white border border-border rounded-2xl p-7 flex flex-col gap-7">
+        <div className="bg-surface border border-border rounded-2xl p-7 flex flex-col gap-7">
           {(q === "" ? rows : filtered).map((r, i, arr) => {
             const isNewCategory = i === 0 || arr[i - 1].category !== r.category;
             return (
               <div key={r.id} id={anchorId(r.id)} className="scroll-mt-24">
                 {isNewCategory && (
-                  <h2 className="text-lg font-black text-navy border-b border-border pb-2 mb-3">{r.category}</h2>
+                  <h2 className="text-lg font-black border-b border-border pb-2 mb-3">{r.category}</h2>
                 )}
                 <h3 className="mb-2">{r.title}</h3>
                 <pre className="whitespace-pre-wrap font-sans leading-8 text-sm">

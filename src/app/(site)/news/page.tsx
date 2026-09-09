@@ -30,7 +30,7 @@ export default function NewsPage() {
       <SectionTitle eyebrow="NEWS" title="학생자치회 뉴스" />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {rows.map((n) => (
-          <Link href={`/news/${n.id}`} key={n.id} className="border border-border rounded-xl p-4 block bg-white hover:border-blue">
+          <Link href={`/news/${n.id}`} key={n.id} className="border border-border rounded-xl p-4 block bg-surface hover:border-blue">
             <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
             <div className="font-bold mb-2">{n.title}</div>
             <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>

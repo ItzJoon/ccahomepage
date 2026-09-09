@@ -34,7 +34,7 @@ export default async function SecretTimedPage({ params }: { params: { slug: stri
   const cfg = badge.trigger_config as { content_text: string; image_url?: string };
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7 text-center">
+    <div className="bg-surface border border-border rounded-2xl p-7 text-center">
       {cfg.image_url && (
         <img src={cfg.image_url} alt="" className="mx-auto mb-4 max-h-48 rounded-lg object-contain" />
       )}

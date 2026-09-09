@@ -77,7 +77,7 @@ export default function RestrictedPage() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-5">
-      <div className="bg-white border border-border rounded-2xl p-8 text-center max-w-md w-full shadow-sm">
+      <div className="bg-surface border border-border rounded-2xl p-8 text-center max-w-md w-full shadow-sm">
         <div className="text-4xl mb-3">🔔</div>
         <h1 className="text-xl font-black mb-2">지금은 이용 시간이 아니에요</h1>
         <p className="text-muted text-sm mb-2 whitespace-pre-wrap">

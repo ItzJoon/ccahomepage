@@ -88,7 +88,7 @@ export default function MemberProfilePage() {
     return (
       <div>
         <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
-        <div className="bg-white border border-border rounded-xl p-8 text-center text-muted text-sm">
+        <div className="bg-surface border border-border rounded-xl p-8 text-center text-muted text-sm">
           존재하지 않거나 볼 수 없는 프로필입니다.{" "}
           <button onClick={() => router.back()} className="text-blue font-bold">
             구성원 조회로 돌아가기
@@ -114,7 +114,7 @@ export default function MemberProfilePage() {
       <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
       <DetailBackLink href="/members" label="구성원 조회로" />
 
-      <div className="bg-white border border-border rounded-2xl p-5 mb-4">
+      <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
         <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-4 items-center">
           {profile.profile_image ? (
             <img
@@ -157,7 +157,7 @@ export default function MemberProfilePage() {
         />
       )}
 
-      <div className="bg-white border border-border rounded-2xl p-5">
+      <div className="bg-surface border border-border rounded-2xl p-5">
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
         <h3 className="mb-3">획득한 뱃지</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
@@ -191,7 +191,7 @@ export default function MemberProfilePage() {
       </div>
 
       {canModerate && (
-        <div className="bg-white border border-border rounded-2xl p-5 mt-4">
+        <div className="bg-surface border border-border rounded-2xl p-5 mt-4">
           <div className="text-xs font-bold tracking-widest text-red uppercase mb-1">ADMIN</div>
           <h3 className="mb-3">관리자 조치</h3>
           <ModerationPanel targetUserId={profile.id} />

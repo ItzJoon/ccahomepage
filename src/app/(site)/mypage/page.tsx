@@ -168,14 +168,14 @@ export default function MyPage() {
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-[200px_1fr] gap-4 mb-4">
-        <div className="bg-white border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
+        <div className="bg-surface border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
           <div className="text-muted text-sm">연속 접속일수</div>
           <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
           <div className="text-muted text-[11px]">누적 접속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
           {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
         </div>
-        <div className="bg-white border border-border rounded-2xl p-5">
+        <div className="bg-surface border border-border rounded-2xl p-5">
           <div className="text-xs font-bold tracking-widest text-blue uppercase mb-1">VISIT HISTORY</div>
           <h3>최근 방문 기록 (최근 30일)</h3>
           <ul className="list-none m-0 p-0">
@@ -189,7 +189,7 @@ export default function MyPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-border rounded-2xl p-5 mb-4">
+      <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
         <h3 className="mb-3">획득한 뱃지</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
@@ -235,7 +235,7 @@ export default function MyPage() {
         </div>
       </div>
 
-      <div className="bg-white border border-border rounded-2xl p-5">
+      <div className="bg-surface border border-border rounded-2xl p-5">
         <div className="text-xs font-bold tracking-widest text-blue uppercase mb-1">PROFILE</div>
         <h3 className="mb-3">프로필 설정</h3>
         <div className="grid grid-cols-1 sm:grid-cols-[96px_1fr] gap-4 items-start">
@@ -247,7 +247,7 @@ export default function MyPage() {
                 {(profile?.nickname || profile?.name || profile?.email || "?")[0]}
               </div>
             )}
-            <label className="text-xs font-bold border border-border rounded-lg px-3 py-1.5 cursor-pointer bg-white text-center">
+            <label className="text-xs font-bold border border-border rounded-lg px-3 py-1.5 cursor-pointer bg-surface text-center">
               {uploading ? "업로드 중…" : "사진 변경"}
               <input
                 type="file"

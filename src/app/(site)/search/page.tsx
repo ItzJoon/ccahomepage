@@ -118,7 +118,7 @@ export default function SearchPage() {
               <h3 className="text-base font-bold mb-2">공지/뉴스 ({notices.length}건)</h3>
               <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
                 {notices.map((n) => (
-                  <li key={n.id} className="bg-white border border-border rounded-lg p-3">
+                  <li key={n.id} className="bg-surface border border-border rounded-lg p-3">
                     <Link href={n.type === "news" ? `/news/${n.id}` : `/notices/${n.id}`} className="font-bold text-sm">
                       {n.title}
                     </Link>
@@ -133,7 +133,7 @@ export default function SearchPage() {
               <h3 className="text-base font-bold mb-2">게시판 ({boardPosts.length}건)</h3>
               <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
                 {boardPosts.map((p) => (
-                  <li key={p.id} className="bg-white border border-border rounded-lg p-3">
+                  <li key={p.id} className="bg-surface border border-border rounded-lg p-3">
                     <Link href={`/board/${p.id}`} className="font-bold text-sm">
                       {p.title}
                     </Link>
@@ -148,7 +148,7 @@ export default function SearchPage() {
               <h3 className="text-base font-bold mb-2">Q&amp;A ({questions.length}건)</h3>
               <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
                 {questions.map((qq) => (
-                  <li key={qq.id} className="bg-white border border-border rounded-lg p-3">
+                  <li key={qq.id} className="bg-surface border border-border rounded-lg p-3">
                     <Link href="/qna" className="font-bold text-sm">
                       {qq.title}
                     </Link>
@@ -163,7 +163,7 @@ export default function SearchPage() {
               <h3 className="text-base font-bold mb-2">일정 ({events.length}건)</h3>
               <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
                 {events.map((ev) => (
-                  <li key={ev.id} className="bg-white border border-border rounded-lg p-3">
+                  <li key={ev.id} className="bg-surface border border-border rounded-lg p-3">
                     <Link href={`/events/${ev.id}`} className="font-bold text-sm">
                       {ev.title}
                     </Link>

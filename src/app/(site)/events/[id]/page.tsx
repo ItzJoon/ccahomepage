@@ -16,7 +16,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
   const { data: attachments } = await supabase.from("attachments").select("*").eq("event_id", params.id);
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/calendar" label="일정으로" />
       <div className="flex items-center gap-2 flex-wrap my-2">
         <Badge color="navy" className="shrink-0">{event.category}</Badge>

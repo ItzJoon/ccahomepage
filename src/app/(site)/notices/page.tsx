@@ -113,7 +113,7 @@ export default function NoticesPage() {
         </thead>
         <tbody>
           {list.map((n) => (
-            <tr key={n.id} className="hover:bg-[#F2F4F8]">
+            <tr key={n.id} className="hover:bg-[#F2F4F8] dark:hover:bg-white/10">
               <td className="p-2.5 border-b border-border">
                 {n.type === "subject_notice" ? (
                   <Badge color="teal">교과·{n.target_subject}</Badge>

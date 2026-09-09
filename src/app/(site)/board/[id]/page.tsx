@@ -40,7 +40,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
   }
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/board" label="게시판으로" />
       <h1 className="text-2xl my-2">{post.title}</h1>
       <div className="flex items-center justify-between flex-wrap gap-2 text-muted text-sm mb-[18px]">

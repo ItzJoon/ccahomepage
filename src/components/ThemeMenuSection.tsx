@@ -18,13 +18,23 @@ const OPTIONS = [
 export default function ThemeMenuSection({ itemClassName }: { itemClassName: string }) {
   const { theme, setTheme } = useTheme();
 
+  // 색이 뚝 끊기지 않고 디졸브되도록, 전환 순간에만 html에 트랜지션 클래스를 잠깐
+  // 붙였다 뗀다(globals.css의 .theme-transitioning 참고) — 항상 걸어두면 다른 호버
+  // 등 상호작용까지 전부 느려지므로 전환되는 그 순간에만 한시적으로 켠다.
+  const applyWithTransition = (value: (typeof OPTIONS)[number]["value"]) => {
+    const root = document.documentElement;
+    root.classList.add("theme-transitioning");
+    setTheme(value);
+    window.setTimeout(() => root.classList.remove("theme-transitioning"), 400);
+  };
+
   return (
     <>
       {OPTIONS.map((opt) => (
         <button
           key={opt.value}
           type="button"
-          onClick={() => setTheme(opt.value)}
+          onClick={() => applyWithTransition(opt.value)}
           className={`flex items-center gap-2 ${itemClassName}`}
         >
           <span className="leading-none">{opt.icon}</span>

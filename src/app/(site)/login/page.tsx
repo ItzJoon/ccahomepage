@@ -38,9 +38,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center">
-      <div className="bg-white border border-border rounded-2xl p-8 max-w-sm w-full text-center">
-        <div className="font-bold text-lg text-navy mb-1 flex items-center justify-center gap-2">
-  <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white" />
+      <div className="bg-surface border border-border rounded-2xl p-8 max-w-sm w-full text-center">
+        <div className="font-bold text-lg mb-1 flex items-center justify-center gap-2">
+  <img src="/logo.png" alt="학생자치회 로고" className="w-8 h-8 rounded-lg object-contain bg-white dark:bg-white/90" />
   학생자치회 로그인
 </div>
         <p className="text-muted text-sm my-3.5">
@@ -71,7 +71,7 @@ export default function LoginPage() {
             />
             <button
               onClick={signInWithEmail}
-              className="w-full border border-navy text-navy font-bold text-sm rounded-lg px-4 py-2.5"
+              className="w-full border border-navy text-navy dark:border-white/25 dark:text-white font-bold text-sm rounded-lg px-4 py-2.5"
             >
               이메일로 로그인 링크 받기
             </button>

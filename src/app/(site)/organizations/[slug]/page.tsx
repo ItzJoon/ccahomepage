@@ -25,7 +25,7 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
     .returns<MemberRow[]>();
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/organizations" label="학생자치회 소개로" />
       <div className="pl-4" style={{ borderLeft: `6px solid ${COLOR_VAR[org.color] || COLOR_VAR.navy}` }}>
         <div className="flex items-center gap-2 flex-wrap my-2">
@@ -44,7 +44,7 @@ export default async function OrgDetailPage({ params }: { params: { slug: string
           {(members ?? []).map((m) => {
             const photo = m.photo_url || m.profile?.profile_image;
             return (
-              <div key={m.id} className="bg-white border border-border rounded-xl p-4 text-center">
+              <div key={m.id} className="bg-surface border border-border rounded-xl p-4 text-center">
                 {photo ? (
                   <img
                     src={photo}

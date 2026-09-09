@@ -34,7 +34,7 @@ export default function MysteryMemberPage() {
       <SectionTitle eyebrow="DIRECTORY" title="구성원 프로필" />
       <DetailBackLink href="/members" label="구성원 조회로" />
 
-      <div className="bg-white border border-border rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
+      <div className="bg-surface border border-border rounded-2xl p-10 flex flex-col items-center gap-4 text-center">
         {!claimed ? (
           <>
             <p className="text-muted text-sm">이 사람은... 누구일까요?</p>

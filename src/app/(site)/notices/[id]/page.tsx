@@ -22,7 +22,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
     .eq("post_id", params.id);
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/notices" label="공지사항으로" />
       <div>
         <div className="flex items-center gap-2 flex-wrap my-2">

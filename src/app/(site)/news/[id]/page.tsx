@@ -23,7 +23,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
   const { data: attachments } = await supabase.from("attachments").select("*").eq("post_id", params.id);
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-7">
+    <div className="bg-surface border border-border rounded-2xl p-7">
       <DetailBackLink href="/news" label="뉴스로" />
       <div className="flex items-center gap-2 flex-wrap my-2">
         <Badge color="teal" className="shrink-0">{post.category}</Badge>
