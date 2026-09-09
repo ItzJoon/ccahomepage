@@ -145,7 +145,7 @@ export default function NotificationPopup({
       >
         {hasText ? (
           <div
-            className={`relative bg-white rounded-2xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl flex flex-col transition-transform duration-[250ms] ${
+            className={`relative bg-surface rounded-2xl w-full max-w-md max-h-[85vh] overflow-hidden shadow-2xl flex flex-col transition-transform duration-[250ms] ${
               visible ? "scale-100" : "scale-95"
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -222,7 +222,7 @@ export default function NotificationPopup({
                 }`}
               />
             )}
-            <div className="flex gap-2 bg-white rounded-lg p-1.5 shadow-lg">
+            <div className="flex gap-2 bg-surface rounded-lg p-1.5 shadow-lg">
               <button onClick={hideToday} className="border border-border text-sm rounded-lg px-4 py-2">
                 오늘 하루 안 보기
               </button>
@@ -238,7 +238,7 @@ export default function NotificationPopup({
 
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-lg">
+      <div className="bg-surface rounded-2xl p-6 max-w-sm w-full shadow-lg">
         <div className={`text-xs font-bold tracking-widest uppercase mb-1 ${current.level === "urgent" ? "text-red" : "text-gold"}`}>
           {current.level === "urgent" ? "긴급 공지" : "공지"}
         </div>

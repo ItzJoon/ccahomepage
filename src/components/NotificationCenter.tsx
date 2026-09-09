@@ -80,7 +80,7 @@ export default function NotificationCenter({ userId }: { userId: string | null }
         )}
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-auto py-1.5 z-30 bg-white border border-border rounded-lg shadow-md">
+        <div className="absolute right-0 top-full mt-2 w-80 max-h-96 overflow-auto py-1.5 z-30 bg-surface border border-border rounded-lg shadow-md">
           <div className="flex items-center justify-between px-3 py-1.5">
             <span className="text-xs font-bold text-muted">알림</span>
             {unreadCount > 0 && (

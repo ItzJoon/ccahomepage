@@ -66,7 +66,7 @@ export default function BadgeCelebration({
             ? "p-10 max-w-md bg-gradient-to-b from-[#FFF8E6] to-white border-2 border-gold animate-glow-pulse"
             : secret
             ? "p-8 max-w-sm bg-gradient-to-b from-[#FFF8E6] to-white border-2 border-gold shadow-[0_0_40px_rgba(212,160,23,0.35)]"
-            : "p-8 max-w-sm bg-white"
+            : "p-8 max-w-sm bg-surface"
         }`}
         onClick={(e) => e.stopPropagation()}
       >

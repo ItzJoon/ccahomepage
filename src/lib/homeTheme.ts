@@ -46,23 +46,23 @@ export const homeThemeStyles = {
     heroPrimaryBtn: "bg-gold text-white font-bold text-sm rounded-lg px-[18px] py-2.5",
     heroSecondaryBtn: "border border-white/40 text-white font-bold text-sm rounded-lg px-[18px] py-2.5",
 
-    cardShape: "bg-white border border-border rounded-2xl",
+    cardShape: "bg-surface border border-border rounded-2xl",
     sectionEyebrow: "text-xs font-bold tracking-widest uppercase mb-1 text-blue",
     sectionHeadingClass: "text-[22px]",
     sectionAccentBar: "hidden",
     sectionAccentColor: "text-blue",
     sectionMoreBtn: "text-blue font-semibold text-sm",
 
-    streakCard: "bg-white border border-border rounded-2xl px-4 py-3 mb-5",
+    streakCard: "bg-surface border border-border rounded-2xl px-4 py-3 mb-5",
     streakEmoji: "🔥 ",
     streakBadge: "bg-transparent text-teal font-bold text-sm px-0 py-0",
     streakBadgeDot: "hidden",
     streakCheckmark: " ✓",
 
-    noticeHover: "hover:bg-[#F2F4F8]",
+    noticeHover: "hover:bg-[#F2F4F8] dark:hover:bg-[#1a2030]",
     eventDateBg: "bg-navy rounded-lg",
     newsHoverBorder: "hover:border-blue",
-    quickTile: "bg-[#F2F4F8] hover:bg-[#E7ECF5] rounded-xl px-2 py-4",
+    quickTile: "bg-[#F2F4F8] hover:bg-[#E7ECF5] dark:bg-[#1a2030] dark:hover:bg-[#232a3d] rounded-xl px-2 py-4",
     quickShowIcon: true,
 
     emptyStateWrap: "text-muted text-center py-6 text-sm w-full",
@@ -131,7 +131,9 @@ export const homeThemeStyles = {
     footerText: "text-white/60",
     footerBorder: "border-t-2 border-ccahGreen",
 
-    heroCard: "bg-ink border-l-8 border-ccahGreen text-white px-8 py-10 mb-5",
+    // ink는 다크모드에서 밝은색으로 뒤집히지만, 여기선 일부러 어두운 장식 배경으로 쓰는
+    // 자리라(footerBg와 같은 이유) 원래 라이트 모드 값으로 고정해둔다.
+    heroCard: "bg-ink dark:bg-[#111111] border-l-8 border-ccahGreen text-white px-8 py-10 mb-5",
     heroEyebrow: "text-xs font-bold tracking-widest uppercase mb-1 text-ccahGreenBright",
     heroEyebrowText: "STUDENT SELF-GOVERNANCE",
     heroTitleText: "학생이 만드는 학교, 학생자치회",
@@ -141,21 +143,21 @@ export const homeThemeStyles = {
     heroPrimaryBtn: "bg-ccahGreen text-white font-bold text-sm px-[18px] py-2.5",
     heroSecondaryBtn: "border-2 border-white text-white font-bold text-sm px-[18px] py-2.5",
 
-    cardShape: "bg-white border-2 border-ink rounded-none",
+    cardShape: "bg-surface border-2 border-ink rounded-none",
     sectionEyebrow: "text-xs font-bold tracking-widest uppercase mb-1 text-ccahGreen",
     sectionHeadingClass: "text-[22px] font-jua",
     sectionAccentBar: "block",
     sectionAccentColor: "text-ccahGreen",
     sectionMoreBtn: "text-blue font-semibold text-sm",
 
-    streakCard: "bg-white border-2 border-ink rounded-none px-4 py-3 mb-5",
+    streakCard: "bg-surface border-2 border-ink rounded-none px-4 py-3 mb-5",
     streakEmoji: "🔥 ",
     streakBadge: "bg-transparent text-teal font-bold text-sm px-0 py-0",
     streakBadgeDot: "hidden",
     streakCheckmark: " ✓",
 
     noticeHover: "hover:bg-ccahGreenLight",
-    eventDateBg: "bg-ink",
+    eventDateBg: "bg-ink dark:bg-[#111111]",
     newsHoverBorder: "hover:border-ccahGreen",
     quickTile: "border border-ink hover:bg-ccahGreen hover:text-white px-2 py-4",
     quickShowIcon: true,
@@ -221,7 +223,7 @@ export const homeThemeStyles = {
     footerBorder: "border-t border-appleBorder",
 
     heroCard:
-      "bg-white text-appleInk p-9 md:p-[72px] rounded-[28px] shadow-[0_18px_20px_rgba(0,0,0,0.07),0_2px_4px_rgba(0,0,0,0.04)] mb-5",
+      "bg-surface text-appleInk p-9 md:p-[72px] rounded-[28px] shadow-[0_18px_20px_rgba(0,0,0,0.07),0_2px_4px_rgba(0,0,0,0.04)] mb-5",
     heroEyebrow:
       "inline-block bg-appleBlue text-white text-xs font-bold uppercase tracking-wide rounded-full px-2.5 py-1.5 mb-3",
     heroEyebrowText: "2026 CCHS Student Council",
@@ -232,17 +234,17 @@ export const homeThemeStyles = {
     heroSubtextClass: "text-appleMuted text-lg mb-4",
     heroPrimaryBtn:
       "bg-appleBlue text-white font-bold text-sm rounded-full px-5 py-3 shadow-[0_10px_12px_rgba(37,99,235,0.15)]",
-    heroSecondaryBtn: "border border-appleBlue text-appleBlue font-bold text-sm rounded-full px-5 py-3 bg-white",
+    heroSecondaryBtn: "border border-appleBlue text-appleBlue font-bold text-sm rounded-full px-5 py-3 bg-surface",
 
-    cardShape: "bg-white rounded-[24px] shadow-[0_2px_5px_rgba(0,0,0,0.04)]",
+    cardShape: "bg-surface rounded-[24px] shadow-[0_2px_5px_rgba(0,0,0,0.04)]",
     sectionEyebrow: "text-appleMuted text-xs font-medium uppercase tracking-wide mb-1",
     sectionHeadingClass: "text-[18px] font-bold text-appleBlue tracking-tight",
     sectionAccentBar: "hidden",
     sectionAccentColor: "text-appleBlue",
     sectionMoreBtn:
-      "inline-flex items-center gap-1 rounded-full border border-appleBorder bg-white text-appleInk text-[13px] font-medium px-3 py-1.5",
+      "inline-flex items-center gap-1 rounded-full border border-appleBorder bg-surface text-appleInk text-[13px] font-medium px-3 py-1.5",
 
-    streakCard: "bg-white rounded-3xl shadow-[0_2px_5px_rgba(0,0,0,0.04)] px-6 py-4 mb-5",
+    streakCard: "bg-surface rounded-3xl shadow-[0_2px_5px_rgba(0,0,0,0.04)] px-6 py-4 mb-5",
     streakEmoji: "",
     streakBadge:
       "bg-appleBlue/10 border border-appleBlue text-appleBlue font-bold text-[13px] rounded-full px-4 py-2 flex items-center gap-1.5",
@@ -250,9 +252,11 @@ export const homeThemeStyles = {
     streakCheckmark: "",
 
     noticeHover: "hover:bg-appleBg",
-    eventDateBg: "bg-appleInk rounded-lg",
+    // appleInk는 다크모드에서 밝은색으로 뒤집혀서(본문 텍스트 역할) 흰 글자와 짝지어 쓰는
+    // 이 날짜 배지에서는 대비가 깨진다 — 원래 라이트 모드 값으로 고정해둔다.
+    eventDateBg: "bg-appleInk dark:bg-[#111827] rounded-lg",
     newsHoverBorder: "hover:shadow-[0_2px_5px_rgba(0,0,0,0.08)]",
-    quickTile: "bg-white border border-appleBorder rounded-[20px] hover:shadow-sm p-5",
+    quickTile: "bg-surface border border-appleBorder rounded-[20px] hover:shadow-sm p-5",
     quickShowIcon: false,
 
     emptyStateWrap: "flex flex-col items-center justify-center gap-3 h-40 w-full",

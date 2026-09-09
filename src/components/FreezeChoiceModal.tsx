@@ -13,7 +13,7 @@ export default function FreezeChoiceModal({
 }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl px-6 py-5 shadow-lg text-center max-w-sm">
+      <div className="bg-surface rounded-2xl px-6 py-5 shadow-lg text-center max-w-sm">
         <div className="text-3xl mb-1">🧊</div>
         <div className="font-bold">어제 접속을 못 하셨네요</div>
         <p className="text-sm text-muted mt-1.5">

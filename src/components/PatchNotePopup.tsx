@@ -147,7 +147,7 @@ export default function PatchNotePopup({
   return (
     <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center px-4" onClick={close}>
       <div
-        className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-lg"
+        className="bg-surface rounded-2xl p-6 max-w-lg w-full max-h-[85vh] overflow-y-auto shadow-lg"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between gap-2 mb-1">

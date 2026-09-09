@@ -46,7 +46,7 @@ export default function ProfileQuickEditModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl p-6 w-full max-w-sm flex flex-col gap-1.5"
+        className="bg-surface rounded-2xl p-6 w-full max-w-sm flex flex-col gap-1.5"
         onClick={(e) => e.stopPropagation()}
       >
         <h3 className="text-lg font-bold mb-1">닉네임 · 소개 수정</h3>

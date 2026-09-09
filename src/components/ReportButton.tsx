@@ -63,7 +63,7 @@ export default function ReportButton({
         신고
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 w-60 p-3 z-30 bg-white border border-border rounded-lg shadow-md flex flex-col gap-1.5">
+        <div className="absolute right-0 top-full mt-1 w-60 p-3 z-30 bg-surface border border-border rounded-lg shadow-md flex flex-col gap-1.5">
           {done ? (
             <p className="text-xs text-teal font-bold m-0">신고가 접수되었습니다.</p>
           ) : (

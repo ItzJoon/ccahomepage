@@ -100,7 +100,7 @@ export default function ReportableName({
         <span className="shrink-0">▾</span>
       </button>
       {open && !reporting && (
-        <div className="absolute left-0 top-full mt-1 w-32 py-1.5 z-30 bg-white border border-border rounded-lg shadow-md">
+        <div className="absolute left-0 top-full mt-1 w-32 py-1.5 z-30 bg-surface border border-border rounded-lg shadow-md">
           <Link
             href={`/members/${targetUserId}`}
             onClick={() => setOpen(false)}
@@ -127,7 +127,7 @@ export default function ReportableName({
         </div>
       )}
       {open && reporting && (
-        <div className="absolute left-0 top-full mt-1 w-60 p-3 z-30 bg-white border border-border rounded-lg shadow-md flex flex-col gap-1.5">
+        <div className="absolute left-0 top-full mt-1 w-60 p-3 z-30 bg-surface border border-border rounded-lg shadow-md flex flex-col gap-1.5">
           {done ? (
             <p className="text-xs text-teal font-bold m-0">신고가 접수되었습니다.</p>
           ) : (

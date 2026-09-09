@@ -55,7 +55,7 @@ export default function OrgEventsCalendarGrid<T extends CalendarEventLike>({
   }, [events]);
 
   return (
-    <div className="bg-white border border-border rounded-2xl p-[18px]">
+    <div className="bg-surface border border-border rounded-2xl p-[18px]">
       <div className="flex justify-center items-center gap-4 mb-3">
         <button
           type="button"
