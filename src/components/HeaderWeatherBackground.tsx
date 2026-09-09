@@ -12,17 +12,18 @@ function getVariant(pty: WeatherOk["pty"], sky: WeatherOk["sky"]): Variant {
   return sky;
 }
 
-// 렌즈플레어풍 4방향 스파클(별) — 중심(150,55) 기준으로 긴 축(반지름 42, 상하좌우)과
-// 짧은 축(반지름 7, 대각선)이 번갈아 나오는 8개 꼭짓점을 이어서 만든 고정 도형이다
+// 렌즈플레어풍 4방향 스파클(별) — 중심(140,65) 기준으로 긴 축(반지름 52, 상하좌우)과
+// 짧은 축(반지름 9, 대각선)이 번갈아 나오는 8개 꼭짓점을 이어서 만든 고정 도형이다
 // (사인/코사인으로 매번 계산할 필요 없이 각도 0/45/90/135/180/225/270/315도의 좌표를
 // 미리 구해뒀다). 만화풍 사각 광선 대신, 실제 사진 렌즈플레어처럼 뾰족한 별 형태.
-const SUN_SPARKLE_PATH = "M192,55 L154.95,59.95 L150,97 L145.05,59.95 L108,55 L145.05,50.05 L150,13 L154.95,50.05 Z";
+// (맑음이 눈에 잘 안 띈다는 피드백으로 기존 대비 크기를 키웠다 — 반지름 42->52.)
+const SUN_SPARKLE_PATH = "M192,65 L146.36,71.36 L140,117 L133.64,71.36 L88,65 L133.64,58.64 L140,13 L146.36,58.64 Z";
 // 스파클에서 대각선 아래쪽으로 흩어지는 작은 빛망울(렌즈플레어 트레일) — 갈수록 작고 옅어진다.
 const SUN_TRAIL = [
-  { x: 128, y: 78, r: 9, o: 0.55 },
-  { x: 108, y: 98, r: 13, o: 0.4 },
-  { x: 85, y: 118, r: 16, o: 0.28 },
-  { x: 62, y: 136, r: 10, o: 0.16 },
+  { x: 118, y: 88, r: 10, o: 0.6 },
+  { x: 98, y: 108, r: 14, o: 0.42 },
+  { x: 75, y: 128, r: 17, o: 0.3 },
+  { x: 52, y: 146, r: 11, o: 0.18 },
 ];
 
 // 크기·속도가 서로 다른 구름 5개가 좌→우로 천천히 가로지른다(delay를 음수로 줘서
@@ -180,35 +181,46 @@ export default function HeaderWeatherBackground() {
   return (
     <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
       {variant === "clear" && (
-        <svg className="absolute -top-4 -right-4 w-56 h-56 sm:w-72 sm:h-72" viewBox="0 0 200 200">
-          <defs>
-            <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
-              <stop offset="0%" stopColor="rgba(255,255,255,0.9)" />
-              <stop offset="35%" stopColor="rgba(253,224,71,0.45)" />
-              <stop offset="100%" stopColor="rgba(253,224,71,0)" />
-            </radialGradient>
-          </defs>
-          {/* 은은하게 퍼지는 배경 glow */}
-          <circle
-            cx="150"
-            cy="55"
-            r="90"
-            fill="url(#headerSunGlow)"
-            className="animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+        <>
+          {/* 스파클만으로는 카드 전체에서 "맑음"이 잘 안 느껴진다는 피드백 — 카드
+              한쪽에 은은하게 번지는 큰 노란빛 wash를 깔아서 화면 전체 톤으로도
+              맑은 날씨가 한눈에 느껴지게 한다(스파클/glow와는 별개 레이어). */}
+          <div
+            className="absolute -top-16 -right-16 w-[75%] h-[95%] rounded-full animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+            style={{
+              background: "radial-gradient(circle, rgba(253,224,71,0.3) 0%, rgba(253,224,71,0.12) 45%, rgba(253,224,71,0) 75%)",
+            }}
           />
-          {/* 대각선으로 흩어지는 작은 빛망울(렌즈플레어 트레일) */}
-          {SUN_TRAIL.map((t, i) => (
-            <circle key={i} cx={t.x} cy={t.y} r={t.r} fill="white" opacity={t.o} />
-          ))}
-          {/* 4방향으로 뾰족하게 뻗는 스파클 본체 */}
-          <path
-            d={SUN_SPARKLE_PATH}
-            fill="white"
-            className="animate-weather-bg-sparkle motion-reduce:animate-none"
-            style={{ transformOrigin: "150px 55px" }}
-          />
-          <circle cx="150" cy="55" r="5" fill="white" />
-        </svg>
+          <svg className="absolute -top-4 -right-4 w-64 h-64 sm:w-80 sm:h-80" viewBox="0 0 200 200">
+            <defs>
+              <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
+                <stop offset="30%" stopColor="rgba(251,191,36,0.6)" />
+                <stop offset="100%" stopColor="rgba(251,191,36,0)" />
+              </radialGradient>
+            </defs>
+            {/* 은은하게 퍼지는 배경 glow */}
+            <circle
+              cx="140"
+              cy="65"
+              r="110"
+              fill="url(#headerSunGlow)"
+              className="animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+            />
+            {/* 대각선으로 흩어지는 작은 빛망울(렌즈플레어 트레일) */}
+            {SUN_TRAIL.map((t, i) => (
+              <circle key={i} cx={t.x} cy={t.y} r={t.r} fill="white" opacity={t.o} />
+            ))}
+            {/* 4방향으로 뾰족하게 뻗는 스파클 본체 */}
+            <path
+              d={SUN_SPARKLE_PATH}
+              fill="white"
+              className="animate-weather-bg-sparkle motion-reduce:animate-none"
+              style={{ transformOrigin: "140px 65px" }}
+            />
+            <circle cx="140" cy="65" r="7" fill="white" />
+          </svg>
+        </>
       )}
 
       {variant === "cloudy" &&
