@@ -1,5 +1,6 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { nowKSTDayOfWeek } from "@/lib/date";
 
 /**
  * 모든 요청에서 Supabase 세션 쿠키를 갱신합니다.
@@ -219,10 +220,11 @@ export async function updateSession(request: NextRequest) {
   ) {
     const { data: restriction } = await supabase
       .from("site_restrictions")
-      .select("is_enabled, windows")
+      .select("is_enabled, windows, exclude_weekends")
       .eq("id", "default")
       .maybeSingle();
-    if (restriction?.is_enabled) {
+    const isWeekendKST = [0, 6].includes(nowKSTDayOfWeek());
+    if (restriction?.is_enabled && !(restriction.exclude_weekends && isWeekendKST)) {
       const nowHM = new Intl.DateTimeFormat("en-GB", {
         timeZone: "Asia/Seoul",
         hour: "2-digit",

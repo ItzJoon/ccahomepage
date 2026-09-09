@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { nowKSTDayOfWeek } from "@/lib/date";
 
 type Window = { label?: string; start: string; end: string };
 
@@ -44,13 +45,15 @@ export default function RestrictedPage() {
     const check = async () => {
       const { data } = await supabase
         .from("site_restrictions")
-        .select("is_enabled, windows")
+        .select("is_enabled, windows, exclude_weekends")
         .eq("id", "default")
         .maybeSingle();
       if (cancelled) return;
       const hm = nowHM();
+      const isWeekend = data?.exclude_weekends && [0, 6].includes(nowKSTDayOfWeek());
       const stillRestricted =
         !!data?.is_enabled &&
+        !isWeekend &&
         ((data.windows as Window[]) ?? []).some((w) => hm >= w.start && hm <= w.end);
       if (!stillRestricted) {
         router.replace(from);

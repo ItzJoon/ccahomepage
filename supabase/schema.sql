@@ -4982,3 +4982,31 @@ alter table notifications add column if not exists link_url text;
 alter table notifications add column if not exists sound_url text;
 alter table patch_notes add column if not exists sound_url text;
 alter table profiles add column if not exists notification_sound_enabled boolean not null default true;
+
+-- ------------------------------------------------------------
+-- 118. 사이트 제한(수업시간 제한)이 주말에도 적용되던 문제 수정
+-- ------------------------------------------------------------
+-- is_now_in_restricted_window()가 시각만 보고 요일을 전혀 보지 않아서, 켜두면 토/일에도
+-- 평일과 똑같이 Q&A/게시판이 막혔다. "수업시간 제한"은 원래 등교일 기준 개념이므로 기본값을
+-- 주말 제외(true)로 두고, 필요하면 관리자가 끌 수 있게 site_restrictions에 컬럼을 추가한다.
+alter table site_restrictions add column if not exists exclude_weekends boolean not null default true;
+
+create or replace function is_now_in_restricted_window()
+returns boolean
+language sql
+stable
+security definer
+as $$
+  select coalesce(
+    (
+      select sr.is_enabled
+        and (not sr.exclude_weekends or extract(dow from timezone('Asia/Seoul', now()))::int not in (0, 6))
+        and exists (
+          select 1 from jsonb_array_elements(sr.windows) w
+          where (timezone('Asia/Seoul', now()))::time
+            between (w->>'start')::time and (w->>'end')::time
+        )
+      from site_restrictions sr where sr.id = 'default'
+    ), false
+  );
+$$;

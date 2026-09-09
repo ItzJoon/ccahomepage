@@ -368,6 +368,7 @@ export interface SiteRestriction {
   id: string;
   is_enabled: boolean;
   windows: SiteRestrictionWindow[];
+  exclude_weekends: boolean;
   updated_by: string | null;
   updated_at: string;
 }

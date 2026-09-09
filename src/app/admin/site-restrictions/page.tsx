@@ -30,6 +30,7 @@ export default function AdminSiteRestrictionsPage() {
 
   const [isEnabled, setIsEnabled] = useState(false);
   const [windows, setWindows] = useState<SiteRestrictionWindow[]>(DEFAULT_WINDOWS);
+  const [excludeWeekends, setExcludeWeekends] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
 
@@ -37,12 +38,15 @@ export default function AdminSiteRestrictionsPage() {
     if (restriction) {
       setIsEnabled(restriction.is_enabled);
       setWindows(restriction.windows.length > 0 ? restriction.windows : DEFAULT_WINDOWS);
+      setExcludeWeekends(restriction.exclude_weekends);
     }
   }, [restriction]);
 
   const isDirty =
     !!restriction &&
-    (isEnabled !== restriction.is_enabled || JSON.stringify(windows) !== JSON.stringify(restriction.windows));
+    (isEnabled !== restriction.is_enabled ||
+      excludeWeekends !== restriction.exclude_weekends ||
+      JSON.stringify(windows) !== JSON.stringify(restriction.windows));
 
   const updateWindow = (idx: number, patch: Partial<SiteRestrictionWindow>) => {
     setWindows((ws) => ws.map((w, i) => (i === idx ? { ...w, ...patch } : w)));
@@ -64,6 +68,7 @@ export default function AdminSiteRestrictionsPage() {
       .update({
         is_enabled: isEnabled,
         windows,
+        exclude_weekends: excludeWeekends,
         updated_by: myId,
         updated_at: new Date().toISOString(),
       })
@@ -84,7 +89,8 @@ export default function AdminSiteRestrictionsPage() {
         열람할 수 없고, 안건함 안건 등록·투표를 포함한 글쓰기가 모두 막힙니다.
         교시별로 여러 구간을 등록할 수 있습니다(예: 1교시 09:00~10:00, 2교시
         10:10~11:10). teacher/editor/admin/developer 등 관리 권한이 있는 역할은
-        이 시간에도 예외 없이 그대로 이용할 수 있습니다.
+        이 시간에도 예외 없이 그대로 이용할 수 있습니다. 기본적으로 주말(토·일)에는
+        시간대 설정과 무관하게 제한이 적용되지 않습니다.
       </p>
 
       <div className={`${t.adminEditPanel} flex flex-col gap-1.5`}>
@@ -97,6 +103,16 @@ export default function AdminSiteRestrictionsPage() {
           />
           수업시간 제한 켜기
           {isEnabled && <span className="text-red text-xs font-bold">● 현재 켜짐</span>}
+        </label>
+
+        <label className="flex items-center gap-2 text-sm font-bold mt-1">
+          <input
+            type="checkbox"
+            disabled={!isSuperadmin}
+            checked={excludeWeekends}
+            onChange={(e) => setExcludeWeekends(e.target.checked)}
+          />
+          주말(토·일)에는 제한 적용 안 함
         </label>
 
         <label className="text-xs font-bold text-muted mt-3">제한 시간대 목록</label>

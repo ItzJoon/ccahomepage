@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { nowKSTDayOfWeek } from "@/lib/date";
 
 const RESTRICTABLE_VIEW_PREFIXES = ["/qna", "/board"];
 
@@ -36,10 +37,11 @@ export default function RestrictionGuardWatcher({ role }: { role: string | null 
     const check = async () => {
       const { data } = await supabase
         .from("site_restrictions")
-        .select("is_enabled, windows")
+        .select("is_enabled, windows, exclude_weekends")
         .eq("id", "default")
         .maybeSingle();
       if (cancelled || !data?.is_enabled) return;
+      if (data.exclude_weekends && [0, 6].includes(nowKSTDayOfWeek())) return;
       const hm = nowHM();
       const active = ((data.windows as { label?: string; start: string; end: string }[]) ?? []).find(
         (w) => hm >= w.start && hm <= w.end
