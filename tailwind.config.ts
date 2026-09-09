@@ -64,14 +64,17 @@ const config: Config = {
         // 헤더 배경 날씨 애니메이션 전용(HeaderWeatherBackground.tsx 참고, 실험적/로컬
         // 전용 기능 — NEXT_PUBLIC_ENABLE_HEADER_WEATHER_BG). 위 weather-* 는 작은 위젯
         // 아이콘용이라 그대로 두고, 배경 전체에 깔리는 큰 요소들은 별도 이름으로 분리했다.
-        "weather-bg-glow": {
-          "0%, 100%": { opacity: "0.15", transform: "scale(0.9)" },
-          "50%": { opacity: "0.45", transform: "scale(1.15)" },
+        // 맑음 — 자연광 wash/핵이 아주 느리게 숨쉬듯 밝아졌다 옅어진다(고정된
+        // 아이콘처럼 안 보이게). 0%/100%가 같은 값이라 반복돼도 이음새가 안 보인다.
+        "weather-bg-sun-pulse": {
+          "0%, 100%": { opacity: "0.7", transform: "scale(0.96)" },
+          "50%": { opacity: "1", transform: "scale(1.05)" },
         },
-        // 맑음 — 렌즈플레어풍 스파클이 살짝 커졌다 작아지며 반짝이는 연출.
-        "weather-bg-sparkle": {
-          "0%, 100%": { opacity: "0.85", transform: "scale(0.94)" },
-          "50%": { opacity: "1", transform: "scale(1.08)" },
+        // 맑음 — 빛 번짐(bokeh)이 아주 미세하게 왕복 이동한다. alternate 방향으로
+        // 재생해서 0%->100%->0%가 자연스럽게 이어지는 seamless 루프가 된다.
+        "weather-bg-bokeh-float": {
+          "0%": { transform: "translate(0px, 0px)" },
+          "100%": { transform: "translate(var(--drift-x, 8px), var(--drift-y, 8px))" },
         },
         // 흐림 — 뭉게구름이 화면 왼쪽 바깥에서 오른쪽 바깥까지 천천히 가로지른다(각
         // 구름마다 duration/delay가 달라서 서로 다른 속도로 어긋나게 지나간다).
@@ -106,8 +109,8 @@ const config: Config = {
         "weather-spin": "weather-spin 12s linear infinite",
         "weather-drift": "weather-drift 3.5s ease-in-out infinite",
         "weather-drop": "weather-drop 1.1s ease-in infinite",
-        "weather-bg-glow": "weather-bg-glow 6s ease-in-out infinite",
-        "weather-bg-sparkle": "weather-bg-sparkle 2.4s ease-in-out infinite",
+        "weather-bg-sun-pulse": "weather-bg-sun-pulse 14s ease-in-out infinite",
+        "weather-bg-bokeh-float": "weather-bg-bokeh-float 18s ease-in-out infinite alternate",
         "weather-bg-cloud-drift": "weather-bg-cloud-drift 90s linear infinite",
         "weather-bg-rainfall": "weather-bg-rainfall 1.1s linear infinite",
         "weather-bg-snowfall": "weather-bg-snowfall 7s linear infinite",

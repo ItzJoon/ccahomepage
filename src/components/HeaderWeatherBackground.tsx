@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 
 type WeatherOk = { ok: true; temp: number; sky: "clear" | "cloudy"; pty: "none" | "rain" | "rainsnow" | "snow" | "shower" };
 type WeatherState = WeatherOk | { ok: false } | null;
@@ -12,18 +12,25 @@ function getVariant(pty: WeatherOk["pty"], sky: WeatherOk["sky"]): Variant {
   return sky;
 }
 
-// 렌즈플레어풍 4방향 스파클(별) — 중심(140,65) 기준으로 긴 축(반지름 52, 상하좌우)과
-// 짧은 축(반지름 9, 대각선)이 번갈아 나오는 8개 꼭짓점을 이어서 만든 고정 도형이다
-// (사인/코사인으로 매번 계산할 필요 없이 각도 0/45/90/135/180/225/270/315도의 좌표를
-// 미리 구해뒀다). 만화풍 사각 광선 대신, 실제 사진 렌즈플레어처럼 뾰족한 별 형태.
-// (맑음이 눈에 잘 안 띈다는 피드백으로 기존 대비 크기를 키웠다 — 반지름 42->52.)
-const SUN_SPARKLE_PATH = "M192,65 L146.36,71.36 L140,117 L133.64,71.36 L88,65 L133.64,58.64 L140,13 L146.36,58.64 Z";
-// 스파클에서 대각선 아래쪽으로 흩어지는 작은 빛망울(렌즈플레어 트레일) — 갈수록 작고 옅어진다.
-const SUN_TRAIL = [
-  { x: 118, y: 88, r: 10, o: 0.6 },
-  { x: 98, y: 108, r: 14, o: 0.42 },
-  { x: 75, y: 128, r: 17, o: 0.3 },
-  { x: 52, y: 146, r: 11, o: 0.18 },
+// 맑음 — "별 장식"이 아니라 오른쪽 위에서 은은하게 스며드는 자연광 느낌만 그라데이션/
+// 블러로 표현한다(뚜렷한 원·아이콘 모양은 전혀 그리지 않는다). 색은 강한 노란색이
+// 아니라 아주 옅은 크림색/흰색만 쓴다.
+// 빛 주변에 아주 투명하게 떠다니는 작은 빛 번짐(bokeh) — driftX/driftY는 각자 아주
+// 미세하게 왕복 이동하는 거리(px)다. animation-direction:alternate로 왕복시키므로
+// 처음/끝이 자연스럽게 이어지는(seamless) 루프가 된다.
+const SUN_BOKEH = [
+  { top: 10, right: 8, size: 64, opacity: 0.3, duration: 16, delay: -3, driftX: 10, driftY: 8 },
+  { top: 26, right: 24, size: 42, opacity: 0.22, duration: 20, delay: -9, driftX: -8, driftY: 9 },
+  { top: 4, right: 32, size: 30, opacity: 0.18, duration: 14, delay: -6, driftX: 7, driftY: -6 },
+  { top: 34, right: 10, size: 50, opacity: 0.2, duration: 22, delay: -13, driftX: -7, driftY: 6 },
+  { top: 16, right: 44, size: 24, opacity: 0.16, duration: 18, delay: -8, driftX: 6, driftY: 7 },
+];
+// 맑은 날에도 아주 희미하게 지나가는 높은 구름(권운) 느낌 — 거의 흰색에 가깝고 매우
+// 투명해서 깔끔한 디자인을 해치지 않는다. 기존 cloud-drift 애니메이션(좌→우, 양 끝이
+// 화면 밖이라 루프 지점이 안 보임)을 그대로 재사용한다.
+const CLEAR_WISPS = [
+  { top: 6, size: 240, duration: 140, delay: -25, opacity: 0.12 },
+  { top: 20, size: 180, duration: 170, delay: -80, opacity: 0.09 },
 ];
 
 // 크기·속도가 서로 다른 구름 5개가 좌→우로 천천히 가로지른다(delay를 음수로 줘서
@@ -182,44 +189,61 @@ export default function HeaderWeatherBackground() {
     <div className="absolute inset-0 pointer-events-none overflow-hidden" aria-hidden>
       {variant === "clear" && (
         <>
-          {/* 스파클만으로는 카드 전체에서 "맑음"이 잘 안 느껴진다는 피드백 — 카드
-              한쪽에 은은하게 번지는 큰 노란빛 wash를 깔아서 화면 전체 톤으로도
-              맑은 날씨가 한눈에 느껴지게 한다(스파클/glow와는 별개 레이어). */}
+          {/* 넓게 퍼지는 은은한 wash + 코너 쪽에 살짝 더 밝은 핵, 두 겹을 겹쳐서
+              자연스러운 광원처럼 보이게 한다. 둘 다 아주 느린 pulse(숨쉬듯 밝기가
+              오르내림)로 고정된 아이콘처럼 안 보이게 한다. */}
           <div
-            className="absolute -top-16 -right-16 w-[75%] h-[95%] rounded-full animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+            className="absolute -top-20 -right-20 w-[80%] h-full rounded-full animate-weather-bg-sun-pulse motion-reduce:animate-none motion-reduce:opacity-70"
             style={{
-              background: "radial-gradient(circle, rgba(253,224,71,0.3) 0%, rgba(253,224,71,0.12) 45%, rgba(253,224,71,0) 75%)",
+              background: "radial-gradient(circle, rgba(255,251,235,0.4) 0%, rgba(255,248,220,0.16) 45%, rgba(255,248,220,0) 75%)",
             }}
           />
-          <svg className="absolute -top-4 -right-4 w-64 h-64 sm:w-80 sm:h-80" viewBox="0 0 200 200">
-            <defs>
-              <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
-                <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />
-                <stop offset="30%" stopColor="rgba(251,191,36,0.6)" />
-                <stop offset="100%" stopColor="rgba(251,191,36,0)" />
-              </radialGradient>
-            </defs>
-            {/* 은은하게 퍼지는 배경 glow */}
-            <circle
-              cx="140"
-              cy="65"
-              r="110"
-              fill="url(#headerSunGlow)"
-              className="animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+          <div
+            className="absolute -top-6 -right-6 w-[45%] h-[65%] rounded-full animate-weather-bg-sun-pulse motion-reduce:animate-none motion-reduce:opacity-70"
+            style={{
+              background: "radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,250,235,0.22) 50%, rgba(255,250,235,0) 80%)",
+              animationDelay: "-4s",
+            }}
+          />
+          {/* 아주 투명한 빛 번짐(bokeh) 몇 개가 미세하게 왕복하며 떠다닌다. */}
+          {SUN_BOKEH.map((b, i) => (
+            <div
+              key={i}
+              className={`absolute rounded-full animate-weather-bg-bokeh-float motion-reduce:animate-none ${i >= 3 ? "hidden sm:block" : ""}`}
+              style={
+                {
+                  top: `${b.top}%`,
+                  right: `${b.right}%`,
+                  width: b.size,
+                  height: b.size,
+                  opacity: b.opacity,
+                  background: "radial-gradient(circle, rgba(255,253,245,0.9) 0%, rgba(255,253,245,0) 70%)",
+                  filter: "blur(2px)",
+                  animationDuration: `${b.duration}s`,
+                  animationDelay: `${b.delay}s`,
+                  "--drift-x": `${b.driftX}px`,
+                  "--drift-y": `${b.driftY}px`,
+                } as CSSProperties
+              }
             />
-            {/* 대각선으로 흩어지는 작은 빛망울(렌즈플레어 트레일) */}
-            {SUN_TRAIL.map((t, i) => (
-              <circle key={i} cx={t.x} cy={t.y} r={t.r} fill="white" opacity={t.o} />
-            ))}
-            {/* 4방향으로 뾰족하게 뻗는 스파클 본체 */}
-            <path
-              d={SUN_SPARKLE_PATH}
-              fill="white"
-              className="animate-weather-bg-sparkle motion-reduce:animate-none"
-              style={{ transformOrigin: "140px 65px" }}
+          ))}
+          {/* 맑은 날에도 아주 희미하게 지나가는 높은 구름(권운) */}
+          {CLEAR_WISPS.map((w, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full animate-weather-bg-cloud-drift motion-reduce:animate-none motion-reduce:left-1/3"
+              style={{
+                top: `${w.top}%`,
+                width: w.size,
+                height: w.size * 0.22,
+                opacity: w.opacity,
+                background: "white",
+                filter: "blur(14px)",
+                animationDuration: `${w.duration}s`,
+                animationDelay: `${w.delay}s`,
+              }}
             />
-            <circle cx="140" cy="65" r="7" fill="white" />
-          </svg>
+          ))}
         </>
       )}
 
