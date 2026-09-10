@@ -105,6 +105,55 @@ export default function AdminNotifyPage() {
   const isEnded = (n: NotificationItem) =>
     (n.display_type === "popup" && !n.popup_active) || (!!n.display_until && new Date(n.display_until).getTime() <= Date.now());
 
+  // 지금 동시에 떠 있는 팝업들 사이의 노출 순서 — display_order 오름차순으로 하나씩
+  // 차례로 뜬다(NotificationPopup.tsx 참고). main_blocks 편집기와 동일하게 인접한
+  // 두 항목의 display_order를 맞바꿔서 순서를 바꾼다.
+  const activePopups = [...rows]
+    .filter((n) => n.display_type === "popup" && !isEnded(n))
+    .sort((a, b) => (a.display_order ?? 0) - (b.display_order ?? 0));
+
+  const moveOrder = async (n: NotificationItem, dir: number) => {
+    const idx = activePopups.findIndex((x) => x.id === n.id);
+    const swap = activePopups[idx + dir];
+    if (!swap) return;
+    await Promise.all([
+      supabase.from("notifications").update({ display_order: swap.display_order }).eq("id", n.id),
+      supabase.from("notifications").update({ display_order: n.display_order }).eq("id", swap.id),
+    ]);
+    reload();
+  };
+
+  // 이미 발송된(아직 노출 종료 전인) 알림의 종료 시각을 나중에 바꿀 수 있게 한다 —
+  // 발송 시점의 노출 기간 선택과 같은 UI(DURATION_PRESETS/computeDisplayUntil)를
+  // 그대로 재사용하되, 기준 시각은 "지금부터"로 다시 계산된다.
+  const [editingUntilId, setEditingUntilId] = useState<string | null>(null);
+  const [editUntilMode, setEditUntilMode] = useState<DurationMode>("indefinite");
+  const [editUntilCustom, setEditUntilCustom] = useState("");
+
+  // datetime-local input은 브라우저 로컬 시간을 그대로 표시/입력받는데(타임존 정보가 없음),
+  // toISOString()은 항상 UTC라서 그대로 slice하면 관리자 로컬 시간(KST)과 9시간 어긋난
+  // 값이 채워진다. computeDisplayUntil이 저장 시 이 값을 로컬 시간으로 해석해 다시
+  // ISO로 바꾸므로(OrgEventsManager/JudiciaryEventsManager의 toDatetimeLocal과 동일 패턴),
+  // 프리필도 로컬 getter로 만들어야 왕복이 어긋나지 않는다.
+  const toDatetimeLocal = (iso: string) => {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const startEditUntil = (n: NotificationItem) => {
+    setEditingUntilId(n.id);
+    setEditUntilMode(n.display_until ? "custom" : "indefinite");
+    setEditUntilCustom(n.display_until ? toDatetimeLocal(n.display_until) : "");
+  };
+
+  const saveUntil = async (n: NotificationItem) => {
+    if (editUntilMode === "custom" && !editUntilCustom) return;
+    await supabase.from("notifications").update({ display_until: computeDisplayUntil(editUntilMode, editUntilCustom) }).eq("id", n.id);
+    setEditingUntilId(null);
+    reload();
+  };
+
   // 노출 기간이 자연 만료(display_until 경과)된 알림은 별도로 끄는 액션이 없으므로,
   // 이 관리자 화면을 열 때마다 한 번씩 훑어서 사운드 파일만 정리한다(텍스트/이미지
   // 기록은 그대로 유지, 재생 역할이 끝난 mp3만 정리 대상). 같은 화면을 여러 번 열어도
@@ -227,25 +276,77 @@ export default function AdminNotifyPage() {
       <ul className="list-none m-0 p-0">
         {rows.map((n) => {
           const status = statusLabel(n);
+          const isActivePopup = n.display_type === "popup" && !isEnded(n);
+          const popupIdx = isActivePopup ? activePopups.findIndex((x) => x.id === n.id) : -1;
           return (
-            <li key={n.id} className={`border-b border-border py-2.5 flex items-center gap-2 flex-wrap ${isEnded(n) ? "opacity-60" : ""}`}>
-              {n.level === "urgent" && <Badge color="red">긴급</Badge>}
-              <span className="flex-1 text-sm">{n.title}</span>
-              <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
-              <span className="text-xs text-muted">
-                {n.display_type === "popup" ? "팝업" : "배너"}
-                {n.image_url && " · 이미지"}
-                {n.sound_url && " · 사운드"}
-              </span>
-              <span className={`text-xs ${status.className}`}>{status.text}</span>
-              <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
-              {!isEnded(n) && (
-                <button onClick={() => stopNow(n)} className="text-blue text-xs font-bold">지금 바로 내리기</button>
-              )}
-              {canManageNotify ? (
-                <button onClick={() => remove(n)} className={t.adminBtnDanger}>삭제</button>
-              ) : (
-                <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+            <li key={n.id} className={`border-b border-border py-2.5 flex flex-col gap-1.5 ${isEnded(n) ? "opacity-60" : ""}`}>
+              <div className="flex items-center gap-2 flex-wrap">
+                {isActivePopup && activePopups.length > 1 && (
+                  <span className="flex flex-col leading-none shrink-0">
+                    <button
+                      type="button"
+                      disabled={popupIdx === 0}
+                      onClick={() => moveOrder(n, -1)}
+                      className="text-blue disabled:text-muted disabled:opacity-40 text-xs"
+                      title="먼저 뜨게 하기"
+                    >
+                      ▲
+                    </button>
+                    <button
+                      type="button"
+                      disabled={popupIdx === activePopups.length - 1}
+                      onClick={() => moveOrder(n, 1)}
+                      className="text-blue disabled:text-muted disabled:opacity-40 text-xs"
+                      title="나중에 뜨게 하기"
+                    >
+                      ▼
+                    </button>
+                  </span>
+                )}
+                {n.level === "urgent" && <Badge color="red">긴급</Badge>}
+                <span className="flex-1 text-sm">{n.title}</span>
+                <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
+                <span className="text-xs text-muted">
+                  {n.display_type === "popup" ? "팝업" : "배너"}
+                  {n.image_url && " · 이미지"}
+                  {n.sound_url && " · 사운드"}
+                </span>
+                <span className={`text-xs ${status.className}`}>{status.text}</span>
+                <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
+                {!isEnded(n) && (
+                  <button onClick={() => startEditUntil(n)} className="text-blue text-xs font-bold">종료 시각 변경</button>
+                )}
+                {!isEnded(n) && (
+                  <button onClick={() => stopNow(n)} className="text-blue text-xs font-bold">지금 바로 내리기</button>
+                )}
+                {canManageNotify ? (
+                  <button onClick={() => remove(n)} className={t.adminBtnDanger}>삭제</button>
+                ) : (
+                  <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+                )}
+              </div>
+              {editingUntilId === n.id && (
+                <div className={`${t.adminEditPanel} flex items-center gap-1.5 flex-wrap w-fit`}>
+                  <select
+                    className={t.adminInput}
+                    value={editUntilMode}
+                    onChange={(e) => setEditUntilMode(e.target.value as DurationMode)}
+                  >
+                    {DURATION_PRESETS.map((p) => (
+                      <option key={p.value} value={p.value}>{p.label}</option>
+                    ))}
+                  </select>
+                  {editUntilMode === "custom" && (
+                    <input
+                      type="datetime-local"
+                      className={t.adminInput}
+                      value={editUntilCustom}
+                      onChange={(e) => setEditUntilCustom(e.target.value)}
+                    />
+                  )}
+                  <button onClick={() => saveUntil(n)} className={t.adminBtnPrimary}>저장</button>
+                  <button onClick={() => setEditingUntilId(null)} className={t.adminBtnSecondary}>취소</button>
+                </div>
               )}
             </li>
           );

@@ -73,13 +73,15 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       // 배너와 달리 팝업은 확인/오늘 하루 안 보기를 눌러야 사라지므로, 동시에 여러 개가
       // 활성화돼 있으면 최신 것 하나만 보여주고 나머지를 계속 무시하는 대신(예전 동작) 전부
       // 가져와서 클라이언트(NotificationPopup)가 보낸 순서대로 하나씩 차례로 띄운다.
+      // display_order로 정렬해서, 관리자가 /admin/notify에서 조정한 노출 순서를 그대로
+      // 따른다(기본값은 발송 시각순).
       supabase
         .from("notifications")
         .select("*")
         .eq("display_type", "popup")
         .eq("popup_active", true)
         .or(`display_until.is.null,display_until.gt.${nowIso}`)
-        .order("sent_at", { ascending: true })
+        .order("display_order", { ascending: true })
         .limit(20),
       supabase
         .from("site_settings")

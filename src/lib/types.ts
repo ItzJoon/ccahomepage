@@ -161,6 +161,7 @@ export interface NotificationItem {
   sound_url: string | null;
   sent_by: string | null;
   sent_at: string;
+  display_order: number | null;
 }
 
 export interface MainBlock {

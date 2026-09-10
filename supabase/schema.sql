@@ -5019,3 +5019,16 @@ $$;
 -- 바로 보여주는 기능은 없었다. 같은 방식으로 posts에도 image_url을 추가한다(뉴스 등
 -- 다른 type에도 컬럼 자체는 존재하지만, 업로드 UI는 이번엔 공지사항에서만 연결한다).
 alter table posts add column if not exists image_url text;
+
+-- ------------------------------------------------------------
+-- 120. 알림 팝업 노출 순서 조정 기능
+-- ------------------------------------------------------------
+-- 여러 팝업이 동시에 활성화돼 있을 때(섹션 119 이전엔 최신 것 하나만 보이던 버그를
+-- 고치면서 큐로 바뀜) 관리자가 어떤 걸 먼저 보여줄지 순서를 조정할 수 있게 한다.
+-- main_blocks.order_index와 같은 패턴(인접 항목끼리 값을 맞바꿔 순서를 바꿈)이지만,
+-- 기존 알림들의 발송 순서를 그대로 유지한 채로 도입해야 해서 sent_at의 epoch 초를
+-- 초기값으로 백필한다(정수 order_index처럼 1,2,3...으로 다시 매기면 기존 발송
+-- 순서 정보가 사라진다).
+alter table notifications add column if not exists display_order double precision;
+update notifications set display_order = extract(epoch from sent_at) where display_order is null;
+alter table notifications alter column display_order set default extract(epoch from now());
