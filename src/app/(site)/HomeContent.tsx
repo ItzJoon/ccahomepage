@@ -47,11 +47,15 @@ function BlockTitle({
   eyebrow,
   title,
   moreHref,
+  action,
   t,
 }: {
   eyebrow: string;
   title: string;
   moreHref?: string;
+  /** moreHref 링크 대신(또는 그 자리에) 넣고 싶은 커스텀 우측 영역 — 급식표의 중식/석식
+   * 선택 버튼처럼 단순 링크가 아닌 것이 필요할 때 쓴다. */
+  action?: React.ReactNode;
   t: Theme;
 }) {
   return (
@@ -63,11 +67,12 @@ function BlockTitle({
           <h2 className={t.sectionHeadingClass}>{title}</h2>
         </div>
       </div>
-      {moreHref && (
-        <Link href={moreHref} className={t.sectionMoreBtn}>
-          전체보기 ›
-        </Link>
-      )}
+      {action ??
+        (moreHref && (
+          <Link href={moreHref} className={t.sectionMoreBtn}>
+            전체보기 ›
+          </Link>
+        ))}
     </div>
   );
 }
@@ -149,12 +154,17 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     (a, b) => Number(b.is_pinned) - Number(a.is_pinned) || b.created_at.localeCompare(a.created_at)
   );
   const activeMealType = isDinnerDay && nowTime >= dinnerSwitchTime ? "dinner" : "lunch";
+  // 자동 전환과 별개로 방문자가 직접 중식/석식을 골라 볼 수 있게 한다 — 석식으로
+  // 전환된 뒤에도 중식표를 다시 보고 싶거나, 전환 전에 미리 석식표를 보고 싶은 경우.
+  // null이면(아직 직접 고르지 않았으면) 기존처럼 시각 기준 자동 판정을 그대로 따른다.
+  const [mealTypeOverride, setMealTypeOverride] = useState<"lunch" | "dinner" | null>(null);
+  const displayMealType = mealTypeOverride ?? activeMealType;
   const visibleBlocks = [...blocks].filter((b) => b.is_visible).sort((a, b) => a.order_index - b.order_index);
   const thisMonth = mealPlans.find(
     (m) =>
       m.year === Number(today.slice(0, 4)) &&
       m.month === Number(today.slice(5, 7)) &&
-      m.meal_type === activeMealType
+      m.meal_type === displayMealType
   );
 
   return (
@@ -264,10 +274,36 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
               </div>
             );
           if (b.id === "meal") {
-            const mealLabel = activeMealType === "dinner" ? "석식" : "중식";
+            const mealLabel = displayMealType === "dinner" ? "석식" : "중식";
             return (
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass}`} style={heightStyle}>
-                <BlockTitle t={t} eyebrow="MEAL" title={`이번 달 급식표 (${mealLabel})`} />
+                <BlockTitle
+                  t={t}
+                  eyebrow="MEAL"
+                  title={`이번 달 급식표 (${mealLabel})`}
+                  action={
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => setMealTypeOverride("lunch")}
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          displayMealType === "lunch" ? "bg-navy text-white" : "border border-border text-muted"
+                        }`}
+                      >
+                        중식
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMealTypeOverride("dinner")}
+                        className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                          displayMealType === "dinner" ? "bg-navy text-white" : "border border-border text-muted"
+                        }`}
+                      >
+                        석식
+                      </button>
+                    </div>
+                  }
+                />
                 {thisMonth ? (
                   // 높이가 지정돼 있으면 이미지가 그 안에서 스크롤되게 해서(그 값이 없을 땐
                   // 기존처럼 이미지 원본 크기만큼 카드가 늘어남), 세로로 긴 급식표 이미지가

@@ -291,18 +291,31 @@ export default function HeaderWeatherBackground() {
               onAnimationIteration={() => handleSnowLanding(s.bucket)}
             />
           ))}
-          <svg
-            className="absolute bottom-0 left-0 w-full"
-            style={{ height: "18%" }}
-            viewBox={`0 0 100 ${SNOW_BUCKET_MAX}`}
-            preserveAspectRatio="none"
-          >
-            {/* 흰 배경 위에서도 구별되도록 옅은 하늘색 톤으로 채우고, 윗변에 살짝 진한
-                선을 둘러 경계를 잡아준다(순백색 fill은 흰 카드 배경과 구분이 안 됨).
-                구간별 높이를 3점 평균으로 부드럽게 만든 뒤 연속 베지어 곡선으로 이어서
-                울퉁불퉁하되 튀지 않는 눈 더미 모양을 만든다. */}
-            <path d={bucketsToPath(smoothBuckets(bucketsRef.current))} fill="#eef2ff" fillOpacity="0.95" stroke="#c7d2fe" strokeWidth="0.6" />
-          </svg>
+          {bucketsRef.current.some((v) => v > 0) && (
+            <svg
+              className="absolute bottom-0 left-0 w-full"
+              style={{ height: "18%" }}
+              viewBox={`0 0 100 ${SNOW_BUCKET_MAX}`}
+              preserveAspectRatio="none"
+            >
+              {/* 흰 배경 위에서도 구별되도록 옅은 하늘색 톤으로 채우고, 윗변에 살짝 진한
+                  선을 둘러 경계를 잡아준다(순백색 fill은 흰 카드 배경과 구분이 안 됨).
+                  구간별 높이를 3점 평균으로 부드럽게 만든 뒤 연속 베지어 곡선으로 이어서
+                  울퉁불퉁하되 튀지 않는 눈 더미 모양을 만든다.
+
+                  버킷이 전부 0일 때도 이 path는 높이 0짜리 직사각형을 그리는데, stroke가
+                  그 윤곽선을 따라 그어지면서 눈이 하나도 안 떨어졌는데도 화면 맨 아래에
+                  가로로 얇은 선이 항상 보이는 문제가 있었다 — 실제로 눈이 한 번이라도
+                  떨어져 쌓이기 시작한 뒤에만(some bucket > 0) 그린다. */}
+              <path
+                d={bucketsToPath(smoothBuckets(bucketsRef.current))}
+                fill="#eef2ff"
+                fillOpacity="0.95"
+                stroke="#c7d2fe"
+                strokeWidth="0.6"
+              />
+            </svg>
+          )}
         </>
       )}
     </div>
