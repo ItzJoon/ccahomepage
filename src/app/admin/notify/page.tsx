@@ -272,37 +272,50 @@ export default function AdminNotifyPage() {
         </button>
       </div>
 
+      {activePopups.length > 1 && (
+        <>
+          <h3 className="mt-8 mb-2">지금 뜨는 순서</h3>
+          <p className="text-muted text-xs mb-2">
+            팝업이 동시에 여러 개 활성화돼 있으면 위에서부터 순서대로 하나씩 뜹니다. 화살표로
+            순서를 바꾸면 이 목록 안에서 바로 위/아래로 옮겨집니다.
+          </p>
+          <ul className="list-none m-0 p-0 flex flex-col gap-1.5 mb-6">
+            {activePopups.map((n, idx) => (
+              <li key={n.id} className={`${t.adminEditPanel} flex items-center gap-2`}>
+                <span className="text-muted text-xs font-bold w-4 shrink-0 text-center">{idx + 1}</span>
+                {n.level === "urgent" && <Badge color="red">긴급</Badge>}
+                <span className="flex-1 text-sm">{n.title}</span>
+                <button
+                  type="button"
+                  disabled={idx === 0}
+                  onClick={() => moveOrder(n, -1)}
+                  className="text-blue disabled:text-muted disabled:opacity-40 text-xs px-1"
+                  title="먼저 뜨게 하기"
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  disabled={idx === activePopups.length - 1}
+                  onClick={() => moveOrder(n, 1)}
+                  className="text-blue disabled:text-muted disabled:opacity-40 text-xs px-1"
+                  title="나중에 뜨게 하기"
+                >
+                  ▼
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+
       <h3 className="mt-8 mb-2">발송 이력</h3>
       <ul className="list-none m-0 p-0">
         {rows.map((n) => {
           const status = statusLabel(n);
-          const isActivePopup = n.display_type === "popup" && !isEnded(n);
-          const popupIdx = isActivePopup ? activePopups.findIndex((x) => x.id === n.id) : -1;
           return (
             <li key={n.id} className={`border-b border-border py-2.5 flex flex-col gap-1.5 ${isEnded(n) ? "opacity-60" : ""}`}>
               <div className="flex items-center gap-2 flex-wrap">
-                {isActivePopup && activePopups.length > 1 && (
-                  <span className="flex flex-col leading-none shrink-0">
-                    <button
-                      type="button"
-                      disabled={popupIdx === 0}
-                      onClick={() => moveOrder(n, -1)}
-                      className="text-blue disabled:text-muted disabled:opacity-40 text-xs"
-                      title="먼저 뜨게 하기"
-                    >
-                      ▲
-                    </button>
-                    <button
-                      type="button"
-                      disabled={popupIdx === activePopups.length - 1}
-                      onClick={() => moveOrder(n, 1)}
-                      className="text-blue disabled:text-muted disabled:opacity-40 text-xs"
-                      title="나중에 뜨게 하기"
-                    >
-                      ▼
-                    </button>
-                  </span>
-                )}
                 {n.level === "urgent" && <Badge color="red">긴급</Badge>}
                 <span className="flex-1 text-sm">{n.title}</span>
                 <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
