@@ -3,6 +3,7 @@ import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
 import DetailBackLink from "@/components/DetailBackLink";
 import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
+import ImageLightbox from "@/components/ImageLightbox";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -45,6 +46,9 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         className="leading-8 text-[15px] [&_a]:text-blue [&_a]:underline [&_a]:break-all"
         dangerouslySetInnerHTML={{ __html: noticeContentToSafeHtml(post.content) }}
       />
+      {post.image_url && (
+        <ImageLightbox src={post.image_url} alt="첨부 이미지" className="max-w-full rounded-lg border border-border mt-4 object-contain" />
+      )}
       {attachments && attachments.length > 0 && (
         <div className="mt-5 p-3.5 bg-bg rounded-xl">
           <div className="font-bold text-xs mb-1.5">첨부파일</div>

@@ -12,6 +12,8 @@ import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "./FileUpload";
+import ImageUpload from "@/components/ImageUpload";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import { safeStorageKey } from "@/lib/storageKey";
@@ -255,6 +257,7 @@ export default function PostManager({
       video_source: item.video_source,
       video_url: item.video_url,
       video_path: item.video_path,
+      image_url: item.image_url,
       type: item.type,
       target_subject: item.target_subject,
       target_homeroom: item.target_homeroom,
@@ -439,7 +442,11 @@ export default function PostManager({
 
   const remove = async (id: string) => {
     if (!confirm("삭제하시겠습니까?")) return;
+    // 행만 지우고 첨부 이미지는 Storage에 그대로 남겨두면 고아 파일이 쌓인다(알림 이미지
+    // 삭제 때 겪었던 문제와 동일 — src/lib/storageCleanup.ts 참고).
+    const target = rows.find((r) => r.id === id);
     await supabase.from("posts").delete().eq("id", id);
+    await removeStorageFile(supabase, "attachments", target?.image_url);
     reload();
   };
 
@@ -658,6 +665,17 @@ export default function PostManager({
           onChange={(e) => setForm({ ...form, content: e.target.value })}
         />
       )}
+      {type === "notice" && myId && (
+        <>
+          <label className="text-xs font-bold text-muted mt-2">사진 (선택)</label>
+          <ImageUpload
+            userId={myId}
+            value={form.image_url}
+            onChange={(image_url) => setForm({ ...form, image_url })}
+            bucket="attachments"
+          />
+        </>
+      )}
       {hasSchedulePin && (
         <>
           <label className="flex items-center gap-2 text-sm mt-2">
@@ -837,6 +855,11 @@ export default function PostManager({
                     {kindLabel(n) && <span className="text-[11px] font-bold text-blue shrink-0">[{kindLabel(n)}]</span>}
                     {n.is_pinned && <span className="pin shrink-0">고정</span>}
                     <span {...truncateCellProps(n.title)}>{n.title}</span>
+                    {n.image_url && (
+                      <span className="shrink-0 text-muted" title="사진 첨부됨">
+                        📷
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className={`${t.adminTableCell} text-muted`}>

@@ -126,6 +126,11 @@ export default function NoticesPage() {
               <td className="p-2.5 border-b border-border">
                 <Link href={`/notices/${n.id}`} className="flex items-center gap-1">
                   {n.is_pinned && <Pin />} <span {...truncateCellProps(n.title)}>{n.title}</span>
+                  {n.image_url && (
+                    <span className="shrink-0 text-muted" title="사진 첨부됨">
+                      📷
+                    </span>
+                  )}
                   {n.is_hidden && (
                     <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
                   )}

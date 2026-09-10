@@ -21,6 +21,7 @@ export const emptyForm = {
   video_source: null as "drive" | "upload" | null,
   video_url: "" as string | null,
   video_path: null as string | null,
+  image_url: null as string | null,
   type: "notice" as PostType,
   target_subject: null as string | null,
   target_homeroom: null as number | null,

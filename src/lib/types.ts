@@ -93,6 +93,7 @@ export interface Post {
   target_subject: string | null;
   target_homeroom: number | null;
   is_hidden: boolean;
+  image_url: string | null;
 }
 
 export interface StudentSubject {
