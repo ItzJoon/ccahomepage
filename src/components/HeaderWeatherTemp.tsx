@@ -37,14 +37,14 @@ export default function HeaderWeatherTemp() {
   return (
     // 맑음(별 모양 렌즈플레어)/구름/비/눈 배경 애니메이션이 바로 이 자리(카드 우측 상단)에
     // 겹치는데, 배경마다 밝기·색이 달라 글자색을 테마에서 물려받으면(다른 위젯들처럼) 어떤
-    // 날씨에서는 거의 안 보인다. 배경이 뭐가 오든 항상 또렷하게 보이도록 고정된 어두운
-    // 반투명 판(scrim) 위에 흰 글자로 고정한다 — 라이트/다크 모드와도 무관하게 항상 동일.
+    // 날씨에서는 거의 안 보인다. 뒤판(scrim) 없이 흰 글자 + 짙은 그림자만으로, 배경이 뭐가
+    // 오든 라이트/다크 모드와 무관하게 또렷하게 보이도록 한다.
     <div
-      className="relative z-10 shrink-0 text-right bg-black/30 backdrop-blur-[2px] text-white rounded-2xl px-4 py-2.5"
+      className="relative z-10 shrink-0 text-right text-white [text-shadow:0_1px_3px_rgba(0,0,0,0.85),0_1px_10px_rgba(0,0,0,0.6)]"
       title={`현재 기온 ${weather.temp}°C`}
     >
       <div className="text-3xl font-bold leading-none">{weather.temp}°</div>
-      <div className="text-xs text-white/80 mt-1">현재 기온</div>
+      <div className="text-xs mt-1">현재 기온</div>
     </div>
   );
 }
