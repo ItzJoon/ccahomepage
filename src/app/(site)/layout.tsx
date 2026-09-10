@@ -40,7 +40,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { profile, memberType },
     { data: customPages },
     { data: latestBanner },
-    { data: latestPopup },
+    { data: activePopups },
     { data: settings },
     { data: siteTheme },
     { data: featureFlags },
@@ -70,15 +70,17 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .order("sent_at", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      // 배너와 달리 팝업은 확인/오늘 하루 안 보기를 눌러야 사라지므로, 동시에 여러 개가
+      // 활성화돼 있으면 최신 것 하나만 보여주고 나머지를 계속 무시하는 대신(예전 동작) 전부
+      // 가져와서 클라이언트(NotificationPopup)가 보낸 순서대로 하나씩 차례로 띄운다.
       supabase
         .from("notifications")
         .select("*")
         .eq("display_type", "popup")
         .eq("popup_active", true)
         .or(`display_until.is.null,display_until.gt.${nowIso}`)
-        .order("sent_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .order("sent_at", { ascending: true })
+        .limit(20),
       supabase
         .from("site_settings")
         .select("maintenance_mode, restrict_external_checkin")
@@ -164,7 +166,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             <NotificationBanner initial={latestBanner as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
           )}
           {showNotifications && profile && (
-            <NotificationPopup initial={latestPopup as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
+            <NotificationPopup initial={(activePopups ?? []) as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
           )}
           {showNotifications && (
             <PatchNotePopup
