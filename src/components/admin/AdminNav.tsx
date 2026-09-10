@@ -135,7 +135,7 @@ export default function AdminNav({
   const isDesigner = role === "designer";
   const hasAdminRole = !!role && ["editor", "admin", "superadmin", "designer"].includes(role);
   return (
-    <aside className={`w-[190px] bg-white border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
+    <aside className={`w-[190px] bg-surface border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
       {hasAdminRole && (
         <>
           {NAV.map((n) => (

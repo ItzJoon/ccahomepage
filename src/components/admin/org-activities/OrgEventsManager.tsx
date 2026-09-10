@@ -121,14 +121,14 @@ export default function OrgEventsManager() {
             <div className="flex border border-border rounded-lg overflow-hidden">
               <button
                 type="button"
-                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "month" ? t.adminToggleActive : "bg-white"}`}
+                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "month" ? t.adminToggleActive : "bg-surface"}`}
                 onClick={() => setMode("month")}
               >
                 월간
               </button>
               <button
                 type="button"
-                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "list" ? t.adminToggleActive : "bg-white"}`}
+                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mode === "list" ? t.adminToggleActive : "bg-surface"}`}
                 onClick={() => setMode("list")}
               >
                 목록

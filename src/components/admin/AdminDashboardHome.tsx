@@ -96,7 +96,7 @@ export default function AdminDashboardHome({
             <Link
               key={p.id}
               href={`${p.type === "notice" ? "/admin/notices" : "/admin/news"}?edit=${p.id}`}
-              className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0 hover:bg-[#F7F8FB] -mx-2 px-2 rounded-md transition-colors"
+              className="flex items-center justify-between gap-4 py-4 border-b border-border last:border-b-0 hover:bg-[#F7F8FB] dark:hover:bg-white/10 -mx-2 px-2 rounded-md transition-colors"
             >
               <div className="flex items-center gap-4 min-w-0">
                 <span

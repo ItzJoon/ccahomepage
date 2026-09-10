@@ -35,7 +35,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   return (
     <AdminThemeProvider initialThemeKey={initialThemeKey}>
-      <div className="min-h-screen bg-[#F2F4F8]">
+      <div className="min-h-screen bg-bg">
         <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
         <div className="max-w-[1280px] mx-auto flex">
           <AdminNav

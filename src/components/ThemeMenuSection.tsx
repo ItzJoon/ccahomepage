@@ -18,14 +18,19 @@ const OPTIONS = [
 export default function ThemeMenuSection({ itemClassName }: { itemClassName: string }) {
   const { theme, setTheme } = useTheme();
 
-  // 색이 뚝 끊기지 않고 디졸브되도록, 전환 순간에만 html에 트랜지션 클래스를 잠깐
-  // 붙였다 뗀다(globals.css의 .theme-transitioning 참고) — 항상 걸어두면 다른 호버
-  // 등 상호작용까지 전부 느려지므로 전환되는 그 순간에만 한시적으로 켠다.
+  // View Transitions API로 전/후 화면을 통째로 캡처해서 크로스페이드한다(globals.css의
+  // ::view-transition-old/new(root) 참고) — 요소마다 background-color/color에 CSS
+  // transition을 거는 방식은 dark: 유틸리티 클래스로 바뀌는 색과 CSS 변수로 바뀌는 색이
+  // 서로 다른 타이밍에 바뀌면서 깜빡이는 문제가 있었다. 미지원 브라우저·reduced-motion
+  // 에서는 그냥 즉시 전환한다.
   const applyWithTransition = (value: (typeof OPTIONS)[number]["value"]) => {
-    const root = document.documentElement;
-    root.classList.add("theme-transitioning");
-    setTheme(value);
-    window.setTimeout(() => root.classList.remove("theme-transitioning"), 400);
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const supportsViewTransition = typeof document.startViewTransition === "function";
+    if (supportsViewTransition && !prefersReducedMotion) {
+      document.startViewTransition(() => setTheme(value));
+    } else {
+      setTheme(value);
+    }
   };
 
   return (

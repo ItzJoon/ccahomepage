@@ -55,7 +55,7 @@ export default function FileUpload({
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
       {files.map((f, i) => (
-        <span key={i} className="bg-[#F2F4F8] rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
+        <span key={i} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
           📎 {f.file_name}
           <button type="button" onClick={() => remove(i)} className="text-muted">
             ✕

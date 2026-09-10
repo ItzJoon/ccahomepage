@@ -108,7 +108,7 @@ export default function AdminBoardPage() {
                 <td className={t.adminTableCell}>
                   <span
                     className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                      p.is_hidden ? "bg-[#EEF1F6] text-muted" : "bg-[#E4F5EE] text-teal"
+                      p.is_hidden ? "bg-[#EEF1F6] dark:bg-white/10 text-muted" : "bg-[#E4F5EE] dark:bg-white/10 text-teal"
                     }`}
                   >
                     {p.is_hidden ? "숨김" : "공개"}

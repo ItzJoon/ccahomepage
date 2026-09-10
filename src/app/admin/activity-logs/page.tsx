@@ -166,7 +166,7 @@ export default function AdminActivityLogsPage() {
 
   if (!roleLoading && !canView) {
     return (
-      <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-4">
+      <div className="bg-[#FFF3DC] dark:bg-white/10 text-gold text-sm rounded-lg p-4">
         이 화면은 developer만 열람할 수 있습니다.
       </div>
     );
@@ -255,7 +255,7 @@ export default function AdminActivityLogsPage() {
               </tr>
               {expandedId === r.id && (
                 <tr>
-                  <td colSpan={5} className="p-3 border-b border-border bg-[#F7F8FB]">
+                  <td colSpan={5} className="p-3 border-b border-border bg-[#F7F8FB] dark:bg-white/10">
                     {maskPII ? (
                       <div className="text-muted text-xs p-2">
                         🔒 designer 계정에는 변경 전/후 상세 내용이 표시되지 않습니다(개인정보 보호).
@@ -264,13 +264,13 @@ export default function AdminActivityLogsPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                         <div>
                           <div className="font-bold text-muted mb-1">변경 전</div>
-                          <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
+                          <pre className="whitespace-pre-wrap break-all bg-surface border border-border rounded-lg p-2.5 m-0">
                             {r.before_data ? JSON.stringify(relabelRolesForDisplay(r.before_data), null, 2) : "(없음)"}
                           </pre>
                         </div>
                         <div>
                           <div className="font-bold text-muted mb-1">변경 후</div>
-                          <pre className="whitespace-pre-wrap break-all bg-white border border-border rounded-lg p-2.5 m-0">
+                          <pre className="whitespace-pre-wrap break-all bg-surface border border-border rounded-lg p-2.5 m-0">
                             {r.after_data ? JSON.stringify(relabelRolesForDisplay(r.after_data), null, 2) : "(없음)"}
                           </pre>
                         </div>

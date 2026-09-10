@@ -76,7 +76,7 @@ export default function EmailNotificationHistory({ isAdmin }: { isAdmin: boolean
               </tr>
               {expanded === b.id && (
                 <tr>
-                  <td colSpan={5} className="p-2.5 border-b border-border bg-[#F7F8FB]">
+                  <td colSpan={5} className="p-2.5 border-b border-border bg-[#F7F8FB] dark:bg-white/10">
                     {loadingLogs ? (
                       <span className="text-muted text-xs">불러오는 중…</span>
                     ) : (

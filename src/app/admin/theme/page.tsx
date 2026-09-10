@@ -48,7 +48,7 @@ export default function AdminThemePage() {
       </p>
 
       {!roleLoading && !canView && (
-        <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
+        <div className="bg-[#FFF3DC] dark:bg-white/10 text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 developer만 이용할 수 있습니다.
         </div>
       )}
@@ -62,8 +62,8 @@ export default function AdminThemePage() {
               key={key}
               disabled={!isSuperadmin || saving !== null}
               onClick={() => applyTheme(key)}
-              className={`text-left bg-white border rounded-xl p-4 transition-shadow disabled:cursor-not-allowed ${
-                active ? "border-navy shadow-md" : "border-border hover:shadow-sm"
+              className={`text-left bg-surface border rounded-xl p-4 transition-shadow disabled:cursor-not-allowed ${
+                active ? "border-navy dark:border-white/40 shadow-md" : "border-border hover:shadow-sm"
               }`}
             >
               <div className="flex gap-1.5 mb-3">

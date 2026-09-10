@@ -66,7 +66,7 @@ export default function DesignerModeGate({
         {children}
       </div>
       {locked && (
-        <div className="bg-[#EAF0FB] text-blue text-xs font-bold text-center py-2 px-3 rounded-lg mt-4">
+        <div className="bg-[#EAF0FB] dark:bg-white/10 text-blue text-xs font-bold text-center py-2 px-3 rounded-lg mt-4">
           🔒 조회 전용 화면(designer 계정) — superadmin 전용 메뉴라 볼 수는 있지만 저장·수정·
           삭제 등의 조작은 할 수 없습니다.
         </div>

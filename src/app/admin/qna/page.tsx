@@ -125,11 +125,11 @@ export default function AdminQnaPage() {
                 <td className={t.adminTableCell}>{q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}</td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
-                    <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] text-teal" : "bg-[#FFF3DC] text-gold"}`}>
+                    <span className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] dark:bg-white/10 text-teal" : "bg-[#FFF3DC] dark:bg-white/10 text-gold"}`}>
                       {q.status === "answered" ? "답변완료" : "대기"}
                     </span>
                     {q.is_hidden && (
-                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
                     )}
                   </div>
                 </td>

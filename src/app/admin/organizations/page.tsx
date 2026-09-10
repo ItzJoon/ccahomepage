@@ -112,13 +112,13 @@ export default function AdminOrganizationsPage() {
     <div>
       <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-4">
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "orgs" ? t.adminToggleActive : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "orgs" ? t.adminToggleActive : "bg-surface"}`}
           onClick={() => setTab("orgs")}
         >
           부서 목록
         </button>
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "members" ? t.adminToggleActive : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "members" ? t.adminToggleActive : "bg-surface"}`}
           onClick={() => setTab("members")}
         >
           부서 구성원

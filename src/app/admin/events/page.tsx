@@ -109,7 +109,7 @@ export default function AdminEventsPage() {
                   <div className="flex items-center gap-1">
                     <span {...truncateCellProps(e.title)}>{e.title}</span>
                     {e.is_hidden && (
-                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
                     )}
                   </div>
                 </td>
@@ -152,7 +152,7 @@ export default function AdminEventsPage() {
           <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
           <div className="flex flex-wrap gap-1.5 mb-1">
             {existingFiles.map((f) => (
-              <span key={f.id} className="bg-[#F2F4F8] rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
+              <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
                 📎 {f.file_name}
                 <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">✕</button>
               </span>

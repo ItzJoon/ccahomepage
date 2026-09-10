@@ -17,10 +17,10 @@ const STATUS_LABEL: Record<Proposal["status"], string> = {
   completed: "완료",
 };
 const STATUS_CLASS: Record<Proposal["status"], string> = {
-  review: "bg-[#FFF3DC] text-gold",
-  approved: "bg-[#E4F5EE] text-teal",
-  rejected: "bg-[#FDEBEC] text-red",
-  completed: "bg-[#EAF0FB] text-blue",
+  review: "bg-[#FFF3DC] dark:bg-white/10 text-gold",
+  approved: "bg-[#E4F5EE] dark:bg-white/10 text-teal",
+  rejected: "bg-[#FDEBEC] dark:bg-white/10 text-red",
+  completed: "bg-[#EAF0FB] dark:bg-white/10 text-blue",
 };
 
 function fmt(d: string) {
@@ -189,7 +189,7 @@ export default function ProposalsManager() {
                   <div className="flex items-center gap-1">
                     <span {...truncateCellProps(p.title)}>{p.title}</span>
                     {p.is_hidden && (
-                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
                     )}
                   </div>
                 </td>
@@ -201,7 +201,7 @@ export default function ProposalsManager() {
                       className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 cursor-pointer transition-colors ${
                         myVote(p.id)?.vote === "yes"
                           ? "bg-teal text-white border-teal"
-                          : "border-border bg-white hover:bg-[#E4F5EE] hover:border-teal hover:text-teal"
+                          : "border-border bg-surface hover:bg-[#E4F5EE] dark:bg-white/10 hover:border-teal hover:text-teal"
                       }`}
                     >
                       찬성 {voteCount(p.id, "yes")}
@@ -211,7 +211,7 @@ export default function ProposalsManager() {
                       className={`text-[11px] font-bold rounded-md px-1.5 py-0.5 border shrink-0 cursor-pointer transition-colors ${
                         myVote(p.id)?.vote === "no"
                           ? "bg-red text-white border-red"
-                          : "border-border bg-white hover:bg-[#FDEBEC] hover:border-red hover:text-red"
+                          : "border-border bg-surface hover:bg-[#FDEBEC] dark:bg-white/10 hover:border-red hover:text-red"
                       }`}
                     >
                       반대 {voteCount(p.id, "no")}
@@ -262,7 +262,7 @@ export default function ProposalsManager() {
               className={`text-xs font-bold rounded-lg px-3 py-1.5 border cursor-pointer transition-colors ${
                 myVote(current.id)?.vote === "yes"
                   ? "bg-teal text-white border-teal"
-                  : "border-border bg-white hover:bg-[#E4F5EE] hover:border-teal hover:text-teal"
+                  : "border-border bg-surface hover:bg-[#E4F5EE] dark:bg-white/10 hover:border-teal hover:text-teal"
               }`}
             >
               찬성 {voteCount(current.id, "yes")}
@@ -272,7 +272,7 @@ export default function ProposalsManager() {
               className={`text-xs font-bold rounded-lg px-3 py-1.5 border cursor-pointer transition-colors ${
                 myVote(current.id)?.vote === "no"
                   ? "bg-red text-white border-red"
-                  : "border-border bg-white hover:bg-[#FDEBEC] hover:border-red hover:text-red"
+                  : "border-border bg-surface hover:bg-[#FDEBEC] dark:bg-white/10 hover:border-red hover:text-red"
               }`}
             >
               반대 {voteCount(current.id, "no")}

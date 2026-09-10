@@ -39,7 +39,7 @@ export default function MemberEmailPicker({
       {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map((m) => (
-            <span key={m.email} className="bg-[#F2F4F8] rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
+            <span key={m.email} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
               {m.display_name} <span className="text-muted">({m.email})</span>
               <button type="button" onClick={() => remove(m.email)} className="text-muted">
                 ✕
@@ -56,7 +56,7 @@ export default function MemberEmailPicker({
           onChange={(e) => setQuery(e.target.value)}
         />
         {filtered.length > 0 && (
-          <div className="absolute left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
+          <div className="absolute left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
             {filtered.map((m) => (
               <button
                 type="button"

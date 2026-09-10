@@ -77,7 +77,7 @@ export default function AdminMaintenancePage() {
         <textarea
           rows={3}
           disabled={!iAmAdmin}
-          className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
+          className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5`}
           value={form.maintenance_message}
           onChange={(e) => setForm({ ...form, maintenance_message: e.target.value })}
         />
@@ -86,7 +86,7 @@ export default function AdminMaintenancePage() {
         <input
           type="date"
           disabled={!iAmAdmin}
-          className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
+          className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5`}
           value={form.maintenance_until}
           onChange={(e) => setForm({ ...form, maintenance_until: e.target.value })}
         />

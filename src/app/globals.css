@@ -82,15 +82,18 @@ body {
   background: var(--bg);
 }
 
-/* 라이트/다크 전환 시 색이 뚝 끊기지 않고 자연스럽게 디졸브되도록, 전환 순간에만
-   (ThemeMenuSection.tsx가 html에 이 클래스를 잠깐 붙였다 뗀다) 배경/글자/테두리색에
-   트랜지션을 건다. 평소에 *에 항상 걸어두면 호버 등 다른 상호작용까지 전부 느려지고
-   버벅여서, 전환되는 그 짧은 순간에만 한시적으로 적용한다. */
+/* 라이트/다크 전환 시 색이 뚝 끊기지 않고 디졸브되도록 View Transitions API를 쓴다
+   (ThemeMenuSection.tsx가 document.startViewTransition으로 setTheme를 감싼다).
+   요소마다 background-color/color에 transition을 거는 방식은 실제로 붙여봤더니,
+   같은 요소라도 CSS 변수(--body-text 등)로 바뀌는 색은 부드럽게 보간되는 반면
+   dark: 접두사 유틸리티 클래스로 바뀌는 색(전혀 다른 CSS 규칙이 켜짐)은 그 순간
+   뚝 끊겨 바뀌어서, 수백 개 요소가 서로 다른 타이밍에 깜빡이는 것처럼 보이는
+   문제가 있었다. View Transitions는 전환 전/후 화면을 통째로 캡처해서 하나의
+   레이어로 크로스페이드하므로 이런 요소별 불일치가 생기지 않는다. */
 @media (prefers-reduced-motion: no-preference) {
-  html.theme-transitioning,
-  html.theme-transitioning * {
-    transition: background-color 350ms ease, border-color 350ms ease, color 350ms ease, fill 350ms ease,
-      stroke 350ms ease !important;
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 350ms;
   }
 }
 

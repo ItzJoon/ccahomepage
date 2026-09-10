@@ -456,7 +456,7 @@ export default function AdminBadgesPage() {
               ) : (
                 <div className="flex flex-col gap-1.5">
                   {grantUserEarnedBadges.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] rounded-lg px-3 py-2">
+                    <div key={b.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] dark:bg-white/10 rounded-lg px-3 py-2">
                       <span className="text-sm flex items-center gap-1.5">
                         <span className="text-lg">{b.icon}</span>
                         {b.label}
@@ -763,7 +763,7 @@ export default function AdminBadgesPage() {
     {viewingHoldersBadge && (
       <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setViewingHoldersBadge(null)}>
         <div
-          className="bg-white rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
+          className="bg-surface rounded-2xl p-6 w-full max-w-md max-h-[80vh] flex flex-col"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between gap-2 mb-1">

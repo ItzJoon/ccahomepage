@@ -114,7 +114,7 @@ export default function AdminMainEditorPage() {
         {visiblePreview.map((b) => (
           <div
             key={b.id}
-            className={`${COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6]} bg-[#EAF0FB] border border-dashed border-blue rounded-lg p-3 text-xs font-bold text-center text-blue`}
+            className={`${COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6]} bg-[#EAF0FB] dark:bg-white/10 border border-dashed border-blue rounded-lg p-3 text-xs font-bold text-center text-blue`}
           >
             {b.label}
           </div>

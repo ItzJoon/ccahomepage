@@ -220,7 +220,7 @@ export default function AdminReportsPage() {
         )}
 
         {!roleLoading && !canView && (
-          <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
+          <div className="bg-[#FFF3DC] dark:bg-white/10 text-gold text-sm rounded-lg p-3 mb-4">
             이 화면은 admin 이상만 열람할 수 있습니다.
           </div>
         )}
@@ -342,7 +342,7 @@ export default function AdminReportsPage() {
           )}
 
           {actionMsg && (
-            <div className="text-sm font-bold bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
+            <div className="text-sm font-bold bg-[#E4F5EE] dark:bg-white/10 text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
           )}
         </div>
       )}

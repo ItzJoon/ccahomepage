@@ -60,7 +60,7 @@ export default function AccountPicker({
         onChange={(e) => setQuery(e.target.value)}
       />
       {filtered.length > 0 && (
-        <div className="absolute left-0 right-0 mt-1 bg-white border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
+        <div className="absolute left-0 right-0 mt-1 bg-surface border border-border rounded-lg shadow-lg z-10 max-h-52 overflow-auto">
           {filtered.map((p) => (
             <button
               type="button"

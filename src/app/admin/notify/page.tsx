@@ -132,13 +132,13 @@ export default function AdminNotifyPage() {
       <h2 className="text-[22px] mb-4">알림 발송</h2>
       <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-4">
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "popup" ? t.adminToggleActive : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "popup" ? t.adminToggleActive : "bg-surface"}`}
           onClick={() => setTab("popup")}
         >
           배너·팝업
         </button>
         <button
-          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "email" ? t.adminToggleActive : "bg-white"}`}
+          className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${tab === "email" ? t.adminToggleActive : "bg-surface"}`}
           onClick={() => setTab("email")}
         >
           이메일 발송 이력

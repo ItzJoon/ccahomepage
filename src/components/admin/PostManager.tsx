@@ -518,7 +518,7 @@ export default function PostManager({
       </div>
 
       {hasDraft && editing === "new" && (
-        <div className="flex items-center justify-between text-xs bg-[#EAF0FB] rounded-lg px-3 py-2">
+        <div className="flex items-center justify-between text-xs bg-[#EAF0FB] dark:bg-white/10 rounded-lg px-3 py-2">
           <span>임시저장된 내용을 불러왔습니다.</span>
           <button type="button" onClick={discardDraft} className="text-red font-bold">
             지우고 새로 쓰기
@@ -690,7 +690,7 @@ export default function PostManager({
       <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
       <div className="flex flex-wrap gap-1.5 mb-1">
         {existingFiles.map((f) => (
-          <span key={f.id} className="bg-[#F2F4F8] rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
+          <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
             📎 {f.file_name}
             <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">
               ✕
@@ -780,7 +780,7 @@ export default function PostManager({
       )}
 
       {saveError && <div className="text-red text-xs">{saveError}</div>}
-      {resultMessage && <div className="text-sm bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{resultMessage}</div>}
+      {resultMessage && <div className="text-sm bg-[#E4F5EE] dark:bg-white/10 text-teal rounded-lg px-3 py-2 mt-1">{resultMessage}</div>}
 
       <div className="flex gap-2 mt-3.5">
         <button disabled={saving || (!isDirty && !emailEnabled)} onClick={save} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>
@@ -847,16 +847,16 @@ export default function PostManager({
                     <span
                       className={`shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full ${
                         n.status === "published"
-                          ? "bg-[#E4F5EE] text-teal"
+                          ? "bg-[#E4F5EE] dark:bg-white/10 text-teal"
                           : n.status === "scheduled"
-                          ? "bg-[#FFF3DC] text-gold"
-                          : "bg-[#EEF1F6] text-muted"
+                          ? "bg-[#FFF3DC] dark:bg-white/10 text-gold"
+                          : "bg-[#EEF1F6] dark:bg-white/10 text-muted"
                       }`}
                     >
                       {n.status === "published" ? "발행" : n.status === "scheduled" ? "예약" : "임시저장"}
                     </span>
                     {n.is_hidden && (
-                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+                      <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
                     )}
                   </div>
                 </td>

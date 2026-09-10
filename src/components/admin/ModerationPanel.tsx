@@ -263,7 +263,7 @@ export default function ModerationPanel({
       )}
 
       {actionMsg && (
-        <div className="text-sm font-bold bg-[#E4F5EE] text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
+        <div className="text-sm font-bold bg-[#E4F5EE] dark:bg-white/10 text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
       )}
     </div>
   );

@@ -186,7 +186,7 @@ export default function AdminMealPlansPage() {
               <button
                 key={mt}
                 type="button"
-                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mealType === mt ? t.adminToggleActive : "bg-white"}`}
+                className={`px-3.5 py-1.5 text-sm font-semibold border-0 ${mealType === mt ? t.adminToggleActive : "bg-surface"}`}
                 onClick={() => setMealType(mt)}
               >
                 {MEAL_TYPE_LABEL[mt]}
@@ -194,7 +194,7 @@ export default function AdminMealPlansPage() {
             ))}
           </div>
           {existing && (
-            <div className="text-xs bg-[#FFF3DC] text-gold rounded-lg px-3 py-2 mt-1">
+            <div className="text-xs bg-[#FFF3DC] dark:bg-white/10 text-gold rounded-lg px-3 py-2 mt-1">
               이미 등록된 {MEAL_TYPE_LABEL[mealType]} 급식표가 있습니다 — 다시 업로드하면 교체됩니다.
             </div>
           )}
@@ -237,7 +237,7 @@ export default function AdminMealPlansPage() {
                 className={`w-9 h-9 rounded-lg text-sm font-bold border ${
                   effectiveDinnerDays.includes(day)
                     ? "bg-navy text-white border-navy"
-                    : "bg-white text-muted border-border"
+                    : "bg-surface text-muted border-border"
                 }`}
               >
                 {label}

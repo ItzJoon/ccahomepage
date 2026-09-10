@@ -123,14 +123,14 @@ export default function AdminSiteRestrictionsPage() {
                 type="text"
                 placeholder="예: 1교시"
                 disabled={!isSuperadmin}
-                className={`${t.adminInput} disabled:bg-[#F7F8FB] w-24`}
+                className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5 w-24`}
                 value={w.label ?? ""}
                 onChange={(e) => updateWindow(idx, { label: e.target.value })}
               />
               <input
                 type="time"
                 disabled={!isSuperadmin}
-                className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
+                className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5`}
                 value={w.start}
                 onChange={(e) => updateWindow(idx, { start: e.target.value })}
               />
@@ -138,7 +138,7 @@ export default function AdminSiteRestrictionsPage() {
               <input
                 type="time"
                 disabled={!isSuperadmin}
-                className={`${t.adminInput} disabled:bg-[#F7F8FB]`}
+                className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5`}
                 value={w.end}
                 onChange={(e) => updateWindow(idx, { end: e.target.value })}
               />

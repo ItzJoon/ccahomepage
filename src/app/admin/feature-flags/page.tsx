@@ -59,7 +59,7 @@ export default function AdminFeatureFlagsPage() {
       </p>
 
       {!roleLoading && !canView && (
-        <div className="bg-[#FFF3DC] text-gold text-sm rounded-lg p-3 mb-4">
+        <div className="bg-[#FFF3DC] dark:bg-white/10 text-gold text-sm rounded-lg p-3 mb-4">
           이 화면은 developer만 이용할 수 있습니다.
         </div>
       )}

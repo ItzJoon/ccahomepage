@@ -55,7 +55,7 @@ export default function AdminPersonMenu({
         <span className="shrink-0">▾</span>
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 w-36 py-1.5 z-30 bg-white border border-border rounded-lg shadow-md">
+        <div className="absolute left-0 top-full mt-1 w-36 py-1.5 z-30 bg-surface border border-border rounded-lg shadow-md">
           <button type="button" onClick={startEdit} className="block w-full text-left px-3 py-1.5 text-xs hover:bg-bg">
             닉네임·소개 수정
           </button>
@@ -65,7 +65,7 @@ export default function AdminPersonMenu({
               setOpen(false);
               setModerating(true);
             }}
-            className="block w-full text-left px-3 py-1.5 text-xs text-red font-bold hover:bg-[#FDEBEC]"
+            className="block w-full text-left px-3 py-1.5 text-xs text-red font-bold hover:bg-[#FDEBEC] dark:hover:bg-white/10"
           >
             제재 조치
           </button>
@@ -85,7 +85,7 @@ export default function AdminPersonMenu({
       )}
       {moderating && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setModerating(false)}>
-          <div className="bg-white rounded-2xl p-6 w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-surface rounded-2xl p-6 w-full max-w-sm max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-base font-bold m-0">{name} 제재 조치</h3>
               <button type="button" onClick={() => setModerating(false)} className="text-muted text-xl leading-none">
