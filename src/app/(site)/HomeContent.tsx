@@ -9,6 +9,7 @@ import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
 import HeaderWeatherBackground from "@/components/HeaderWeatherBackground";
+import HeaderWeatherTemp from "@/components/HeaderWeatherTemp";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { useStudentPreview } from "@/lib/studentPreviewContext";
 import { todayKST, nowKSTTime, nowKSTDayOfWeek } from "@/lib/date";
@@ -176,7 +177,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
             <div className={t.heroEyebrow}>{t.heroEyebrowText}</div>
             <h1 className={t.heroHeadingClass}>{t.heroTitleText}</h1>
           </div>
-          {!ENABLE_HEADER_WEATHER_BG && <WeatherWidget />}
+          {ENABLE_HEADER_WEATHER_BG ? <HeaderWeatherTemp /> : <WeatherWidget />}
         </div>
         <p className={`relative z-10 ${t.heroSubtextClass}`}>{t.heroSubtitleText}</p>
         <div className="relative z-10 flex gap-2.5 flex-wrap">
