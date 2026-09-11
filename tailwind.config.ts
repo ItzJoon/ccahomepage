@@ -112,10 +112,24 @@ const config: Config = {
           "90%": { opacity: "0.9" },
           "100%": { transform: "translate(0px, 360px)", opacity: "0" },
         },
+        // 슈퍼시크릿 뱃지를 남에게 보여줄 때 정체를 가리는 "연기" 배경(members/[id]
+        // 페이지 참고) — 서로 다른 duration/delay로 두 겹 겹쳐서 뭉게뭉게 움직이는
+        // 느낌을 낸다. 뱃지가 36px로 작아서 과하게 흔들리면 어지러워 보이므로 이동폭은
+        // 작게 잡았다.
+        "badge-smoke": {
+          "0%, 100%": { transform: "translate(0, 0) scale(1)", opacity: "0.55" },
+          "50%": { transform: "translate(3px, -2px) scale(1.15)", opacity: "0.85" },
+        },
+        "badge-smoke-2": {
+          "0%, 100%": { transform: "translate(0, 0) scale(1.05)", opacity: "0.7" },
+          "50%": { transform: "translate(-3px, 2px) scale(0.95)", opacity: "0.4" },
+        },
       },
       animation: {
         "confetti-fall": "confetti-fall 1.8s ease-in forwards",
         "glow-pulse": "glow-pulse 1.4s ease-in-out infinite",
+        "badge-smoke": "badge-smoke 4.5s ease-in-out infinite",
+        "badge-smoke-2": "badge-smoke-2 5.5s ease-in-out infinite",
         "weather-spin": "weather-spin 12s linear infinite",
         "weather-drift": "weather-drift 3.5s ease-in-out infinite",
         "weather-drop": "weather-drop 1.1s ease-in infinite",

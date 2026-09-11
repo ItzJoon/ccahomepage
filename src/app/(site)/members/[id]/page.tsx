@@ -165,8 +165,8 @@ export default function MemberProfilePage() {
             const viewerUnlocked = isSuperadmin || viewerEarnedIds.has(b.id);
             // 시크릿(뷰어가 아직 못 찾은 히든 뱃지) — 이 프로필 주인이 획득했다는 사실은
             // 보이되 실루엣 처리하고 이름/설명은 가린다(호버 시 관리자가 입력한 힌트만
-            // 짧게 보여준다). 슈퍼시크릿은 실루엣조차 안 보이게 mystery.png로 완전히
-            // 가리고, 힌트도 절대 노출하지 않는다(호버 툴팁 자체를 렌더링하지 않음) —
+            // 짧게 보여준다). 슈퍼시크릿은 실루엣조차 안 보이게 연기 속에 잠긴 것처럼
+            // 완전히 가리고, 힌트도 절대 노출하지 않는다(호버 툴팁 자체를 렌더링하지 않음) —
             // 이게 시크릿과 슈퍼시크릿을 가르는 핵심 차이다.
             const secretLocked = b.secret_tier === "secret" && !viewerUnlocked;
             const superSecretLocked = b.secret_tier === "super_secret" && !viewerUnlocked;
@@ -174,19 +174,18 @@ export default function MemberProfilePage() {
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 {superSecretLocked ? (
                   <div
-                    className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-white font-bold bg-gradient-to-br from-black to-[#2a2a3d] shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
+                    className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-[#0f0f12] shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
                     aria-hidden
                   >
-                    <span className="absolute inset-0 flex items-center justify-center">?</span>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src="/mystery.png"
-                      alt=""
-                      className="absolute inset-0 w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display = "none";
-                      }}
+                    <span
+                      className="absolute -inset-2 animate-badge-smoke rounded-full blur-[5px]"
+                      style={{ background: "radial-gradient(circle at 35% 40%, rgba(210,210,220,0.6), transparent 60%)" }}
                     />
+                    <span
+                      className="absolute -inset-2 animate-badge-smoke-2 rounded-full blur-[5px]"
+                      style={{ background: "radial-gradient(circle at 65% 65%, rgba(160,160,175,0.55), transparent 55%)" }}
+                    />
+                    <span className="relative z-10 text-white text-[10px] font-bold">?</span>
                   </div>
                 ) : (
                   <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
