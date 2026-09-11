@@ -173,12 +173,15 @@ export default function MemberProfilePage() {
             return (
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 {superSecretLocked ? (
-                  <div
-                    className="relative w-9 h-9 rounded-full overflow-hidden shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
-                    aria-hidden
-                  >
+                  <div className="relative w-9 h-9" aria-hidden>
+                    {/* 원형 테두리가 보이면 안 되므로 rounded-full/overflow-hidden 없이,
+                        이미지 자체의 뭉게구름 실루엣만 drop-shadow로 살짝 띄운다. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src="/secret-smoke.svg" alt="" className="absolute inset-0 w-full h-full object-cover" />
+                    <img
+                      src="/secret-smoke.svg"
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_8px_rgba(0,0,0,0.55)]"
+                    />
                   </div>
                 ) : (
                   <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
