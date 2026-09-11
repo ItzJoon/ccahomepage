@@ -46,8 +46,11 @@ const config: Config = {
         sans: ["var(--font-noto-sans-kr)", "Malgun Gothic", "Apple SD Gothic Neo", "sans-serif"],
         // 홈 화면/헤더/푸터의 "green" 테마 헤딩용 (src/lib/homeTheme.ts 참고)
         jua: ["var(--font-jua)", "var(--font-noto-sans-kr)", "Malgun Gothic", "Apple SD Gothic Neo", "sans-serif"],
-        // "apple" 테마의 히어로 제목용 손글씨체 (Figma 디자인 그대로)
-        caveat: ["var(--font-caveat)", "cursive"],
+        // "apple" 테마의 히어로 제목용 손글씨체 (Figma 디자인 그대로). 히어로 제목이
+        // "CCHS 학생자치회"처럼 영문+한글을 한 줄에 섞어 쓰는데, Caveat엔 한글 글리프가
+        // 없어서 한글 부분만 다음 폰트로 넘어간다 — 여기 한글 fallback이 없으면(예전엔
+        // 바로 cursive) Windows에서 한글만 궁서체 등 예상 밖의 폰트로 떨어졌다.
+        caveat: ["var(--font-caveat)", "var(--font-noto-sans-kr)", "Malgun Gothic", "Apple SD Gothic Neo", "cursive"],
       },
       keyframes: {
         // 슈퍼시크릿 뱃지 획득 연출 전용(BadgeCelebration.tsx 참고)
