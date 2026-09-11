@@ -9,6 +9,7 @@ export function useAttendance(userId: string | null) {
   const [history, setHistory] = useState<string[]>([]);
   const [checkedToday, setCheckedToday] = useState(false);
   const [freezeCredits, setFreezeCredits] = useState(0);
+  const [maxStreak, setMaxStreak] = useState(0);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -24,7 +25,7 @@ export function useAttendance(userId: string | null) {
         .eq("user_id", userId)
         .order("visit_date", { ascending: false })
         .limit(30),
-      supabase.from("profiles").select("freeze_credits").eq("id", userId).single(),
+      supabase.from("profiles").select("freeze_credits, max_streak").eq("id", userId).single(),
     ]);
     if (data && data.length > 0) {
       setHistory(data.map((d) => d.visit_date));
@@ -32,6 +33,7 @@ export function useAttendance(userId: string | null) {
       setCheckedToday(data[0].visit_date === todayKST());
     }
     setFreezeCredits(prof?.freeze_credits ?? 0);
+    setMaxStreak(prof?.max_streak ?? 0);
     setLoading(false);
   }, [userId, supabase]);
 
@@ -67,7 +69,7 @@ export function useAttendance(userId: string | null) {
         p_use_freeze: useFreeze,
       });
       if (error || !data) return null;
-      const result = data as { streak: number | null; used_freeze: boolean; freeze_credits: number };
+      const result = data as { streak: number | null; used_freeze: boolean; freeze_credits: number; max_streak: number };
       setCheckedToday(true);
       if (result.streak == null) return null; // 동시 요청 등으로 이미 다른 곳에서 처리됨
       setStreak(result.streak);
@@ -75,10 +77,11 @@ export function useAttendance(userId: string | null) {
       // 프리즈 소비뿐 아니라 연속 7일마다 자동 재충전도 서버(check_in_attendance)가 함께
       // 처리하므로, 클라이언트에서 증감을 추측하지 않고 서버가 돌려준 최종값을 그대로 쓴다.
       setFreezeCredits(result.freeze_credits);
+      setMaxStreak(result.max_streak);
       return result.streak;
     },
     [userId, checkedToday, supabase]
   );
 
-  return { streak, history, checkedToday, checkIn, freezeCredits, freezeEligible, loading };
+  return { streak, history, checkedToday, checkIn, freezeCredits, maxStreak, freezeEligible, loading };
 }

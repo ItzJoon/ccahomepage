@@ -26,7 +26,7 @@ export default function MyPage() {
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<UserWarning[]>([]);
 
-  const { streak, history, checkedToday, freezeCredits, loading } = useAttendance(userId ?? null);
+  const { streak, history, checkedToday, freezeCredits, maxStreak, loading } = useAttendance(userId ?? null);
   const { badges, earnedIds } = useBadges(userId ?? null);
   // developer(=superadmin)는 실제로 획득하지 않아도 모든 뱃지를 항상 가진 것처럼
   // 보여준다(진짜 user_badges 행을 만들지는 않아서 한정 수량 뱃지의 획득 인원 수에는
@@ -48,7 +48,12 @@ export default function MyPage() {
   const displayBadges = isDeveloper ? allBadgesForDeveloper : badges;
   // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
   // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
-  const visibleBadges = displayBadges.filter((b) => isDeveloper || b.secret_tier !== "super_secret" || earnedIds.has(b.id));
+  // "기간 한정"(limited)은 반대로 타인에게는 정상 노출되지만, 본인 마이페이지에서는
+  // 항목 자체를 숨긴다(이미 끝난 이벤트 한정 뱃지를 본인이 계속 마주치지 않도록) —
+  // developer도 예외 없이 숨김(전체 뱃지 미리보기 목적과는 별개 규칙).
+  const visibleBadges = displayBadges.filter(
+    (b) => b.secret_tier !== "limited" && (isDeveloper || b.secret_tier !== "super_secret" || earnedIds.has(b.id))
+  );
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -171,6 +176,7 @@ export default function MyPage() {
         <div className="bg-surface border border-border rounded-2xl p-5 text-center flex flex-col items-center gap-2">
           <div className="font-serif font-black text-4xl">{loading ? "-" : streak}</div>
           <div className="text-muted text-sm">연속 접속일수</div>
+          <div className="text-xs text-gold font-bold">🏆 최고 기록 {loading ? "-" : maxStreak}일</div>
           <div className="text-xs text-blue">❄️ 스트릭 프리즈 {freezeCredits}개 보유</div>
           <div className="text-muted text-[11px]">누적 접속 7일마다 프리즈 1개 자동 충전(최대 3개)</div>
           {checkedToday && <span className="text-teal font-bold text-sm">오늘 접속 완료 ✓</span>}
@@ -206,7 +212,7 @@ export default function MyPage() {
                 </div>
                 <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
                   {secretLocked ? (
-                    <div className="font-bold">???? (히든 뱃지)</div>
+                    <div className="font-bold">{b.hint_text || "???? (히든 뱃지)"}</div>
                   ) : (
                     <>
                       <div className="font-bold mb-0.5">{b.label}</div>

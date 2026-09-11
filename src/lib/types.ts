@@ -9,6 +9,7 @@ export interface Profile {
   role: Role;
   profile_image: string | null;
   freeze_credits: number;
+  max_streak: number;
   is_council: boolean;
   is_judiciary: boolean;
   email_notifications: boolean;
@@ -232,12 +233,26 @@ export interface BadgeDef {
   date_condition_value_end: string | null;
   order_index: number;
   is_active: boolean;
-  secret_tier: "none" | "secret" | "super_secret";
+  secret_tier: "none" | "secret" | "super_secret" | "limited";
   easter_egg_names: string[];
   condition_text: string | null;
   max_holders: number | null;
   trigger_type: SecretTriggerType | null;
   trigger_config: Record<string, any>;
+  /** 시크릿 등급에서 타인이 호버(모바일은 탭)했을 때 보여줄 짧은 힌트. 슈퍼시크릿에는
+   * 절대 노출하지 않는다(화면 쪽에서 강제) — 값이 있어도 무시된다. */
+  hint_text: string | null;
+}
+
+export interface RankingRow {
+  rank: number;
+  user_id: string;
+  display_name: string;
+  member_type: "student" | "teacher";
+  grade: string | null;
+  homeroom: number | null;
+  subject: string | null;
+  value: number;
 }
 
 export interface UserBadge {

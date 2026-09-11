@@ -5032,3 +5032,152 @@ alter table posts add column if not exists image_url text;
 alter table notifications add column if not exists display_order double precision;
 update notifications set display_order = extract(epoch from sent_at) where display_order is null;
 alter table notifications alter column display_order set default extract(epoch from now());
+
+-- ------------------------------------------------------------
+-- 121. 랭킹 탭 + 뱃지 "기간 한정" 등급/힌트 문구 + 역대 최고 연속 접속일수
+-- ------------------------------------------------------------
+-- 역대 최고 연속 접속일수(현재 streak는 user_attendance.streak_count로만 추적되고
+-- 끊기면 사라지므로 별도 컬럼이 필요).
+alter table profiles add column if not exists max_streak int not null default 0;
+-- 기존 사용자들의 과거 기록에서 최고값을 한 번 백필한다(그 이후로는 check_in_attendance가 유지).
+update profiles p set max_streak = greatest(
+  p.max_streak,
+  coalesce((select max(ua.streak_count) from user_attendance ua where ua.user_id = p.id), 0)
+);
+
+-- check_in_attendance 재정의: 매 체크인마다 max_streak도 함께 갱신 + 응답에 포함
+-- (본문은 111번과 동일하고, insert 직후 max_streak greatest 갱신과 반환값 추가만 됨).
+create or replace function check_in_attendance(p_user_id uuid, p_use_freeze boolean default false)
+returns json as $$
+declare
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_yesterday date := v_today - 1;
+  v_day_before date := v_today - 2;
+  v_last_date date;
+  v_last_streak int;
+  v_freeze_credits int;
+  v_freeze_eligible boolean;
+  v_use_freeze boolean;
+  v_next_streak int;
+  v_inserted_streak int;
+  v_total_visits int;
+  v_freeze_delta int := 0;
+  v_new_freeze_credits int;
+  v_max_streak int;
+begin
+  if p_user_id is distinct from auth.uid() then
+    raise exception '본인만 체크인할 수 있습니다';
+  end if;
+
+  if exists (select 1 from user_attendance where user_id = p_user_id and visit_date = v_today) then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select visit_date, streak_count into v_last_date, v_last_streak
+    from user_attendance where user_id = p_user_id order by visit_date desc limit 1;
+
+  select freeze_credits into v_freeze_credits from profiles where id = p_user_id;
+
+  v_freeze_eligible := (v_last_date is distinct from v_yesterday)
+    and v_last_date = v_day_before
+    and coalesce(v_freeze_credits, 0) > 0;
+
+  v_use_freeze := v_freeze_eligible and p_use_freeze;
+
+  v_next_streak := case
+    when v_last_date = v_yesterday then coalesce(v_last_streak, 0) + 1
+    when v_use_freeze then coalesce(v_last_streak, 0) + 1
+    else 1
+  end;
+
+  insert into user_attendance (user_id, visit_date, streak_count, is_freeze)
+  values (p_user_id, v_today, v_next_streak, v_use_freeze)
+  on conflict (user_id, visit_date) do nothing
+  returning streak_count into v_inserted_streak;
+
+  if not found then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select count(*) into v_total_visits from user_attendance where user_id = p_user_id;
+
+  if v_use_freeze then
+    v_freeze_delta := v_freeze_delta - 1;
+  end if;
+  if v_total_visits % 7 = 0 then
+    v_freeze_delta := v_freeze_delta + 1;
+  end if;
+
+  if v_freeze_delta <> 0 then
+    update profiles set freeze_credits = greatest(least(freeze_credits + v_freeze_delta, 3), 0)
+      where id = p_user_id
+      returning freeze_credits into v_new_freeze_credits;
+  else
+    v_new_freeze_credits := coalesce(v_freeze_credits, 0);
+  end if;
+
+  update profiles set max_streak = greatest(max_streak, v_inserted_streak)
+    where id = p_user_id
+    returning max_streak into v_max_streak;
+
+  return json_build_object(
+    'streak', v_inserted_streak, 'used_freeze', v_use_freeze,
+    'freeze_credits', v_new_freeze_credits, 'max_streak', v_max_streak
+  );
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- 뱃지 등급: '기간 한정'(limited) 추가. 타인에게는 정상 노출되지만, 본인 마이페이지
+-- 목록에서는 항목 자체를 숨긴다(예: 기간이 지난 이벤트 한정 뱃지를 본인이 계속
+-- 마이페이지에서 마주치지 않도록) — 화면 쪽 처리는 mypage에서 한다.
+alter table badges drop constraint if exists badges_secret_tier_check;
+alter table badges add constraint badges_secret_tier_check
+  check (secret_tier in ('none', 'secret', 'super_secret', 'limited'));
+
+-- 시크릿 등급 힌트 문구 — 타인이 호버(모바일은 탭)했을 때 보여줄 짧은 힌트.
+-- 슈퍼시크릿에는 절대 노출하지 않는다(화면 쪽에서 강제) — 시크릿과의 핵심 차이.
+alter table badges add column if not exists hint_text text;
+
+-- 연속 접속일수 랭킹 / 뱃지 보유 수 랭킹. 정지 중(suspended_until)이거나 영구 차단된
+-- (member_type이 'other'로 바뀜) 계정은 제외하고, 개발자(superadmin) 계정은 시크릿
+-- 트리거 뱃지 자동 지급 대상이라 뱃지 랭킹이 무의미해지므로 함께 제외한다(기존
+-- user_latest_attendance와 동일한 role<>'superadmin' 관례). 학교 전체 인원 규모라
+-- LIMIT 없이 전체 순위를 반환하고, 화면에서 상위 N명 + "내 순위"를 함께 계산한다.
+create or replace function get_streak_ranking()
+returns table(
+  rank bigint, user_id uuid, display_name text, member_type text,
+  grade text, homeroom int, subject text, value int
+)
+language sql stable security definer set search_path = public as $$
+  select
+    row_number() over (order by p.max_streak desc, coalesce(p.nickname, p.name) asc),
+    p.id, coalesce(p.nickname, p.name), dm.member_type, dm.grade, dm.homeroom, dm.subject, p.max_streak
+  from profiles p
+  join directory_members dm on dm.email = p.email
+  where dm.member_type in ('student', 'teacher')
+    and p.role <> 'superadmin'
+    and (p.suspended_until is null or p.suspended_until <= now())
+  order by p.max_streak desc, coalesce(p.nickname, p.name) asc;
+$$;
+
+create or replace function get_badge_count_ranking()
+returns table(
+  rank bigint, user_id uuid, display_name text, member_type text,
+  grade text, homeroom int, subject text, value bigint
+)
+language sql stable security definer set search_path = public as $$
+  select
+    row_number() over (order by count(ub.id) desc, coalesce(p.nickname, p.name) asc),
+    p.id, coalesce(p.nickname, p.name), dm.member_type, dm.grade, dm.homeroom, dm.subject, count(ub.id)
+  from profiles p
+  join directory_members dm on dm.email = p.email
+  left join user_badges ub on ub.user_id = p.id
+  where dm.member_type in ('student', 'teacher')
+    and p.role <> 'superadmin'
+    and (p.suspended_until is null or p.suspended_until <= now())
+  group by p.id, p.nickname, p.name, dm.member_type, dm.grade, dm.homeroom, dm.subject
+  order by count(ub.id) desc, coalesce(p.nickname, p.name) asc;
+$$;
+
+grant execute on function get_streak_ranking() to authenticated;
+grant execute on function get_badge_count_ranking() to authenticated;

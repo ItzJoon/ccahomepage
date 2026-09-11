@@ -15,7 +15,9 @@ export default function BadgeCelebration({
   onClose: () => void;
   soundEnabled?: boolean;
 }) {
-  const secret = badge.secret_tier !== "none";
+  // "기간 한정"(limited)은 숨겨져 있다가 발견하는 시크릿류 뱃지와는 성격이 달라서(그냥
+  // 한시적으로만 지급되는 뱃지) 시크릿 전용 연출 대상에서 제외한다.
+  const secret = badge.secret_tier === "secret" || badge.secret_tier === "super_secret";
   const superSecret = badge.secret_tier === "super_secret";
 
   useEffect(() => {

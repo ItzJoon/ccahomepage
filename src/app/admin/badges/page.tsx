@@ -30,7 +30,8 @@ const empty = {
   date_condition_value_end: "",
   order_index: 0,
   is_active: true,
-  secret_tier: "none" as "none" | "secret" | "super_secret",
+  secret_tier: "none" as "none" | "secret" | "super_secret" | "limited",
+  hint_text: "",
   easter_egg_names: [] as string[],
   condition_text: "",
   max_holders: "",
@@ -180,6 +181,7 @@ export default function AdminBadgesPage() {
       order_index: b.order_index,
       is_active: b.is_active,
       secret_tier: b.secret_tier,
+      hint_text: b.hint_text ?? "",
       easter_egg_names: b.easter_egg_names ?? [],
       condition_text: b.condition_text ?? "",
       max_holders: b.max_holders != null ? String(b.max_holders) : "",
@@ -265,6 +267,11 @@ export default function AdminBadgesPage() {
       order_index: form.order_index,
       is_active: form.is_active,
       secret_tier: form.secret_tier,
+      // 슈퍼시크릿도 입력 필드는 보여주지만(관리자 내부 참고용/향후 등급 변경 대비),
+      // 실제로 학생 화면에는 절대 노출하지 않는다 — 그 강제는 화면 렌더링 쪽
+      // (members/[id]/page.tsx)에서 슈퍼시크릿엔 툴팁 자체를 안 그리는 방식으로 한다.
+      hint_text:
+        form.secret_tier === "secret" || form.secret_tier === "super_secret" ? form.hint_text.trim() || null : null,
       easter_egg_names: form.easter_egg_names.filter((n) => n.trim()),
       condition_text: form.condition_text.trim() || null,
       max_holders: form.max_holders.trim() === "" ? null : Number(form.max_holders),
@@ -357,6 +364,7 @@ export default function AdminBadgesPage() {
                     {b.label}
                     {b.secret_tier === "secret" && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
                     {b.secret_tier === "super_secret" && <span className="text-[10px] font-bold text-red border border-red rounded px-1">슈퍼시크릿</span>}
+                    {b.secret_tier === "limited" && <span className="text-[10px] font-bold text-gold border border-gold rounded px-1">기간한정</span>}
                   </div>
                   <div className="text-muted text-xs">{b.description}</div>
                 </td>
@@ -709,12 +717,28 @@ export default function AdminBadgesPage() {
           <select
             className={t.adminInput}
             value={form.secret_tier}
-            onChange={(e) => setForm({ ...form, secret_tier: e.target.value as "none" | "secret" | "super_secret" })}
+            onChange={(e) =>
+              setForm({ ...form, secret_tier: e.target.value as "none" | "secret" | "super_secret" | "limited" })
+            }
           >
             <option value="none">공개 (목록에 항상 표시)</option>
-            <option value="secret">시크릿 (목록엔 실루엣으로 표시, 이름·조건은 획득 전까지 숨김)</option>
-            <option value="super_secret">슈퍼시크릿 (획득 전까지 목록에서 존재 자체를 숨김)</option>
+            <option value="secret">시크릿 (다른 사람에겐 실루엣으로 표시, 이름은 획득 전까지 ??? 처리 + 호버 시 힌트)</option>
+            <option value="super_secret">슈퍼시크릿 (다른 사람에겐 실루엣조차 안 보이게 미스터리 이미지로 표시, 힌트도 절대 노출 안 됨)</option>
+            <option value="limited">기간 한정 (다른 사람에겐 정상 표시되지만, 본인 마이페이지 목록에서는 숨김)</option>
           </select>
+          {(form.secret_tier === "secret" || form.secret_tier === "super_secret") && (
+            <>
+              <label className="text-xs font-bold text-muted mt-2">
+                힌트 문구 (선택{form.secret_tier === "super_secret" ? " — 슈퍼시크릿은 입력해도 학생 화면엔 절대 노출되지 않습니다" : ""})
+              </label>
+              <input
+                className={t.adminInput}
+                value={form.hint_text}
+                onChange={(e) => setForm({ ...form, hint_text: e.target.value })}
+                placeholder="예: 게시판에 사진을 3번 올려보세요"
+              />
+            </>
+          )}
 
           {form.code === "phantom_member" && (
             <>

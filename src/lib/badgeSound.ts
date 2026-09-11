@@ -1,16 +1,20 @@
 import type { BadgeDef } from "@/lib/types";
 
 // 등급별 사운드 폴더/볼륨. secret_tier는 이미 badges 테이블에 있는 값을 그대로 쓴다.
+// "기간 한정"(limited)은 숨겨져 있다 발견하는 시크릿류가 아니라 그냥 한시적으로만
+// 지급되는 뱃지라 일반(none)과 같은 취급을 한다(BadgeCelebration의 secret 판정과 동일).
 const TIER_FOLDER: Record<BadgeDef["secret_tier"], string> = {
   none: "normal",
   secret: "secret",
   super_secret: "super-secret",
+  limited: "normal",
 };
 
 const TIER_VOLUME: Record<BadgeDef["secret_tier"], number> = {
   none: 0.5,
   secret: 0.6,
   super_secret: 0.7,
+  limited: 0.5,
 };
 
 // 뱃지별 전용 사운드(code.mp3) 존재 여부 캐시. 재생하는 그 순간에 존재 확인 요청을 보내면

@@ -103,11 +103,11 @@ export default function MemberProfilePage() {
       ? `${profile.grade}학년 ${profile.homeroom ? HOMEROOM_LABEL[profile.homeroom] : ""}`
       : profile.subject || "-";
 
-  // 슈퍼시크릿은 뷰어가 아직 획득 못 했으면 목록에서 아예 제외한다(존재 자체를 숨김) —
-  // 마이페이지의 visibleBadges와 동일한 기준.
-  const visibleBadges = badges.filter(
-    (b) => isSuperadmin || b.secret_tier !== "super_secret" || viewerEarnedIds.has(b.id)
-  );
+  // 여기 badges는 이미 이 프로필 주인이 "실제로 획득한" 뱃지만 담고 있으므로(위 로딩
+  // 코드 참고) 등급과 무관하게 전부 목록에 넣는다 — 등급별 표시 차등(실루엣/미스터리
+  // 이미지)은 아래 렌더링에서만 처리한다(예전엔 슈퍼시크릿을 목록에서 아예 뺐는데,
+  // 이제는 "타인에게는 존재는 보이되 정체만 완전히 가리는" 쪽으로 바뀌었다).
+  const visibleBadges = badges;
 
   return (
     <div>
@@ -164,23 +164,46 @@ export default function MemberProfilePage() {
           {visibleBadges.map((b) => {
             const viewerUnlocked = isSuperadmin || viewerEarnedIds.has(b.id);
             // 시크릿(뷰어가 아직 못 찾은 히든 뱃지) — 이 프로필 주인이 획득했다는 사실은
-            // 보이되 실루엣 처리하고 이름/설명은 가린다. 슈퍼시크릿은 아래 필터에서 이미
-            // 목록 자체에서 제외된다.
+            // 보이되 실루엣 처리하고 이름/설명은 가린다(호버 시 관리자가 입력한 힌트만
+            // 짧게 보여준다). 슈퍼시크릿은 실루엣조차 안 보이게 mystery.png로 완전히
+            // 가리고, 힌트도 절대 노출하지 않는다(호버 툴팁 자체를 렌더링하지 않음) —
+            // 이게 시크릿과 슈퍼시크릿을 가르는 핵심 차이다.
             const secretLocked = b.secret_tier === "secret" && !viewerUnlocked;
+            const superSecretLocked = b.secret_tier === "super_secret" && !viewerUnlocked;
             return (
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
-                <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
-                <div className="text-[11px] text-muted leading-tight">{secretLocked ? "???" : b.label}</div>
-                <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
-                  {secretLocked ? (
-                    <div className="font-bold">???? (히든 뱃지)</div>
-                  ) : (
-                    <>
-                      <div className="font-bold mb-0.5">{b.label}</div>
-                      {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
-                    </>
-                  )}
-                </div>
+                {superSecretLocked ? (
+                  <div
+                    className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-white font-bold bg-gradient-to-br from-black to-[#2a2a3d] shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
+                    aria-hidden
+                  >
+                    <span className="absolute inset-0 flex items-center justify-center">?</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/mystery.png"
+                      alt=""
+                      className="absolute inset-0 w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.currentTarget as HTMLImageElement).style.display = "none";
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
+                )}
+                <div className="text-[11px] text-muted leading-tight">{secretLocked || superSecretLocked ? "???" : b.label}</div>
+                {!superSecretLocked && (
+                  <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-36 rounded-lg bg-navy text-white text-xs px-3 py-2 opacity-0 group-hover:opacity-100 transition-opacity z-20 shadow-lg">
+                    {secretLocked ? (
+                      <div className="font-bold">{b.hint_text || "???? (히든 뱃지)"}</div>
+                    ) : (
+                      <>
+                        <div className="font-bold mb-0.5">{b.label}</div>
+                        {b.description && <div className="text-[#C9D2E3]">{b.description}</div>}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

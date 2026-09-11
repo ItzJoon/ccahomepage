@@ -20,6 +20,7 @@ const NAV = [
   { href: "/notices", label: "공지사항", flagKey: "notices" },
   { href: "/organizations", label: "학생자치회 소개", flagKey: "organizations" },
   { href: "/members", label: "구성원", flagKey: "members" },
+  { href: "/rankings", label: "랭킹" },
   { href: "/calendar", label: "일정", flagKey: "calendar" },
   { href: "/news", label: "뉴스", flagKey: "news" },
   { href: "/rules", label: "생활규정", flagKey: "rules" },
