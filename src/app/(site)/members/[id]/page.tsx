@@ -175,12 +175,19 @@ export default function MemberProfilePage() {
                 {superSecretLocked ? (
                   <div className="relative w-9 h-9" aria-hidden>
                     {/* 원형 테두리가 보이면 안 되므로 rounded-full/overflow-hidden 없이,
-                        이미지 자체의 뭉게구름 실루엣만 drop-shadow로 살짝 띄운다. */}
+                        이미지 자체의 뭉게구름 실루엣만 drop-shadow로 띄운다. 물음표는
+                        mystery.png를 별도로 얹어서 표시(smoke svg엔 텍스트 없음). */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="/secret-smoke.svg"
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_8px_rgba(0,0,0,0.55)]"
+                      className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,0,0,0.75)]"
+                    />
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/mystery.png"
+                      alt=""
+                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[13px] h-[18px] object-contain"
                     />
                   </div>
                 ) : (
