@@ -174,18 +174,11 @@ export default function MemberProfilePage() {
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 {superSecretLocked ? (
                   <div
-                    className="relative w-9 h-9 rounded-full overflow-hidden flex items-center justify-center bg-[#0f0f12] shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
+                    className="relative w-9 h-9 rounded-full overflow-hidden shadow-[0_0_14px_6px_rgba(0,0,0,0.55)]"
                     aria-hidden
                   >
-                    <span
-                      className="absolute -inset-2 animate-badge-smoke rounded-full blur-[5px]"
-                      style={{ background: "radial-gradient(circle at 35% 40%, rgba(210,210,220,0.6), transparent 60%)" }}
-                    />
-                    <span
-                      className="absolute -inset-2 animate-badge-smoke-2 rounded-full blur-[5px]"
-                      style={{ background: "radial-gradient(circle at 65% 65%, rgba(160,160,175,0.55), transparent 55%)" }}
-                    />
-                    <span className="relative z-10 text-white text-[10px] font-bold">?</span>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/secret-smoke.svg" alt="" className="absolute inset-0 w-full h-full object-cover" />
                   </div>
                 ) : (
                   <div className={`text-3xl cursor-default ${secretLocked ? "brightness-0" : ""}`}>{b.icon}</div>
