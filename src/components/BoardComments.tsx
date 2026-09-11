@@ -111,7 +111,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
           )}
           <span className="text-muted text-xs shrink-0">{fmtDateTime(node.created_at)}</span>
           {node.is_hidden && (
-            <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] text-muted">숨김</span>
+            <span className="shrink-0 text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
           )}
         </div>
         <p className="text-sm mt-1 mb-1 whitespace-pre-wrap">

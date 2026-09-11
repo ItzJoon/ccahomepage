@@ -78,7 +78,9 @@ export default function NotificationBanner({
   return (
     <div
       className={`flex items-center gap-2.5 px-5 py-2.5 border-b max-w-[1180px] mx-auto w-full ${
-        latest.level === "urgent" ? "bg-[#FDEBEC] border-[#F3B9BC]" : "bg-[#FFF7E6] border-[#F3D98A]"
+        latest.level === "urgent"
+          ? "bg-[#FDEBEC] dark:bg-white/10 border-[#F3B9BC] dark:border-white/15"
+          : "bg-[#FFF7E6] dark:bg-white/10 border-[#F3D98A] dark:border-white/15"
       }`}
     >
       <span

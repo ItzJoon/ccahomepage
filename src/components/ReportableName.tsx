@@ -120,7 +120,7 @@ export default function ReportableName({
           <button
             type="button"
             onClick={() => setReporting(true)}
-            className="block w-full text-left px-3 py-1.5 text-xs text-red font-bold hover:bg-[#FDEBEC]"
+            className="block w-full text-left px-3 py-1.5 text-xs text-red font-bold hover:bg-[#FDEBEC] dark:hover:bg-white/10"
           >
             신고
           </button>

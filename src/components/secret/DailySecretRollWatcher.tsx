@@ -42,7 +42,7 @@ export default function DailySecretRollWatcher({ badges }: { badges: BadgeDef[] 
   return (
     <div
       style={{ position: "fixed", top: 16, right: 16, zIndex: 45 }}
-      className="bg-white border border-border rounded-xl px-4 py-3 shadow-lg text-sm font-bold"
+      className="bg-surface border border-border rounded-xl px-4 py-3 shadow-lg text-sm font-bold"
     >
       {toast.won ? `🎉 오늘의 운빨 당첨! (${toast.label})` : "오늘의 운빨: 아쉽게 낙첨"}
     </div>
