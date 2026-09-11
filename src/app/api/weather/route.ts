@@ -8,8 +8,13 @@ import { NextResponse } from "next/server";
  * fetch에 next.revalidate를 줘서 Next.js Data Cache가 이 외부 API 응답을 캐시하므로,
  * 여러 사용자가 동시에 접속해도 이 캐시 기간 안에는 기상청 API를 한 번만 호출하고
  * 결과를 공유한다(요청마다 새로 호출하지 않음).
+ *
+ * 라우트 레벨 `export const revalidate`는 여기서 일부러 안 쓴다 — 그걸 쓰면 기상청
+ * 호출이 어쩌다 한 번(네트워크 순간 오류 등) 실패해도 그 실패 응답(ok:false) 자체가
+ * 성공 응답과 똑같이 30분 동안 캐싱되어, 그 사이 방문한 모두에게 "날씨가 안 뜸"으로
+ * 보이는 문제가 있었다(실제로 겪음). 캐싱은 성공했을 때만 아래 성공 응답의
+ * Cache-Control 헤더로 걸고, 실패하면 캐싱하지 않아 다음 요청이 바로 재시도한다.
  */
-export const revalidate = 1800;
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const WEATHER_CACHE_SECONDS = 1800;
@@ -155,6 +160,8 @@ export async function GET() {
     // 기상청 서버 오류/키 만료/격자 오류 등 무엇이 됐든 사이트 전체에 영향을 주면 안 되므로,
     // 항상 200으로 "실패했다"는 사실만 조용히 돌려준다 — 클라이언트는 ok:false면 위젯을 숨긴다.
     console.error("[weather] failed:", error);
-    return NextResponse.json({ ok: false }, { status: 200 });
+    // 실패 응답은 절대 캐싱하지 않는다 — 다음 요청이 바로 재시도해야 일시적 오류가
+    // 30분씩 "얼어붙어" 보이지 않는다.
+    return NextResponse.json({ ok: false }, { status: 200, headers: { "Cache-Control": "no-store" } });
   }
 }
