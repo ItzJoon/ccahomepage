@@ -215,7 +215,13 @@ export default function BoardPage() {
         </div>
       )}
 
-      <table className="w-full border-collapse bg-surface">
+      {/* 좁은 화면에서는 작성자/날짜/조회의 고정 너비 때문에 제목 칸이 짓눌려 한
+          글자씩 세로로 쪼개져 보이는 문제가 있었다(가로 스크롤도 아니고 페이지 전체가
+          찌그러짐) — 표 자체에 최소 너비를 주고 그 바깥을 overflow-x-auto로 감싸서,
+          좁은 화면에서는 표만 옆으로 스크롤되고 제목은 항상 읽을 수 있는 너비를
+          유지하게 한다. */}
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[560px] border-collapse bg-surface">
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
@@ -264,7 +270,7 @@ export default function BoardPage() {
               <td className="p-2.5 border-b border-border text-sm">{p.view_count}</td>
               {iAmAdmin && (
                 <td className="p-2.5 border-b border-border text-sm">
-                  <button onClick={() => removePost(p.id)} className="text-red text-xs font-bold">
+                  <button onClick={() => removePost(p.id)} className="text-red text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2">
                     삭제
                   </button>
                 </td>
@@ -276,6 +282,7 @@ export default function BoardPage() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

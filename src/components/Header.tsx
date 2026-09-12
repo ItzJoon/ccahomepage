@@ -161,7 +161,7 @@ export default function Header({
             <button
               type="button"
               onClick={() => setSearchOpen(true)}
-              className={`w-9 h-9 flex items-center justify-center rounded-md text-base leading-none ${t.iconBtnHover}`}
+              className={`w-11 h-11 flex items-center justify-center rounded-md text-base leading-none ${t.iconBtnHover}`}
               aria-label="통합 검색 열기"
             >
               🔍
@@ -223,7 +223,7 @@ export default function Header({
         <div className="md:hidden flex items-center gap-1 shrink-0">
           <button
             type="button"
-            className={`w-9 h-9 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
+            className={`w-11 h-11 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
             onClick={() => setMobileOpen((v) => !v)}
             aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
             aria-expanded={mobileOpen}

@@ -102,7 +102,7 @@ export default function RankingsPage() {
               <tr key={r.user_id} className={isMe ? "bg-[#EAF0FB] dark:bg-white/10" : "hover:bg-[#F2F4F8] dark:hover:bg-white/10"}>
                 <td className="p-2.5 border-b border-border font-bold">{r.rank}</td>
                 <td className="p-2.5 border-b border-border">
-                  <Link href={`/members/${r.user_id}`} className="font-semibold hover:text-blue">
+                  <Link href={`/members/${r.user_id}`} className="block -m-2.5 p-2.5 font-semibold hover:text-blue">
                     {r.display_name}
                     {isMe && <span className="text-blue text-xs font-bold ml-1.5">(나)</span>}
                   </Link>

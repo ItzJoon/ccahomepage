@@ -92,7 +92,7 @@ export const homeThemeStyles = {
      * classic을 고르면 시각적으로 전혀 달라지지 않는다. */
     adminBtnPrimary: "bg-gold text-white font-bold text-sm rounded-lg px-4 py-2",
     adminBtnSecondary: "border border-border text-sm rounded-lg px-4 py-2 bg-surface",
-    adminBtnDanger: "text-red text-xs font-bold",
+    adminBtnDanger: "text-red text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2",
     adminToggleActive: "bg-navy text-white border-navy",
     adminToggleIdle: "border-border",
     adminInput: "border border-border rounded-lg px-2.5 py-2 text-sm",
@@ -187,7 +187,7 @@ export const homeThemeStyles = {
 
     adminBtnPrimary: "bg-ccahGreen text-white font-bold text-sm px-4 py-2",
     adminBtnSecondary: "border-2 border-ink text-ink font-bold text-sm px-4 py-2 bg-surface",
-    adminBtnDanger: "text-red text-xs font-bold",
+    adminBtnDanger: "text-red text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2",
     adminToggleActive: "bg-ink dark:bg-[#111111] text-white border-ink",
     adminToggleIdle: "border-ink",
     adminInput: "border-2 border-ink rounded-none px-2.5 py-2 text-sm",
@@ -284,7 +284,7 @@ export const homeThemeStyles = {
 
     adminBtnPrimary: "bg-appleBlue text-white font-bold text-sm rounded-lg px-4 py-2 hover:opacity-90",
     adminBtnSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-lg px-4 py-2 bg-surface hover:bg-appleBg",
-    adminBtnDanger: "text-red text-xs font-bold hover:opacity-70",
+    adminBtnDanger: "text-red text-xs font-bold hover:opacity-70 px-1.5 py-2 -mx-1.5 -my-2",
     adminToggleActive: "bg-appleBlue text-white border-appleBlue",
     adminToggleIdle: "border-appleBorder text-appleInk",
     adminInput: "border border-appleBorder rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-appleBlue/20",

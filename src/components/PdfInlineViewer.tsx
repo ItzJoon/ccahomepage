@@ -134,7 +134,7 @@ export default function PdfInlineViewer({ url, fileName }: { url: string; fileNa
 
       {lightboxIndex !== null && (
         <div
-          className={`fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 transition-opacity duration-[250ms] ${
+          className={`fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 transition-opacity duration-[250ms] ${
             visible ? "opacity-100" : "opacity-0"
           }`}
           onClick={closeLightbox}

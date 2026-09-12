@@ -934,7 +934,7 @@ export default function PostManager({
                   <div className={actionCellClass}>
                     {!readOnlyForMe && (
                       <button
-                        className="text-blue text-xs font-bold shrink-0"
+                        className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"
                         onClick={(e) => {
                           e.stopPropagation();
                           toggleHidden(n.id, n.is_hidden);

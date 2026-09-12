@@ -94,7 +94,7 @@ export default function ReportableName({
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={name}
-        className={`inline-flex items-center gap-0.5 max-w-full ${className ?? ""}`}
+        className={`inline-flex items-center gap-0.5 max-w-full py-2 -my-2 ${className ?? ""}`}
       >
         <span className={`truncate ${maxWidthClass}`}>{name}</span>
         <span className="shrink-0">▾</span>
