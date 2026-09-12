@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { ThemeProvider } from "next-themes";
 import { notoSansKR, notoSerifKR, jua, caveat } from "@/lib/fonts";
 import "./globals.css";
@@ -30,6 +30,18 @@ export const metadata: Metadata = {
   verification: {
     google: "95ZwXJ_vN51YAY4FWQv4OR3AC0yR6MbKc2eA4K3hAfc",
   },
+  // iOS 사파리는 manifest.ts(웹 매니페스트)의 display:"standalone"을 그대로 안 따라줘서,
+  // "홈 화면에 추가"로 실행해도 주소창이 그대로 보이는 문제가 있다 — 이 애플 전용 메타
+  // 태그를 따로 넣어야 아이폰에서도 실제 앱처럼 주소창 없이 전체화면으로 뜬다.
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "학생자치회",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16233f",
 };
 
 // 구글이 이 사이트를 "중앙기독고등학교 학생자치회"라는 조직/웹사이트로 명확히 인식하도록

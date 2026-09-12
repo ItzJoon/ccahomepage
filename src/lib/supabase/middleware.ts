@@ -78,9 +78,12 @@ export async function updateSession(request: NextRequest) {
     pathname === "/suspended" ||
     pathname.startsWith("/auth/callback") ||
     // 검색엔진이 사이트 잠금 중에도 robots.txt/sitemap.xml은 정상적으로 받아갈 수 있어야
-    // 한다(HTML 리다이렉트 응답으로 오해하지 않도록).
+    // 한다(HTML 리다이렉트 응답으로 오해하지 않도록). manifest.webmanifest도 같은 이유로
+    // 예외 처리한다 — "홈 화면에 추가" 설치 가능 여부를 브라우저가 판단할 때 로그인 여부와
+    // 무관하게 이 파일을 받아갈 수 있어야 한다(리다이렉트 응답이 오면 설치 불가로 처리됨).
     pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml";
+    pathname === "/sitemap.xml" ||
+    pathname === "/manifest.webmanifest";
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 
