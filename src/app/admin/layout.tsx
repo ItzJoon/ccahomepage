@@ -37,7 +37,10 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     <AdminThemeProvider initialThemeKey={initialThemeKey}>
       <div className="min-h-screen bg-bg">
         <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
-        <div className="max-w-[1280px] mx-auto flex">
+        {/* md 미만에서는 AdminNav 안의 모바일 메뉴 토글 바가 이 컨테이너의 직계 자식으로
+            들어가므로, flex를 md부터만 걸어야 그 토글 바가 사이드바/본문과 나란히
+            눌리지 않고 전체 너비로 따로 놓인다(모바일에서는 그냥 위→아래로 쌓인다). */}
+        <div className="max-w-[1280px] mx-auto md:flex">
           <AdminNav
             role={profile.role}
             isCouncil={profile.is_council}

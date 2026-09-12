@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
@@ -71,16 +72,19 @@ function NavLink({
   active,
   t,
   badgeCount,
+  onNavigate,
 }: {
   href: string;
   label: string;
   active: boolean;
   t: Theme;
   badgeCount?: number;
+  onNavigate?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onNavigate}
       className={`flex items-center gap-2 text-left px-3 py-2.5 rounded-lg text-sm ${active ? t.adminNavActive : t.adminNavIdle}`}
     >
       <span className="flex-1">{label}</span>
@@ -107,6 +111,15 @@ export default function AdminNav({
 }) {
   const pathname = usePathname();
   const { t } = useHomeTheme(initialThemeKey);
+  // 좁은 화면(md 미만)에서는 사이드바가 본문과 나란히 눌려서 둘 다 못 쓸 만큼
+  // 좁아지던 문제가 있었다 — md 미만에서는 기본적으로 숨겨두고, 햄버거 버튼을 눌렀을
+  // 때만 화면 왼쪽에서 전체 높이 드로어로 띄운다(학생 화면 헤더의 모바일 메뉴와
+  // 같은 발상). 링크를 누르거나 배경을 누르면 자동으로 닫히고, md 이상에서는 원래처럼
+  // 항상 보이는 고정 사이드바로 렌더링된다(아래 클래스의 md: 접두사들 참고).
+  const [mobileOpen, setMobileOpen] = useState(false);
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [pathname]);
   // 신고/게시판/Q&A 안 읽음 개수 — 실시간 구독이라 새 항목이 들어오거나 확인 처리되면
   // 즉시 갱신된다. 권한이 없는 역할이 /admin에 들어와도 RLS가 빈 배열을 돌려줄
   // 뿐이라(에러 아님) 훅 자체는 항상 호출하고, 뱃지 노출만 아래에서 역할로 가른다.
@@ -134,19 +147,42 @@ export default function AdminNav({
   // 보여준다(실제 조작은 다른 곳에서 DesignerModeGate가 막는다).
   const isDesigner = role === "designer";
   const hasAdminRole = !!role && ["editor", "admin", "superadmin", "designer"].includes(role);
+  const close = () => setMobileOpen(false);
+
   return (
-    <aside className={`w-[190px] bg-surface border-r ${t.adminAsideBorder} p-2.5 flex flex-col gap-0.5 shrink-0`}>
+    <>
+      {/* md 이상에서는 사이드바가 항상 보이므로 이 토글 바 자체가 필요 없다. */}
+      <div className={`md:hidden flex items-center gap-2 bg-surface border-b ${t.adminAsideBorder} px-3 py-2`}>
+        <button
+          type="button"
+          onClick={() => setMobileOpen((v) => !v)}
+          className={`w-11 h-11 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
+          aria-label={mobileOpen ? "관리자 메뉴 닫기" : "관리자 메뉴 열기"}
+          aria-expanded={mobileOpen}
+        >
+          {mobileOpen ? "✕" : "☰"}
+        </button>
+        <span className="text-sm font-bold text-muted">관리자 메뉴</span>
+      </div>
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-30 bg-black/40" onClick={close} aria-hidden />
+      )}
+      <aside
+        className={`${mobileOpen ? "flex" : "hidden"} md:flex flex-col gap-0.5 fixed md:static top-0 left-0 z-40 md:z-auto
+        w-[240px] md:w-[190px] h-screen md:h-auto overflow-y-auto
+        bg-surface border-r ${t.adminAsideBorder} p-2.5 shrink-0`}
+      >
       {hasAdminRole && (
         <>
           {NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} onNavigate={close} />
           ))}
         </>
       )}
       {(role === "admin" || role === "superadmin" || isDesigner) && (
         <>
           {ADMIN_ONLY_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} badgeCount={BADGE_COUNTS[n.href]} onNavigate={close} />
           ))}
         </>
       )}
@@ -155,7 +191,7 @@ export default function AdminNav({
         <>
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">임원회 전용</div>
           {ORG_ACTIVITIES_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} onNavigate={close} />
           ))}
         </>
       )}
@@ -163,7 +199,7 @@ export default function AdminNav({
         <>
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">사법위원회 전용</div>
           {JUDICIARY_ACTIVITIES_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} onNavigate={close} />
           ))}
         </>
       )}
@@ -172,11 +208,12 @@ export default function AdminNav({
           <div className={`border-t ${t.adminAsideBorder} my-2`} />
           <div className="px-3 py-1 text-[11px] font-bold text-muted uppercase tracking-wider">관리자 전용</div>
           {SUPERADMIN_NAV.map((n) => (
-            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} />
+            <NavLink key={n.href} href={n.href} label={n.label} active={pathname === n.href} t={t} onNavigate={close} />
           ))}
-          <NavLink href="/admin/theme" label="테마" active={pathname === "/admin/theme"} t={t} />
+          <NavLink href="/admin/theme" label="테마" active={pathname === "/admin/theme"} t={t} onNavigate={close} />
         </>
       )}
-    </aside>
+      </aside>
+    </>
   );
 }
