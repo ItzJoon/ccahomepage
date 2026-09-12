@@ -174,20 +174,15 @@ export default function MemberProfilePage() {
               <div key={b.id} className="relative group flex flex-col items-center gap-1 text-center">
                 {superSecretLocked ? (
                   <div className="relative w-9 h-9" aria-hidden>
-                    {/* 원형 테두리가 보이면 안 되므로 rounded-full/overflow-hidden은 안 쓰되,
-                        연기 이미지 자체가 흐릿해서 그 알파를 따라가는 drop-shadow만으로는
-                        그림자가 거의 안 보였다 — 그래서 별도의 진한 글로우 레이어를 깔아
-                        물음표(13x18px)보다 확실히 크게(52px, 148%) 보이게 한다. 강하게
-                        블러 처리해서 동그란 테두리로는 안 보이게 한다. */}
-                    <span
-                      className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[52px] h-[52px] rounded-full blur-md"
-                      style={{ background: "radial-gradient(circle, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 45%, transparent 75%)" }}
-                    />
+                    {/* 딱딱한 radial-gradient 글로우 대신, 연기 이미지 자체(뭉게구름
+                        실루엣)를 물음표(13x18px)보다 확실히 크게 키워서 그 "몽글몽글한"
+                        모양 자체가 그림자처럼 보이게 한다. 원형 테두리가 드러나면
+                        안 되므로 overflow-hidden은 그대로 안 쓴다. */}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src="/secret-smoke.svg"
                       alt=""
-                      className="relative w-full h-full object-contain"
+                      className="absolute -inset-2 w-[52px] h-[52px] max-w-none object-contain"
                     />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
