@@ -5240,3 +5240,31 @@ create policy "post_gallery_images_delete" on post_gallery_images for delete
       select 1 from questions q where q.id = question_id and q.user_id = auth.uid()
     ))
   );
+
+-- ------------------------------------------------------------
+-- 123. 웹 푸시 알림(아이폰 PWA 포함) — 구독 정보 저장
+-- ------------------------------------------------------------
+-- 실제 발송은 서버(Next.js API route)가 SUPABASE_SERVICE_ROLE_KEY로 이 테이블 전체를
+-- 읽어 web-push 라이브러리로 보낸다(RLS 우회, 이메일 발송과 동일한 방식) — 클라이언트는
+-- 본인 구독만 넣고/뺄 수 있으면 된다. endpoint는 브라우저/기기별로 유일하므로 unique로
+-- 두고, 같은 기기가 재구독하면 upsert로 덮어써서 중복 행이 쌓이지 않게 한다.
+create table if not exists push_subscriptions (
+  id uuid primary key default uuid_generate_v4(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  endpoint text not null unique,
+  p256dh text not null,
+  auth text not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists push_subscriptions_user_idx on push_subscriptions(user_id);
+
+alter table push_subscriptions enable row level security;
+
+drop policy if exists "push_subscriptions_select_own" on push_subscriptions;
+create policy "push_subscriptions_select_own" on push_subscriptions for select using (auth.uid() = user_id);
+
+drop policy if exists "push_subscriptions_insert_own" on push_subscriptions;
+create policy "push_subscriptions_insert_own" on push_subscriptions for insert with check (auth.uid() = user_id);
+
+drop policy if exists "push_subscriptions_delete_own" on push_subscriptions;
+create policy "push_subscriptions_delete_own" on push_subscriptions for delete using (auth.uid() = user_id);

@@ -7,6 +7,7 @@ import { useAttendance } from "@/hooks/useAttendance";
 import { useBadges } from "@/hooks/useBadges";
 import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
+import PushNotificationToggle from "@/components/PushNotificationToggle";
 import type { BadgeDef, Profile, UserWarning } from "@/lib/types";
 
 function fmt(d: string) {
@@ -315,6 +316,7 @@ export default function MyPage() {
               />
               알림/패치노트 사운드 재생
             </label>
+            <PushNotificationToggle />
             <div className="flex items-center gap-2 mt-3">
               <button onClick={saveProfile} disabled={saving || !isProfileDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {saving ? "저장 중…" : "저장"}

@@ -60,6 +60,14 @@ export default function AdminNotifyPage() {
       sound_url: soundUrl,
       sent_by: user?.id,
     });
+    // 배너/팝업과 별개로 구독한 기기에는 실제 브라우저 푸시도 같이 보낸다(실패해도
+    // 배너/팝업 자체는 이미 등록됐으니 여기서 막지 않는다 — 이메일 발송 실패 처리와
+    // 동일한 방침).
+    fetch("/api/push/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, message, url: imageUrl && linkUrl.trim() ? linkUrl.trim() : "/" }),
+    }).catch(() => {});
     setTitle("");
     setMessage("");
     setImageUrl(null);

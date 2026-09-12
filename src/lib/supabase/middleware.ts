@@ -83,7 +83,10 @@ export async function updateSession(request: NextRequest) {
     // 무관하게 이 파일을 받아갈 수 있어야 한다(리다이렉트 응답이 오면 설치 불가로 처리됨).
     pathname === "/robots.txt" ||
     pathname === "/sitemap.xml" ||
-    pathname === "/manifest.webmanifest";
+    pathname === "/manifest.webmanifest" ||
+    // 서비스워커 스크립트도 마찬가지 — 리다이렉트 응답을 받으면 브라우저가 서비스워커
+    // 등록 자체를 실패로 처리해서 로그인 안 한 상태에서 푸시 구독 준비가 안 된다.
+    pathname === "/sw.js";
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 

@@ -848,3 +848,67 @@ GMAIL_APP_PASSWORD=          # 아래 "Gmail 앱 비밀번호 발급" 참고
   실제 도메인으로 채워집니다(로컬처럼 없는 환경에서는 빈 문자열로 안전하게 처리).
 - 검색 결과 반영은 구글이 이 페이지를 다시 크롤링해야 나타나므로 즉시 바뀌지 않을 수
   있습니다(Search Console에서 재크롤링을 요청하면 더 빨리 반영됩니다).
+
+## 19. PWA(홈 화면에 추가) + 웹 푸시 알림
+
+앱스토어 없이 무료로 "앱처럼" 쓸 수 있게 하는 두 가지 기능입니다.
+
+### PWA (홈 화면에 추가)
+- `src/app/manifest.ts`가 Next.js 파일 컨벤션으로 `/manifest.webmanifest`를 자동
+  생성합니다(아이콘은 기존 `src/app/icon.png` 재사용). 스마트폰 브라우저에서 사이트
+  접속 후 "홈 화면에 추가"를 누르면 주소창 없이 아이콘만으로 실행됩니다.
+- iOS 사파리는 웹 매니페스트의 `display: "standalone"`을 그대로 안 따라줘서,
+  `layout.tsx`의 `metadata.appleWebApp`으로 `apple-mobile-web-app-*` 메타 태그를
+  따로 넣었습니다 — 이게 없으면 아이폰에서 "홈 화면에 추가"로 실행해도 사파리 주소창이
+  그대로 보입니다.
+- `middleware.ts`가 로그인 안 한 방문자를 전부 `/login`으로 보내는 로직 때문에
+  `manifest.webmanifest`/`sw.js`도 같이 막혀서 설치 자체가 안 되는 문제가 있었습니다
+  — `robots.txt`/`sitemap.xml`과 같은 예외 목록에 추가해서 로그인 여부와 무관하게
+  받아갈 수 있게 했습니다.
+
+### 웹 푸시 알림
+- `/admin/notify`에서 알림(배너/팝업)을 발송하면, 배너/팝업 등록과 별개로 구독한
+  기기에 실제 브라우저 푸시 알림도 함께 나갑니다(`/api/push/send` → `src/lib/webPush.ts`
+  → [web-push](https://www.npmjs.com/package/web-push) 라이브러리, VAPID 키 방식).
+  이메일 발송과 마찬가지로 **푸시 발송이 실패해도 알림 자체는 이미 등록된 뒤라 되돌리지
+  않습니다.**
+- **구독**: `/mypage`의 "이 기기에서 브라우저 알림 받기" 체크박스(`PushNotificationToggle.tsx`)
+  — 다른 알림 설정과 달리 `profiles` 컬럼이 아니라 "이 기기가 실제로 구독 중인가"를
+  `pushManager`에 직접 물어봐서 표시합니다(같은 계정이라도 폰/노트북마다 구독 여부가
+  다를 수 있어서). 구독 정보(`endpoint`/`p256dh`/`auth`)는 `push_subscriptions`
+  테이블에 저장되고, 본인 것만 RLS로 넣고 뺄 수 있습니다. 실제 발송(`/api/push/send`)은
+  서비스 롤 키로 전체 구독자를 읽어야 해서 이메일 발송과 동일한 방식을 씁니다.
+- **아이폰 제약**: iOS는 사파리 탭에서 그냥 열람 중일 땐 Notification API 자체가 없고,
+  **PWA로 홈 화면에 추가해서 그 아이콘으로 실행한 상태 + iOS 16.4 이상**에서만 알림
+  권한을 요청할 수 있습니다. 조건을 만족하지 않으면 체크박스 대신 안내 문구만 보입니다.
+- 서비스워커는 `public/sw.js`(오프라인 캐싱 등은 하지 않고 push/notificationclick
+  이벤트만 처리하는 최소 구성)입니다. 구독이 만료/취소된 기기는 발송 시 410/404를
+  돌려주는데, 그 자리에서 바로 `push_subscriptions`에서 지워서 다음 발송마다 같은
+  실패가 반복되지 않게 합니다.
+
+### 환경 변수 설정 (필수)
+`.env.local`(로컬)과 Vercel 프로젝트 설정(배포)에 아래 세 값을 반드시 추가해야 푸시
+발송이 동작합니다. 값이 없으면 발송 API가 조용히 건너뛸 뿐(`skipped: true`) 사이트의
+다른 기능에는 영향을 주지 않습니다.
+
+```
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=   # 아래 명령으로 한 번만 생성
+VAPID_PRIVATE_KEY=              # 위와 한 쌍 — 절대 공개 저장소에 커밋하지 않기
+VAPID_SUBJECT=mailto:ccastudenthomepage@gmail.com
+```
+
+**키 생성**(한 번만 하면 되고, 이미 `.env.local`에는 생성된 값이 들어있습니다 —
+새로 발급하면 기존 구독자가 전부 무효화되니 이미 있는 값을 재사용하세요):
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+### 한계 / 알아둘 점
+- iOS는 위 조건(PWA 설치 + 16.4 이상)을 만족해야만 동작 — 조건 미달 시 우아하게
+  숨겨질 뿐 에러는 아닙니다.
+- 헤드리스 자동화 브라우저(Playwright 등)에서는 OS 차원의 알림 권한이 없어
+  `pushManager.subscribe()` 자체가 실패합니다 — 실제 사용자의 진짜 브라우저/기기에서는
+  해당하지 않는 테스트 환경 한정 제약입니다.
+- 지금은 `/admin/notify`(배너/팝업) 발송에만 연결돼 있고, 공지사항(`posts`) 게시나
+  이메일 발송에는 연결돼 있지 않습니다 — 필요하면 같은 패턴으로 확장할 수 있습니다.
