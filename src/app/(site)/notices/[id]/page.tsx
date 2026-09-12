@@ -4,6 +4,7 @@ import ViewCounter from "@/components/ViewCounter";
 import DetailBackLink from "@/components/DetailBackLink";
 import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
 import ImageLightbox from "@/components/ImageLightbox";
+import AttachmentList from "@/components/AttachmentList";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -49,16 +50,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
       {post.image_url && (
         <ImageLightbox src={post.image_url} alt="첨부 이미지" className="max-w-full rounded-lg border border-border mt-4 object-contain" />
       )}
-      {attachments && attachments.length > 0 && (
-        <div className="mt-5 p-3.5 bg-bg rounded-xl">
-          <div className="font-bold text-xs mb-1.5">첨부파일</div>
-          {attachments.map((a) => (
-            <a key={a.id} href={a.file_url} className="block text-sm py-1 text-blue">
-              📎 {a.file_name}
-            </a>
-          ))}
-        </div>
-      )}
+      <AttachmentList attachments={attachments ?? []} />
     </div>
   );
 }

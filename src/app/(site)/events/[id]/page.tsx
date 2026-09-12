@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
+import AttachmentList from "@/components/AttachmentList";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -29,16 +30,7 @@ export default async function EventDetailPage({ params }: { params: { id: string
       <div className="leading-8 whitespace-pre-wrap text-[15px]">
         {event.description ? <Linkify text={event.description} /> : "상세 설명이 없습니다."}
       </div>
-      {attachments && attachments.length > 0 && (
-        <div className="mt-5 p-3.5 bg-bg rounded-xl">
-          <div className="font-bold text-xs mb-1.5">첨부파일</div>
-          {attachments.map((a) => (
-            <a key={a.id} href={a.file_url} className="block text-sm py-1 text-blue">
-              📎 {a.file_name}
-            </a>
-          ))}
-        </div>
-      )}
+      <AttachmentList attachments={attachments ?? []} />
     </div>
   );
 }

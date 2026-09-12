@@ -6,6 +6,7 @@ import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
+import AttachmentList from "@/components/AttachmentList";
 import type { RuleDoc } from "@/lib/types";
 
 function anchorId(ruleId: string) {
@@ -94,16 +95,7 @@ export default function RulesPage() {
                 <pre className="whitespace-pre-wrap font-sans leading-8 text-sm">
                   <Linkify text={r.content} />
                 </pre>
-                {r.attachments && r.attachments.length > 0 && (
-                  <div className="mt-3 p-3 bg-bg rounded-xl">
-                    <div className="font-bold text-xs mb-1.5">첨부파일</div>
-                    {r.attachments.map((a) => (
-                      <a key={a.id} href={a.file_url} className="block text-sm py-1 text-blue">
-                        📎 {a.file_name}
-                      </a>
-                    ))}
-                  </div>
-                )}
+                <AttachmentList attachments={r.attachments ?? []} />
               </div>
             );
           })}
