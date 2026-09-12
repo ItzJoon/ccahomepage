@@ -234,7 +234,12 @@ export default function Header({
       </div>
 
       {mobileOpen && (
-        <div className={`md:hidden ${t.mobileBorder} px-5 py-3`}>
+        // 이 패널은 별도 오버레이가 아니라 헤더(sticky) 안에서 내용만큼 늘어나는
+        // 자식이라, 메뉴 항목이 화면 높이보다 짧게 끝나면 그 아래로 실제 페이지
+        // 본문(홈 화면 히어로 등)이 그대로 비쳐서 마치 메뉴가 중간에 잘린 것처럼
+        // 보였다 — min-h로 항상 화면을 꽉 채우게 해서 어떤 기기에서도 이어지는
+        // 배경 없이 끊겨 보이지 않게 한다(배경은 부모 header의 headerBg를 그대로 물려받음).
+        <div className={`md:hidden min-h-[100dvh] ${t.mobileBorder} px-5 py-3`}>
           <div className="flex gap-2 mb-2.5">
             <input
               className="flex-1 border border-border rounded-md px-2.5 py-1.5 text-sm"
