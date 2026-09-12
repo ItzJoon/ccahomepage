@@ -3,6 +3,7 @@ import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
 import AttachmentList from "@/components/AttachmentList";
+import ImageGallery from "@/components/ImageGallery";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -21,7 +22,11 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
   const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", params.id).eq("type", "news").single();
   if (!post) return <div className="text-muted text-center py-10">기사를 찾을 수 없습니다.</div>;
 
-  const { data: attachments } = await supabase.from("attachments").select("*").eq("post_id", params.id);
+  const [{ data: attachments }, { data: gallery }] = await Promise.all([
+    supabase.from("attachments").select("*").eq("post_id", params.id),
+    supabase.from("post_gallery_images").select("image_url").eq("post_id", params.id).order("order_index"),
+  ]);
+  const galleryUrls = gallery && gallery.length > 0 ? gallery.map((g) => g.image_url) : post.image_url ? [post.image_url] : [];
 
   return (
     <div className="bg-surface border border-border rounded-2xl p-7">
@@ -45,6 +50,10 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
       {post.video_source === "upload" && post.video_url && (
         <video controls className="mt-5 w-full rounded-xl border border-border" src={post.video_url} />
       )}
+      <ImageGallery
+        urls={galleryUrls}
+        className={galleryUrls.length === 1 ? "max-w-full rounded-lg border border-border mt-4 object-contain" : "mt-4"}
+      />
       <AttachmentList attachments={attachments ?? []} />
     </div>
   );

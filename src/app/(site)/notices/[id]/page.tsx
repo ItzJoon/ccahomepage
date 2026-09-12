@@ -3,7 +3,7 @@ import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
 import DetailBackLink from "@/components/DetailBackLink";
 import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
-import ImageLightbox from "@/components/ImageLightbox";
+import ImageGallery from "@/components/ImageGallery";
 import AttachmentList from "@/components/AttachmentList";
 
 function fmt(d: string) {
@@ -18,10 +18,11 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다.</div>;
   }
 
-  const { data: attachments } = await supabase
-    .from("attachments")
-    .select("*")
-    .eq("post_id", params.id);
+  const [{ data: attachments }, { data: gallery }] = await Promise.all([
+    supabase.from("attachments").select("*").eq("post_id", params.id),
+    supabase.from("post_gallery_images").select("image_url").eq("post_id", params.id).order("order_index"),
+  ]);
+  const galleryUrls = gallery && gallery.length > 0 ? gallery.map((g) => g.image_url) : post.image_url ? [post.image_url] : [];
 
   return (
     <div className="bg-surface border border-border rounded-2xl p-7">
@@ -47,9 +48,10 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         className="leading-8 text-[15px] [&_a]:text-blue [&_a]:underline [&_a]:break-all"
         dangerouslySetInnerHTML={{ __html: noticeContentToSafeHtml(post.content) }}
       />
-      {post.image_url && (
-        <ImageLightbox src={post.image_url} alt="첨부 이미지" className="max-w-full rounded-lg border border-border mt-4 object-contain" />
-      )}
+      <ImageGallery
+        urls={galleryUrls}
+        className={galleryUrls.length === 1 ? "max-w-full rounded-lg border border-border mt-4 object-contain" : "mt-4"}
+      />
       <AttachmentList attachments={attachments ?? []} />
     </div>
   );

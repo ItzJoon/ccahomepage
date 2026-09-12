@@ -7,7 +7,7 @@ import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import ReportableName from "@/components/ReportableName";
-import ImageUpload from "@/components/ImageUpload";
+import MultiImageUpload from "@/components/MultiImageUpload";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { BoardPost } from "@/lib/types";
 
@@ -51,6 +51,7 @@ export default function BoardPage() {
     content: "",
     image_url: null,
   });
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
 
@@ -105,6 +106,7 @@ export default function BoardPage() {
   const discardDraft = () => {
     clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "", image_url: null });
+    setGalleryUrls([]);
     setHasDraft(false);
   };
 
@@ -115,18 +117,30 @@ export default function BoardPage() {
       return;
     }
     if (!form.title.trim() || !form.content.trim()) return;
-    const { error } = await supabase.from("board_posts").insert({
-      author_id: userId,
-      title: form.title,
-      content: form.content,
-      image_url: form.image_url,
-    });
+    // 대표 이미지(board_posts.image_url)는 갤러리 첫 장으로 채워서(하위호환) 목록의
+    // 📷 표시 등 기존에 이 컬럼 하나만 보는 코드가 그대로 동작하게 한다.
+    const { data, error } = await supabase
+      .from("board_posts")
+      .insert({
+        author_id: userId,
+        title: form.title,
+        content: form.content,
+        image_url: galleryUrls[0] ?? null,
+      })
+      .select("id")
+      .single();
     if (error) {
       setError(error.message);
       return;
     }
+    if (galleryUrls.length > 0) {
+      await supabase
+        .from("post_gallery_images")
+        .insert(galleryUrls.map((url, i) => ({ board_post_id: data.id, image_url: url, order_index: i })));
+    }
     clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "", image_url: null });
+    setGalleryUrls([]);
     setHasDraft(false);
     setWriting(false);
     reload();
@@ -193,13 +207,7 @@ export default function BoardPage() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
-          {userId && (
-            <ImageUpload
-              userId={userId}
-              value={form.image_url}
-              onChange={(image_url) => setForm({ ...form, image_url })}
-            />
-          )}
+          {userId && <MultiImageUpload userId={userId} value={galleryUrls} onChange={setGalleryUrls} max={10} />}
           {error && <div className="text-red text-xs">{error}</div>}
           <button onClick={submit} className="bg-gold text-white font-bold text-sm rounded-lg px-4 py-2.5 mt-3 self-start">
             등록

@@ -8,8 +8,9 @@ import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
-import ImageUpload from "@/components/ImageUpload";
+import MultiImageUpload from "@/components/MultiImageUpload";
 import ImageLightbox from "@/components/ImageLightbox";
+import ImageGallery from "@/components/ImageGallery";
 import ReportableName from "@/components/ReportableName";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 
@@ -42,8 +43,12 @@ export default function QnaPage() {
     image_url: null,
     isPrivate: false,
   });
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
+  // 질문을 펼쳤을 때만 그 질문의 갤러리(post_gallery_images)를 불러온다(목록 전체를
+  // 한꺼번에 조인하지 않아도 되게).
+  const [galleryCache, setGalleryCache] = useState<Record<string, string[]>>({});
 
   const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
     select: "*, answers(*)",
@@ -81,8 +86,21 @@ export default function QnaPage() {
   const discardDraft = () => {
     clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "", image_url: null, isPrivate: false });
+    setGalleryUrls([]);
     setHasDraft(false);
   };
+
+  useEffect(() => {
+    if (!openId || galleryCache[openId]) return;
+    supabase
+      .from("post_gallery_images")
+      .select("image_url")
+      .eq("question_id", openId)
+      .order("order_index")
+      .then(({ data }) => {
+        setGalleryCache((prev) => ({ ...prev, [openId]: (data ?? []).map((r) => r.image_url) }));
+      });
+  }, [openId, galleryCache, supabase]);
 
   const submit = async () => {
     setError(null);
@@ -98,20 +116,30 @@ export default function QnaPage() {
     const { data: profile } = await supabase.from("profiles").select("nickname, name").eq("id", userId).single();
     const authorDisplayName = profile?.nickname || profile?.name || null;
 
-    const { error } = await supabase.from("questions").insert({
-      user_id: userId,
-      title: form.title,
-      content: form.content,
-      image_url: form.image_url,
-      is_private: form.isPrivate,
-      author_display_name: authorDisplayName,
-    });
+    const { data, error } = await supabase
+      .from("questions")
+      .insert({
+        user_id: userId,
+        title: form.title,
+        content: form.content,
+        image_url: galleryUrls[0] ?? null,
+        is_private: form.isPrivate,
+        author_display_name: authorDisplayName,
+      })
+      .select("id")
+      .single();
     if (error) {
       setError(error.message);
       return;
     }
+    if (galleryUrls.length > 0) {
+      await supabase
+        .from("post_gallery_images")
+        .insert(galleryUrls.map((url, i) => ({ question_id: data.id, image_url: url, order_index: i })));
+    }
     clearDraft(DRAFT_KEY);
     setForm({ title: "", content: "", image_url: null, isPrivate: false });
+    setGalleryUrls([]);
     setHasDraft(false);
     setTab("list");
     reload();
@@ -173,13 +201,7 @@ export default function QnaPage() {
             value={form.content}
             onChange={(e) => setForm({ ...form, content: e.target.value })}
           />
-          {userId && (
-            <ImageUpload
-              userId={userId}
-              value={form.image_url}
-              onChange={(image_url) => setForm({ ...form, image_url })}
-            />
-          )}
+          {userId && <MultiImageUpload userId={userId} value={galleryUrls} onChange={setGalleryUrls} max={10} />}
           <label className="flex items-center gap-2 text-sm mt-2">
             <input
               type="checkbox"
@@ -232,13 +254,14 @@ export default function QnaPage() {
                 <div className="pt-2.5 text-sm">
                   {/* RLS가 이미 열람 가능한 질문만 내려주므로, 내려온 행은 그대로 표시합니다 */}
                   <p><Linkify text={q.content} /></p>
-                  {q.image_url && (
-                    <ImageLightbox
-                      src={q.image_url}
-                      alt="첨부 이미지"
-                      className="max-w-full max-h-64 rounded-lg border border-border mb-2.5 object-contain"
-                    />
-                  )}
+                  <ImageGallery
+                    urls={galleryCache[q.id] && galleryCache[q.id].length > 0 ? galleryCache[q.id] : q.image_url ? [q.image_url] : []}
+                    className={
+                      (galleryCache[q.id]?.length ?? (q.image_url ? 1 : 0)) === 1
+                        ? "max-w-full max-h-64 rounded-lg border border-border mb-2.5 object-contain"
+                        : "mb-2.5"
+                    }
+                  />
                   {q.answers && q.answers.length > 0 ? (
                     <div className="mt-2.5 bg-bg rounded-lg p-2.5">
                       <strong>학생자치회 답변</strong>

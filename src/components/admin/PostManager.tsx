@@ -12,7 +12,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "./FileUpload";
-import ImageUpload from "@/components/ImageUpload";
+import MultiImageUpload from "@/components/MultiImageUpload";
 import { removeStorageFile } from "@/lib/storageCleanup";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
@@ -68,7 +68,15 @@ export default function PostManager({
   const [initialForm, setInitialForm] = useState({ ...emptyForm });
   const [newFiles, setNewFiles] = useState<AttachmentRef[]>([]);
   const [existingFiles, setExistingFiles] = useState<PostWithAttachments["attachments"]>([]);
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm) || newFiles.length > 0;
+  // 사진 여러 장 갤러리(post_gallery_images) — 새 글/수정 진입 시 로드한 값을
+  // initialGalleryUrls에 같이 저장해서 isDirty가 갤러리 변경도 감지하게 한다(안 그러면
+  // 사진만 추가/삭제했을 때 저장 버튼이 비활성 상태로 남는다).
+  const [galleryUrls, setGalleryUrls] = useState<string[]>([]);
+  const [initialGalleryUrls, setInitialGalleryUrls] = useState<string[]>([]);
+  const isDirty =
+    JSON.stringify(form) !== JSON.stringify(initialForm) ||
+    newFiles.length > 0 ||
+    JSON.stringify(galleryUrls) !== JSON.stringify(initialGalleryUrls);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [resultMessage, setResultMessage] = useState<string | null>(null);
@@ -181,6 +189,8 @@ export default function PostManager({
     setInitialForm(next);
     setNewFiles([]);
     setExistingFiles([]);
+    setGalleryUrls([]);
+    setInitialGalleryUrls([]);
     setResultMessage(null);
     setSaveError(null);
     setChangingAuthor(false);
@@ -238,7 +248,7 @@ export default function PostManager({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
-  const startEdit = (item: PostWithAttachments) => {
+  const startEdit = async (item: PostWithAttachments) => {
     // teacher는 본인이 쓴 교과/학급 공지만 수정할 수 있다(RLS도 동일 기준). 다른 선생님의
     // 공지는 목록에서 보이기만 하고 열어도 수정은 막는다 — 실수로 열었다가 저장해도
     // RLS가 막아서 조용히 실패하는 것보다 애초에 못 열게 하는 게 낫다.
@@ -266,6 +276,21 @@ export default function PostManager({
     setInitialForm(next);
     setNewFiles([]);
     setExistingFiles(item.attachments ?? []);
+    // 갤러리(post_gallery_images)가 있으면 그걸, 없으면(이 기능 이전에 만들어진 예전
+    // 글) 기존 image_url 한 장을 그대로 초기값으로 넣어서 새 다중 업로더에서도
+    // 계속 관리할 수 있게 한다.
+    const { data: galleryRows } = await supabase
+      .from("post_gallery_images")
+      .select("image_url")
+      .eq("post_id", item.id)
+      .order("order_index");
+    const initialGallery = galleryRows && galleryRows.length > 0
+      ? galleryRows.map((r) => r.image_url)
+      : item.image_url
+      ? [item.image_url]
+      : [];
+    setGalleryUrls(initialGallery);
+    setInitialGalleryUrls(initialGallery);
     setResultMessage(null);
     setSaveError(null);
     setChangingAuthor(false);
@@ -357,11 +382,14 @@ export default function PostManager({
     }
 
     setSaving(true);
+    // 대표 이미지(posts.image_url)는 갤러리 첫 장으로 그대로 채워서(하위호환) 목록
+    // 미리보기·알림 등 기존에 이 컬럼 하나만 보는 코드가 계속 동작하게 한다.
+    const formWithGallery = { ...form, image_url: galleryUrls[0] ?? null };
     let savedPostId: string | null = null;
     if (editing === "new") {
       const { data, error } = await supabase
         .from("posts")
-        .insert({ ...form, author_id: myId })
+        .insert({ ...formWithGallery, author_id: myId })
         .select()
         .single();
       if (error) {
@@ -375,10 +403,15 @@ export default function PostManager({
           .from("attachments")
           .insert(newFiles.map((f) => ({ post_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
       }
+      if (galleryUrls.length > 0) {
+        await supabase
+          .from("post_gallery_images")
+          .insert(galleryUrls.map((url, i) => ({ post_id: data.id, image_url: url, order_index: i })));
+      }
       clearDraft(draftKey);
       setHasDraft(false);
     } else if (editing) {
-      const { error } = await supabase.from("posts").update(form).eq("id", editing);
+      const { error } = await supabase.from("posts").update(formWithGallery).eq("id", editing);
       if (error) {
         setSaving(false);
         setSaveError(error.message);
@@ -389,6 +422,17 @@ export default function PostManager({
         await supabase
           .from("attachments")
           .insert(newFiles.map((f) => ({ post_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+      }
+      // 갤러리는 순서 변경/추가/삭제를 개별 diff하는 대신 통째로 지우고 다시 넣는다
+      // (한 글당 사진 몇 장 수준이라 비용이 미미하고, 순서까지 항상 정확히 일치시킬
+      // 수 있다).
+      if (JSON.stringify(galleryUrls) !== JSON.stringify(initialGalleryUrls)) {
+        await supabase.from("post_gallery_images").delete().eq("post_id", editing);
+        if (galleryUrls.length > 0) {
+          await supabase
+            .from("post_gallery_images")
+            .insert(galleryUrls.map((url, i) => ({ post_id: editing, image_url: url, order_index: i })));
+        }
       }
     }
 
@@ -420,6 +464,7 @@ export default function PostManager({
     if (savedPostId) {
       setEditing(savedPostId);
       setInitialForm(form);
+      setInitialGalleryUrls(galleryUrls);
     }
     reload();
   };
@@ -443,10 +488,16 @@ export default function PostManager({
   const remove = async (id: string) => {
     if (!confirm("삭제하시겠습니까?")) return;
     // 행만 지우고 첨부 이미지는 Storage에 그대로 남겨두면 고아 파일이 쌓인다(알림 이미지
-    // 삭제 때 겪었던 문제와 동일 — src/lib/storageCleanup.ts 참고).
+    // 삭제 때 겪었던 문제와 동일 — src/lib/storageCleanup.ts 참고). 갤러리는 post_id
+    // FK가 on delete cascade라 DB 행은 자동으로 지워지지만, Storage 파일은 남으므로
+    // posts 행을 지우기 전에 URL 목록을 먼저 읽어둔다.
     const target = rows.find((r) => r.id === id);
+    const { data: galleryRows } = await supabase.from("post_gallery_images").select("image_url").eq("post_id", id);
     await supabase.from("posts").delete().eq("id", id);
     await removeStorageFile(supabase, "attachments", target?.image_url);
+    for (const g of galleryRows ?? []) {
+      await removeStorageFile(supabase, "attachments", g.image_url);
+    }
     reload();
   };
 
@@ -665,15 +716,10 @@ export default function PostManager({
           onChange={(e) => setForm({ ...form, content: e.target.value })}
         />
       )}
-      {type === "notice" && myId && (
+      {(type === "notice" || type === "news") && myId && (
         <>
-          <label className="text-xs font-bold text-muted mt-2">사진 (선택)</label>
-          <ImageUpload
-            userId={myId}
-            value={form.image_url}
-            onChange={(image_url) => setForm({ ...form, image_url })}
-            bucket="attachments"
-          />
+          <label className="text-xs font-bold text-muted mt-2">사진 (선택, 여러 장 가능)</label>
+          <MultiImageUpload userId={myId} value={galleryUrls} onChange={setGalleryUrls} bucket="attachments" max={10} />
         </>
       )}
       {hasSchedulePin && (

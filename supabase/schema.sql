@@ -5181,3 +5181,62 @@ $$;
 
 grant execute on function get_streak_ranking() to authenticated;
 grant execute on function get_badge_count_ranking() to authenticated;
+
+-- ------------------------------------------------------------
+-- 122. 게시글 여러 장 사진 갤러리 (공지/뉴스/게시판/Q&A)
+-- ------------------------------------------------------------
+-- 지금까지 posts/board_posts/questions는 전부 image_url 한 장짜리 컬럼만 있었다.
+-- 그 컬럼은 그대로 두고(목록 미리보기, 알림 팝업 등 기존에 그 컬럼 하나만 보는
+-- 코드가 이미 많아서 건드리면 회귀 위험이 크다) 상세 페이지에서만 쓰는 "여러 장"
+-- 갤러리를 별도 테이블로 얹는다 — 새로 글을 쓸 때 여러 장을 고르면 첫 장을 그대로
+-- 기존 image_url에도 저장해서(하위호환) 목록/알림 등은 코드 수정 없이 계속 동작하고,
+-- 상세 페이지만 이 테이블에 행이 있으면 갤러리로, 없으면(예전 글) 기존 image_url
+-- 단일 이미지로 보여준다. attachments 테이블처럼 글 종류별 FK 컬럼을 nullable로
+-- 나란히 두는 기존 관례를 그대로 따른다(post_id/board_post_id/question_id 중
+-- 정확히 하나만 채워짐).
+create table if not exists post_gallery_images (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid references posts(id) on delete cascade,
+  board_post_id uuid references board_posts(id) on delete cascade,
+  question_id uuid references questions(id) on delete cascade,
+  image_url text not null,
+  image_path text,
+  order_index int not null default 0,
+  created_at timestamptz not null default now()
+);
+create index if not exists post_gallery_images_post_idx on post_gallery_images(post_id);
+create index if not exists post_gallery_images_board_post_idx on post_gallery_images(board_post_id);
+create index if not exists post_gallery_images_question_idx on post_gallery_images(question_id);
+
+alter table post_gallery_images enable row level security;
+
+drop policy if exists "post_gallery_images_read_all" on post_gallery_images;
+create policy "post_gallery_images_read_all" on post_gallery_images for select using (true);
+
+-- posts(공지/뉴스)는 기존 attachments와 동일하게 에디터 이상만 작성하지만,
+-- board_posts/questions는 학생 본인 글에 본인이 사진을 올리는 것이라 글 작성자
+-- 본인도 자기 글에 한해 insert할 수 있어야 한다(board_posts_insert_own/
+-- questions_insert_own과 동일한 소유권 검사를 그대로 가져옴).
+drop policy if exists "post_gallery_images_insert" on post_gallery_images;
+create policy "post_gallery_images_insert" on post_gallery_images for insert
+  with check (
+    is_editor_or_above()
+    or (board_post_id is not null and exists (
+      select 1 from board_posts bp where bp.id = board_post_id and bp.author_id = auth.uid()
+    ))
+    or (question_id is not null and exists (
+      select 1 from questions q where q.id = question_id and q.user_id = auth.uid()
+    ))
+  );
+
+drop policy if exists "post_gallery_images_delete" on post_gallery_images;
+create policy "post_gallery_images_delete" on post_gallery_images for delete
+  using (
+    is_editor_or_above()
+    or (board_post_id is not null and exists (
+      select 1 from board_posts bp where bp.id = board_post_id and bp.author_id = auth.uid()
+    ))
+    or (question_id is not null and exists (
+      select 1 from questions q where q.id = question_id and q.user_id = auth.uid()
+    ))
+  );

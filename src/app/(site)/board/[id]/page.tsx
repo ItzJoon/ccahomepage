@@ -6,7 +6,7 @@ import BoardPostActions from "@/components/BoardPostActions";
 import ReportableName from "@/components/ReportableName";
 import ReportButton from "@/components/ReportButton";
 import DetailBackLink from "@/components/DetailBackLink";
-import ImageLightbox from "@/components/ImageLightbox";
+import ImageGallery from "@/components/ImageGallery";
 import LikeButton from "@/components/LikeButton";
 
 function fmt(d: string) {
@@ -26,6 +26,12 @@ export default async function BoardDetailPage({ params }: { params: { id: string
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다(삭제되었거나 숨김 처리된 글일 수 있습니다).</div>;
   }
+  const { data: gallery } = await supabase
+    .from("post_gallery_images")
+    .select("image_url")
+    .eq("board_post_id", post.id)
+    .order("order_index");
+  const galleryUrls = gallery && gallery.length > 0 ? gallery.map((g) => g.image_url) : post.image_url ? [post.image_url] : [];
 
   const authorLabel = post.author_name || "탈퇴한 사용자";
   const canEditProfile = profile?.role === "admin" || profile?.role === "superadmin";
@@ -82,9 +88,10 @@ export default async function BoardDetailPage({ params }: { params: { id: string
       <div className="leading-8 whitespace-pre-wrap text-[15px]">
         <Linkify text={post.content} />
       </div>
-      {post.image_url && (
-        <ImageLightbox src={post.image_url} alt="첨부 이미지" className="max-w-full rounded-lg border border-border mt-4 object-contain" />
-      )}
+      <ImageGallery
+        urls={galleryUrls}
+        className={galleryUrls.length === 1 ? "max-w-full rounded-lg border border-border mt-4 object-contain" : "mt-4"}
+      />
       <BoardComments postId={post.id} userId={profile?.id ?? null} />
     </div>
   );
