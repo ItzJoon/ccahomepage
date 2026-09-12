@@ -181,7 +181,7 @@ export default function MemberProfilePage() {
                     <img
                       src="/secret-smoke.svg"
                       alt=""
-                      className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_14px_rgba(0,0,0,0.75)]"
+                      className="absolute inset-0 w-full h-full object-contain drop-shadow-[0_0_17px_rgba(0,0,0,0.75)]"
                     />
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
