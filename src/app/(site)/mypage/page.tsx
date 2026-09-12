@@ -48,11 +48,13 @@ export default function MyPage() {
   const displayBadges = isDeveloper ? allBadgesForDeveloper : badges;
   // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
   // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
-  // "기간 한정"(limited)은 반대로 타인에게는 정상 노출되지만, 본인 마이페이지에서는
-  // 항목 자체를 숨긴다(이미 끝난 이벤트 한정 뱃지를 본인이 계속 마주치지 않도록) —
-  // developer도 예외 없이 숨김(전체 뱃지 미리보기 목적과는 별개 규칙).
+  // "기간 한정"(limited)은 아직 못 받은 것만 본인 마이페이지에서 숨긴다(이미 끝난 이벤트
+  // 한정 뱃지를 놓쳤다고 계속 마주치지 않도록) — 실제로 보유 중인 것까지 숨기면 안 된다,
+  // 이미 받은 뱃지는 developer 여부와 무관하게 항상 보여야 한다.
   const visibleBadges = displayBadges.filter(
-    (b) => b.secret_tier !== "limited" && (isDeveloper || b.secret_tier !== "super_secret" || earnedIds.has(b.id))
+    (b) =>
+      (b.secret_tier !== "limited" || earnedIds.has(b.id)) &&
+      (isDeveloper || b.secret_tier !== "super_secret" || earnedIds.has(b.id))
   );
 
   useEffect(() => {
