@@ -168,7 +168,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             <NotificationBanner initial={latestBanner as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
           )}
           {showNotifications && profile && (
-            <NotificationPopup initial={(activePopups ?? []) as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
+            <NotificationPopup
+              initial={(activePopups ?? []) as any}
+              soundEnabled={profile?.notification_sound_enabled ?? true}
+              userId={profile?.id ?? null}
+            />
           )}
           {showNotifications && (
             <PatchNotePopup

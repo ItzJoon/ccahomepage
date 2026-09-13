@@ -6,8 +6,15 @@ import { todayKST } from "@/lib/date";
 import { playAttachedSound } from "@/lib/notificationSound";
 import type { NotificationItem } from "@/lib/types";
 
-function isHiddenToday(id: string) {
-  return localStorage.getItem(`notif_hide_${id}`) === todayKST();
+// "오늘 하루 안 보기"는 계정이 아니라 이 브라우저(localStorage)에 저장되는데, developer
+// 전용 "학생 화면 보기"가 같은 브라우저 안에서 진짜 세션을 전용 미리보기 학생 계정으로
+// 바꿔치기하는 방식이라(src/lib/studentPreview.ts), scopeKey(로그인한 사용자 id) 없이
+// 그냥 notif_hide_${id}로만 저장하면 개발자 본인 계정에서 "오늘 하루 안 보기"를 누른
+// 알림이 미리보기 계정에서도(또는 그 반대도) 똑같이 숨어버려서 "미리보기는 항상 신규
+// 학생처럼 보여야 한다"는 요구를 깨버린다. 그래서 로그인한 사용자 id를 키에 포함시켜
+// 계정별로 완전히 분리한다.
+function isHiddenToday(id: string, scopeKey: string) {
+  return localStorage.getItem(`notif_hide_${scopeKey}_${id}`) === todayKST();
 }
 
 /** display_until이 없으면 계속 표시(무기한), 있으면 그 시각이 지나면 만료 처리 */
@@ -16,8 +23,8 @@ function isExpired(n: NotificationItem) {
   return Date.now() > new Date(n.display_until).getTime();
 }
 
-function isQueueable(n: NotificationItem) {
-  return n.popup_active && !isExpired(n) && !isHiddenToday(n.id);
+function isQueueable(n: NotificationItem, scopeKey: string) {
+  return n.popup_active && !isExpired(n) && !isHiddenToday(n.id, scopeKey);
 }
 
 /**
@@ -40,25 +47,28 @@ function isQueueable(n: NotificationItem) {
 export default function NotificationPopup({
   initial,
   soundEnabled = true,
+  userId = null,
 }: {
   initial: NotificationItem[];
   soundEnabled?: boolean;
+  userId?: string | null;
 }) {
   const [queue, setQueue] = useState<NotificationItem[]>([]);
   const [visible, setVisible] = useState(false);
   const current = queue[0] ?? null;
+  const scopeKey = userId ?? "anon";
 
   useEffect(() => {
-    setQueue(initial.filter(isQueueable));
+    setQueue(initial.filter((n) => isQueueable(n, scopeKey)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initial]);
+  }, [initial, scopeKey]);
 
   // 지금 보여주고 있는 걸 큐에서 빼고 다음 걸로 넘어간다(확인/오늘 하루 안 보기/ESC 공용).
   const dismiss = () => setQueue((q) => q.slice(1));
 
   const hideToday = () => {
     if (!current) return;
-    localStorage.setItem(`notif_hide_${current.id}`, todayKST());
+    localStorage.setItem(`notif_hide_${scopeKey}_${current.id}`, todayKST());
     dismiss();
   };
 
@@ -77,7 +87,7 @@ export default function NotificationPopup({
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationItem;
-          if (n.display_type === "popup" && isQueueable(n)) {
+          if (n.display_type === "popup" && isQueueable(n, scopeKey)) {
             setQueue((q) => (q.some((x) => x.id === n.id) ? q : [...q, n]));
           }
         }
