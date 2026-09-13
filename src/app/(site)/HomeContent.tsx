@@ -11,7 +11,6 @@ import WeatherWidget from "@/components/WeatherWidget";
 import HeaderWeatherBackground from "@/components/HeaderWeatherBackground";
 import HeaderWeatherTemp from "@/components/HeaderWeatherTemp";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
-import { useStudentPreview } from "@/lib/studentPreviewContext";
 import { todayKST, nowKSTTime, nowKSTDayOfWeek } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock, MealPlan, SiteSettings } from "@/lib/types";
@@ -97,31 +96,18 @@ const ENABLE_HEADER_WEATHER_BG = process.env.NEXT_PUBLIC_ENABLE_HEADER_WEATHER_B
 export default function HomeContent({ initialThemeKey }: { initialThemeKey?: HomeThemeKey }) {
   const [userId, setUserId] = useState<string | null>(null);
   const { t } = useHomeTheme(initialThemeKey);
-  // "학생 화면 보기" 미리보기 중에는 editor 이상에게만 보이는 숨김 처리된 공지/일정/뉴스가
-  // 실제 세션(superadmin)의 RLS 예외 때문에 그대로 딸려오므로, 진짜 학생이 보는 모습과
-  // 같아지도록 여기서 한 번 더 걸러낸다.
-  const previewAsStudent = useStudentPreview();
   const { rows: blocks } = useList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
   const { rows: notices } = useList<Post>("posts", {
-    filter: (q) => {
-      let query = q.eq("type", "notice").eq("status", "published");
-      if (previewAsStudent) query = query.eq("is_hidden", false);
-      return query;
-    },
+    filter: (q) => q.eq("type", "notice").eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
   const { rows: events } = useList<EventItem>("events", {
-    filter: (q) => (previewAsStudent ? q.eq("is_hidden", false) : q),
     orderBy: { column: "start_at" },
   });
   const { rows: news } = useList<Post>("posts", {
-    filter: (q) => {
-      let query = q.eq("type", "news").eq("status", "published");
-      if (previewAsStudent) query = query.eq("is_hidden", false);
-      return query;
-    },
+    filter: (q) => q.eq("type", "news").eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
   const { rows: mealPlans } = useList<MealPlan>("meal_plans");

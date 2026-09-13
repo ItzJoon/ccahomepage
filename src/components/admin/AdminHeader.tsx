@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
 import MobilePreviewOverlay from "@/components/admin/MobilePreviewOverlay";
+import { startStudentPreview as startStudentPreviewSession } from "@/lib/studentPreview";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { Profile } from "@/lib/types";
 
@@ -17,6 +18,8 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
+  const [startingPreview, setStartingPreview] = useState(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const signOut = async () => {
@@ -25,15 +28,21 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
     router.refresh();
   };
 
-  // developer(=superadmin, 화면 표시명만 바뀜 — 권한은 그대로) 전용 미리보기.
-  // 실제 role은 그대로 superadmin으로 유지한 채(로그아웃/재로그인 없이) 사이트 헤더가
-  // student 권한으로 보이는 것처럼 렌더링하는 쿠키만 심는다 — (site)/layout.tsx가 이
-  // 쿠키를 읽어 Header에 내려줄 profile을 표시용으로만 바꿔치기한다. developer는 사이트
-  // 잠금 모드 예외 대상이라(middleware.ts) 잠금 중에도 그대로 접속되므로, 이 미리보기도
-  // 잠금과 무관하게 항상 동작한다.
-  const startStudentPreview = () => {
-    document.cookie = "preview_as_student=1; path=/; max-age=86400";
-    router.push("/");
+  // developer(=superadmin) 전용 미리보기 — 진짜 전용 미리보기 학생 계정으로 세션 자체를
+  // 전환한다(src/lib/studentPreview.ts). 그래서 읽음 기록·알림 확인 여부·뱃지·연속
+  // 접속일수·마이페이지 정보가 항상 "아무것도 안 한 신규 학생" 상태로 자동으로 맞춰진다.
+  // 예전처럼 role만 바꿔 보여주는 쿠키가 아니라 진짜 세션 교체라 페이지 전체를 완전히
+  // 새로고침해야 서버가 새 쿠키를 반영한다(router.push만으로는 RSC 캐시가 남을 수 있음).
+  const startStudentPreview = async () => {
+    setPreviewError(null);
+    setStartingPreview(true);
+    const result = await startStudentPreviewSession();
+    setStartingPreview(false);
+    if (!result.ok) {
+      setPreviewError(result.error || "미리보기 전환에 실패했습니다.");
+      return;
+    }
+    window.location.href = "/";
   };
 
   // 드롭다운 바깥을 클릭하면 닫히게 한다(메인 화면 헤더의 프로필 메뉴와 동일한 동작).
@@ -73,9 +82,10 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
               <>
                 <button
                   onClick={startStudentPreview}
-                  className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}
+                  disabled={startingPreview}
+                  className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap disabled:opacity-50 ${t.authBtn}`}
                 >
-                  학생 화면 보기
+                  {startingPreview ? "전환 중…" : "학생 화면 보기"}
                 </button>
                 <button
                   onClick={() => setMobilePreviewOpen(true)}
@@ -132,6 +142,14 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
         />
       )}
       {mobilePreviewOpen && <MobilePreviewOverlay onClose={() => setMobilePreviewOpen(false)} />}
+      {previewError && (
+        <div className="fixed bottom-4 right-4 z-[110] bg-red text-white text-sm font-bold rounded-lg px-4 py-3 shadow-lg max-w-xs">
+          {previewError}
+          <button type="button" onClick={() => setPreviewError(null)} className="ml-2 underline">
+            닫기
+          </button>
+        </div>
+      )}
     </>
   );
 }

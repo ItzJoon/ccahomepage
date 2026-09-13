@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import NotificationBanner from "@/components/NotificationBanner";
@@ -7,12 +6,13 @@ import NotificationPopup from "@/components/NotificationPopup";
 import PatchNotePopup from "@/components/PatchNotePopup";
 import PrevPathProvider from "@/components/PrevPathProvider";
 import StudentPreviewBanner from "@/components/StudentPreviewBanner";
+import PreviewWriteBlockedToast from "@/components/PreviewWriteBlockedToast";
 import SuspensionWatcher from "@/components/SuspensionWatcher";
 import RestrictionGuardWatcher from "@/components/RestrictionGuardWatcher";
 import SecretBadgeWatchers from "@/components/secret/SecretBadgeWatchers";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
-import { StudentPreviewProvider } from "@/lib/studentPreviewContext";
+import { PREVIEW_STUDENT_ID } from "@/lib/previewStudent";
 
 export const dynamic = "force-dynamic";
 
@@ -141,21 +141,21 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     memberType === "student" ||
     memberType === "teacher";
 
-  // developer(=superadmin) 전용 "학생 화면 보기" 미리보기 — 실제 role/권한은 전혀 바뀌지
-  // 않고(그래서 checkInEligible/isLockdownExempt 등은 계속 실제 profile 기준), Header에
-  // 내려주는 profile만 표시용으로 role="student"인 것처럼 바꿔서 관리자 전용 버튼(관리자/
-  // 임원회)이 학생과 동일하게 안 보이게 한다. 잠금 모드도 실제 role(superadmin)이 그대로
-  // 예외 대상이라 우회되므로, 미리보기가 잠금 여부와 무관하게 항상 동작한다.
-  const previewAsStudent = !!profile && profile.role === "superadmin" && cookies().get("preview_as_student")?.value === "1";
-  const headerProfile = previewAsStudent ? { ...profile, role: "student", is_council: false, is_judiciary: false } : profile;
+  // developer(=superadmin) 전용 "학생 화면 보기" 미리보기 — 이제는 표시용으로 role만
+  // 바꿔치기하는 게 아니라 진짜 전용 미리보기 학생 계정으로 세션 자체를 전환하는
+  // 방식이라(src/lib/studentPreview.ts), 여기서는 그저 "지금 로그인된 게 그 계정인가"만
+  // 확인하면 된다 — profile.role이 이미 실제로 "student"이므로 Header에 그대로 넘겨도
+  // 관리자 전용 버튼이 알아서 안 보인다.
+  const previewAsStudent = profile?.id === PREVIEW_STUDENT_ID;
 
   return (
-    <StudentPreviewProvider value={previewAsStudent}>
+    <>
       <PrevPathProvider>
         <div className="min-h-screen flex flex-col">
           {previewAsStudent && <StudentPreviewBanner />}
+          {previewAsStudent && <PreviewWriteBlockedToast />}
           <Header
-            profile={headerProfile as any}
+            profile={profile as any}
             customPages={customPages ?? []}
             checkInEligible={checkInEligible}
             initialThemeKey={initialThemeKey}
@@ -187,6 +187,6 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           <Footer initialThemeKey={initialThemeKey} />
         </div>
       </PrevPathProvider>
-    </StudentPreviewProvider>
+    </>
   );
 }
