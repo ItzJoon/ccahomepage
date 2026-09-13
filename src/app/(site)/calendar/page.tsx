@@ -121,9 +121,9 @@ export default function CalendarPage() {
             <li key={e.id} className="border-b border-border py-2.5">
               <Link href={`/events/${e.id}`} className="flex items-center gap-2 hover:opacity-70">
                 <Badge color="navy">{e.category}</Badge>
-                <span className="flex-1 text-sm">{e.title}</span>
-                <span className="text-xs text-muted">{e.creator_name || "등록자 정보 없음"}</span>
-                <span className="text-xs text-muted">{fmt(e.start_at)}</span>
+                <span className="flex-1 min-w-0 truncate text-sm" title={e.title}>{e.title}</span>
+                <span className="text-xs text-muted shrink-0 max-w-[100px] truncate">{e.creator_name || "등록자 정보 없음"}</span>
+                <span className="text-xs text-muted shrink-0">{fmt(e.start_at)}</span>
               </Link>
             </li>
           ))}

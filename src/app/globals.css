@@ -76,10 +76,19 @@
    포함)로 조용히 대체해버렸다. --font-noto-sans-kr조차 어떤 이유로 못 먹더라도 최소한
    '맑은 고딕'/'Apple SD Gothic Neo' 같은 정상적인 산세리프 한글 폰트로 떨어지도록
    fallback 체인을 명시한다(제네릭 sans-serif 하나만 믿지 않는다). */
+/* 전역 안전장치 — 개별 화면에서 고정폭/긴 텍스트/표 등을 놓쳐서 가로로 넘치는 요소가
+   생기더라도, 페이지 전체가 옆으로 스크롤되는 최악의 상황만은 막는다. overflow-y는
+   건드리지 않으므로 헤더의 position:sticky(세로축)는 그대로 동작한다. */
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: var(--font-noto-sans-kr), "Malgun Gothic", "Apple SD Gothic Neo", -apple-system, sans-serif;
   color: var(--body-text);
   background: var(--bg);
+  overflow-x: hidden;
+  max-width: 100vw;
 }
 
 /* 라이트/다크 전환 시 색이 뚝 끊기지 않고 디졸브되도록 View Transitions API를 쓴다

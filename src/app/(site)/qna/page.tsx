@@ -228,7 +228,7 @@ export default function QnaPage() {
             <li key={q.id} className="border-b border-border py-2.5 cursor-pointer" onClick={() => setOpenId(openId === q.id ? null : q.id)}>
               <div className="flex items-center gap-2">
                 {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
-                <span className="flex-1 text-sm">{q.title}</span>
+                <span className="flex-1 min-w-0 truncate text-sm" title={q.title}>{q.title}</span>
                 {q.author_display_name && q.user_id ? (
                   <span className="text-xs text-muted" onClick={(e) => e.stopPropagation()}>
                     <ReportableName

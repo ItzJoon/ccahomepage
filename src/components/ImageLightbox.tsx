@@ -67,7 +67,7 @@ export default function ImageLightbox({
               e.stopPropagation();
               close();
             }}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
             aria-label="닫기"
           >
             ✕

@@ -292,7 +292,7 @@ export default function AdminNotifyPage() {
               <li key={n.id} className={`${t.adminEditPanel} flex items-center gap-2`}>
                 <span className="text-muted text-xs font-bold w-4 shrink-0 text-center">{idx + 1}</span>
                 {n.level === "urgent" && <Badge color="red">긴급</Badge>}
-                <span className="flex-1 text-sm">{n.title}</span>
+                <span className="flex-1 min-w-0 truncate text-sm" title={n.title}>{n.title}</span>
                 <button
                   type="button"
                   disabled={idx === 0}

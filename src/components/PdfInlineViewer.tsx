@@ -145,7 +145,7 @@ export default function PdfInlineViewer({ url, fileName }: { url: string; fileNa
               e.stopPropagation();
               closeLightbox();
             }}
-            className="absolute top-4 right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+            className="absolute top-4 right-4 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
             aria-label="닫기"
           >
             ✕
@@ -157,7 +157,7 @@ export default function PdfInlineViewer({ url, fileName }: { url: string; fileNa
                 e.stopPropagation();
                 step(-1);
               }}
-              className="absolute left-2 sm:left-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+              className="absolute left-2 sm:left-4 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
               aria-label="이전 페이지"
             >
               ‹
@@ -170,7 +170,7 @@ export default function PdfInlineViewer({ url, fileName }: { url: string; fileNa
                 e.stopPropagation();
                 step(1);
               }}
-              className="absolute right-2 sm:right-4 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
+              className="absolute right-2 sm:right-4 w-11 h-11 flex items-center justify-center rounded-full bg-white/10 text-white text-2xl leading-none hover:bg-white/20"
               aria-label="다음 페이지"
             >
               ›

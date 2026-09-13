@@ -169,7 +169,7 @@ export default function NotificationPopup({
             <button
               type="button"
               onClick={() => dismiss()}
-              className="absolute z-10 top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-black/50 text-white text-lg leading-none"
+              className="absolute z-10 top-3 right-3 w-11 h-11 flex items-center justify-center rounded-full bg-black/50 text-white text-lg leading-none"
               aria-label="닫기"
             >
               ✕
@@ -209,7 +209,7 @@ export default function NotificationPopup({
             <button
               type="button"
               onClick={() => dismiss()}
-              className="absolute z-10 -top-3 -right-3 w-9 h-9 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
+              className="absolute z-10 -top-3 -right-3 w-11 h-11 flex items-center justify-center rounded-full bg-navy text-white text-lg leading-none shadow-lg"
               aria-label="닫기"
             >
               ✕

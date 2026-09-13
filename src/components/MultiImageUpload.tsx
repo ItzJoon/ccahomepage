@@ -113,7 +113,7 @@ export default function MultiImageUpload({
               <button
                 type="button"
                 onClick={() => removeAt(i)}
-                className="absolute top-0.5 right-0.5 w-5 h-5 rounded-full bg-navy text-white text-xs leading-none flex items-center justify-center"
+                className="absolute top-0.5 right-0.5 w-6 h-6 rounded-full bg-navy text-white text-xs leading-none flex items-center justify-center"
                 aria-label="사진 제거"
               >
                 ✕

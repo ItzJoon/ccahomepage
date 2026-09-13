@@ -206,8 +206,8 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       <li key={n.id} className="border-b border-border py-2.5">
                         <Link href={`/notices/${n.id}`} className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}>
                           {n.is_pinned && <Pin />}
-                          <span className="flex-1 text-sm">{n.title}</span>
-                          <span className="text-xs text-muted">{fmt(n.publish_at)}</span>
+                          <span className="flex-1 min-w-0 truncate text-sm" title={n.title}>{n.title}</span>
+                          <span className="text-xs text-muted shrink-0">{fmt(n.publish_at)}</span>
                         </Link>
                       </li>
                     ))}
