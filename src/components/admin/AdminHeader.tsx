@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import MobilePreviewOverlay from "@/components/admin/MobilePreviewOverlay";
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { Profile } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
   const supabase = createClient();
   const [profileMenuOpen, setProfileMenuOpen] = useState(false);
   const [quickEditOpen, setQuickEditOpen] = useState(false);
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const profileMenuRef = useRef<HTMLDivElement>(null);
 
   const signOut = async () => {
@@ -68,12 +70,20 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
               홈페이지로 돌아가기
             </Link>
             {profile.role === "superadmin" && (
-              <button
-                onClick={startStudentPreview}
-                className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}
-              >
-                학생 화면 보기
-              </button>
+              <>
+                <button
+                  onClick={startStudentPreview}
+                  className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}
+                >
+                  학생 화면 보기
+                </button>
+                <button
+                  onClick={() => setMobilePreviewOpen(true)}
+                  className={`text-sm px-3 py-1.5 shrink-0 whitespace-nowrap ${t.authBtn}`}
+                >
+                  모바일 화면 보기
+                </button>
+              </>
             )}
             <div className="relative" ref={profileMenuRef}>
               <button
@@ -121,6 +131,7 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
           onClose={() => setQuickEditOpen(false)}
         />
       )}
+      {mobilePreviewOpen && <MobilePreviewOverlay onClose={() => setMobilePreviewOpen(false)} />}
     </>
   );
 }
