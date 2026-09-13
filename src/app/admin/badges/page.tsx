@@ -329,198 +329,8 @@ export default function AdminBadgesPage() {
     .sort(compareBadges)
     .filter((b) => grantUserEarnedIds.has(b.id));
 
-  return (
-    <>
-    <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
-      <div className="min-w-0">
-        <div className="flex justify-between items-end mb-4">
-          <h2 className="text-[22px]">뱃지 관리</h2>
-          <button onClick={startNew} className={t.adminBtnPrimary}>+ 뱃지 추가</button>
-        </div>
-        <p className="text-muted mb-4 text-sm">
-          지급 방식이 "자동"이면 연속 접속일수가 조건에 도달하는 즉시 학생에게 자동 지급됩니다.
-          "날짜 조건"이면 특정 날짜 이전/이후/당일에 로그인(체크인)하는 순간 자동 지급됩니다.
-          "수동"은 자동으로 지급되지 않고, 아래 "뱃지 직접 부여"에서 관리자가 달성을 확인한 뒤 원하는 학생에게 지급합니다.
-          비활성화하면 학생 화면 노출과 자동 지급만 멈추고, "뱃지 직접 부여"로는 계속 줄 수 있습니다
-          (이미 받은 학생의 뱃지는 항상 유지됩니다). "시크릿"으로 설정하면 획득하기 전까지 학생 목록에
-          아예 보이지 않다가, 지급받는 순간 드러납니다.
-        </p>
-        <AdminCardList>
-          {[...rows].sort(compareBadges).map((b) => {
-            const conditionText = b.condition_text
-              ? b.condition_text
-              : b.award_type === "auto"
-              ? `연속 ${b.streak_threshold}일`
-              : b.award_type === "date"
-              ? b.date_condition === "between"
-                ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
-                : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
-              : b.award_type === "action"
-              ? "특정 행동 시 자동"
-              : b.award_type === "secret_trigger"
-              ? b.trigger_type
-                ? TRIGGER_TYPE_LABEL[b.trigger_type]
-                : "시크릿 트리거"
-              : "수동 부여";
-            return (
-              <AdminCard key={b.id} onClick={() => startEdit(b)}>
-                <AdminCardTitle>
-                  <span className="text-xl mr-1.5 align-middle">{b.icon}</span>
-                  {b.label}
-                  {b.secret_tier === "secret" && <span className="ml-1 text-[10px] font-bold text-blue border border-blue rounded px-1 align-middle">시크릿</span>}
-                  {b.secret_tier === "super_secret" && <span className="ml-1 text-[10px] font-bold text-red border border-red rounded px-1 align-middle">슈퍼시크릿</span>}
-                  {b.secret_tier === "limited" && <span className="ml-1 text-[10px] font-bold text-gold border border-gold rounded px-1 align-middle">기간한정</span>}
-                </AdminCardTitle>
-                <div className="text-muted text-xs">{b.description}</div>
-                <AdminCardMeta>{conditionText}</AdminCardMeta>
-                <AdminCardFooter>
-                  <AdminCardAction onClick={() => openHolders(b)}>{badgeCounts.get(b.id) ?? 0}명 보유</AdminCardAction>
-                  <div className="flex items-center gap-1.5">
-                    <AdminCardAction onClick={() => toggleActive(b)}>{b.is_active ? "활성" : "비활성"}</AdminCardAction>
-                    <AdminCardAction danger onClick={() => remove(b.id)}>삭제</AdminCardAction>
-                  </div>
-                </AdminCardFooter>
-              </AdminCard>
-            );
-          })}
-          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</div>}
-        </AdminCardList>
-        <AdminTable hasCardFallback>
-          <thead>
-            <tr>
-              <th className={`${t.adminTableHeaderCell} w-14`}>아이콘</th>
-              <th className={t.adminTableHeaderCell}>이름</th>
-              <th className={`${t.adminTableHeaderCell} w-24`}>조건</th>
-              <th className={`${t.adminTableHeaderCell} w-24`}>보유</th>
-              <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
-              <th className={`${t.adminTableHeaderCell} w-16`} />
-            </tr>
-          </thead>
-          <tbody>
-            {[...rows].sort(compareBadges).map((b) => (
-              <tr key={b.id} onClick={() => startEdit(b)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === b.id ? t.adminTableRowActive : ""}`}>
-                <td className={`${t.adminTableCell} text-xl`}>{b.icon}</td>
-                <td className={t.adminTableCell}>
-                  <div className="font-bold flex items-center gap-1">
-                    {b.label}
-                    {b.secret_tier === "secret" && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
-                    {b.secret_tier === "super_secret" && <span className="text-[10px] font-bold text-red border border-red rounded px-1">슈퍼시크릿</span>}
-                    {b.secret_tier === "limited" && <span className="text-[10px] font-bold text-gold border border-gold rounded px-1">기간한정</span>}
-                  </div>
-                  <div className="text-muted text-xs">{b.description}</div>
-                </td>
-                <td className={t.adminTableCell}>
-                  {b.condition_text
-                    ? b.condition_text
-                    : b.award_type === "auto"
-                    ? `연속 ${b.streak_threshold}일`
-                    : b.award_type === "date"
-                    ? b.date_condition === "between"
-                      ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
-                      : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
-                    : b.award_type === "action"
-                    ? "특정 행동 시 자동"
-                    : b.award_type === "secret_trigger"
-                    ? b.trigger_type
-                      ? TRIGGER_TYPE_LABEL[b.trigger_type]
-                      : "시크릿 트리거"
-                    : "수동 부여"}
-                </td>
-                <td className={t.adminTableCell}>
-                  <button
-                    className="text-xs font-bold text-blue"
-                    onClick={(e) => { e.stopPropagation(); openHolders(b); }}
-                  >
-                    {badgeCounts.get(b.id) ?? 0}명 보유
-                  </button>
-                </td>
-                <td className={t.adminTableCell}>
-                  <button
-                    className={`text-xs font-bold ${b.is_active ? "text-teal" : "text-muted"}`}
-                    onClick={(e) => { e.stopPropagation(); toggleActive(b); }}
-                  >
-                    {b.is_active ? "활성" : "비활성"}
-                  </button>
-                </td>
-                <td className={t.adminTableCell}>
-                  <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(b.id); }}>삭제</button>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</td></tr>}
-          </tbody>
-        </AdminTable>
-
-        <div className={`${t.adminEditPanel} mt-5`}>
-          <h3 className="mb-1">뱃지 직접 부여</h3>
-          <p className="text-muted text-xs mb-3">학생을 검색해 원하는 뱃지를 바로 지급합니다. 자동 지급 뱃지도 예외적으로 직접 줄 수 있습니다.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-start">
-            <div>
-              <label className="text-xs font-bold text-muted block mb-1">학생 선택</label>
-              <AccountPicker
-                profiles={profiles}
-                linkedProfile={grantUser}
-                onLink={(p) => setGrantUser(p)}
-                onUnlink={() => setGrantUser(null)}
-              />
-            </div>
-            <div>
-              <label className="text-xs font-bold text-muted block mb-1">뱃지 선택</label>
-              <select
-                className={`${t.adminInput} w-full`}
-                value={grantBadgeId}
-                onChange={(e) => setGrantBadgeId(e.target.value)}
-                disabled={!grantUser || grantableBadges.length === 0}
-              >
-                <option value="">
-                  {!grantUser ? "학생을 먼저 선택하세요" : grantableBadges.length === 0 ? "모든 뱃지를 이미 획득했습니다" : "뱃지를 선택하세요"}
-                </option>
-                {grantableBadges.map((b) => (
-                  <option key={b.id} value={b.id}>{b.icon} {b.label}</option>
-                ))}
-              </select>
-              {grantUser && (
-                <p className="text-muted text-[11px] mt-1">
-                  {adminDisplayName(grantUser)}님이 아직 못 받은 뱃지만 표시됩니다.
-                </p>
-              )}
-            </div>
-            <button
-              onClick={grantBadge}
-              disabled={!grantUser || !grantBadgeId}
-              className={`${t.adminBtnPrimary} disabled:opacity-40 sm:mt-[22px]`}
-            >
-              부여
-            </button>
-          </div>
-          {grantMsg && <p className="text-sm mt-2 font-bold text-teal">{grantMsg}</p>}
-
-          {grantUser && (
-            <div className="mt-4 pt-4 border-t border-border">
-              <h4 className="text-sm font-bold mb-2">
-                {adminDisplayName(grantUser)}님이 보유한 뱃지
-              </h4>
-              {grantUserEarnedBadges.length === 0 ? (
-                <p className="text-muted text-xs">아직 획득한 뱃지가 없습니다.</p>
-              ) : (
-                <div className="flex flex-col gap-1.5">
-                  {grantUserEarnedBadges.map((b) => (
-                    <div key={b.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] dark:bg-white/10 rounded-lg px-3 py-2">
-                      <span className="text-sm flex items-center gap-1.5">
-                        <span className="text-lg">{b.icon}</span>
-                        {b.label}
-                      </span>
-                      <button onClick={() => revokeBadge(b.id)} className="text-red text-xs font-bold shrink-0">회수</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-      {editing && (
-        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
+  const formPanel = editing && (
+        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sm:sticky sm:top-20`}>
           <h3>{editing === "new" ? "뱃지 추가" : "뱃지 수정"}</h3>
           <label className="text-xs font-bold text-muted mt-2">코드 (영문, 고유값)</label>
           <input className={t.adminInput} value={form.code} onChange={(e) => setForm({ ...form, code: e.target.value })} placeholder="예: streak_14" />
@@ -823,6 +633,205 @@ export default function AdminBadgesPage() {
             <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
           </div>
         </div>
+  );
+
+  return (
+    <>
+    <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
+      <div className="min-w-0">
+        <div className="flex justify-between items-end mb-4">
+          <h2 className="text-[22px]">뱃지 관리</h2>
+          <button onClick={startNew} className={t.adminBtnPrimary}>+ 뱃지 추가</button>
+        </div>
+        <p className="text-muted mb-4 text-sm">
+          지급 방식이 "자동"이면 연속 접속일수가 조건에 도달하는 즉시 학생에게 자동 지급됩니다.
+          "날짜 조건"이면 특정 날짜 이전/이후/당일에 로그인(체크인)하는 순간 자동 지급됩니다.
+          "수동"은 자동으로 지급되지 않고, 아래 "뱃지 직접 부여"에서 관리자가 달성을 확인한 뒤 원하는 학생에게 지급합니다.
+          비활성화하면 학생 화면 노출과 자동 지급만 멈추고, "뱃지 직접 부여"로는 계속 줄 수 있습니다
+          (이미 받은 학생의 뱃지는 항상 유지됩니다). "시크릿"으로 설정하면 획득하기 전까지 학생 목록에
+          아예 보이지 않다가, 지급받는 순간 드러납니다.
+        </p>
+        <AdminCardList>
+          {[...rows].sort(compareBadges).map((b) => {
+            const conditionText = b.condition_text
+              ? b.condition_text
+              : b.award_type === "auto"
+              ? `연속 ${b.streak_threshold}일`
+              : b.award_type === "date"
+              ? b.date_condition === "between"
+                ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
+                : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+              : b.award_type === "action"
+              ? "특정 행동 시 자동"
+              : b.award_type === "secret_trigger"
+              ? b.trigger_type
+                ? TRIGGER_TYPE_LABEL[b.trigger_type]
+                : "시크릿 트리거"
+              : "수동 부여";
+            return (
+              <AdminCard
+                key={b.id}
+                onClick={() => (editing === b.id ? setEditing(null) : startEdit(b))}
+                selected={editing === b.id}
+                detail={editing === b.id ? formPanel : undefined}
+              >
+                <AdminCardTitle>
+                  <span className="text-xl mr-1.5 align-middle">{b.icon}</span>
+                  {b.label}
+                  {b.secret_tier === "secret" && <span className="ml-1 text-[10px] font-bold text-blue border border-blue rounded px-1 align-middle">시크릿</span>}
+                  {b.secret_tier === "super_secret" && <span className="ml-1 text-[10px] font-bold text-red border border-red rounded px-1 align-middle">슈퍼시크릿</span>}
+                  {b.secret_tier === "limited" && <span className="ml-1 text-[10px] font-bold text-gold border border-gold rounded px-1 align-middle">기간한정</span>}
+                </AdminCardTitle>
+                <div className="text-muted text-xs">{b.description}</div>
+                <AdminCardMeta>{conditionText}</AdminCardMeta>
+                <AdminCardFooter>
+                  <AdminCardAction onClick={() => openHolders(b)}>{badgeCounts.get(b.id) ?? 0}명 보유</AdminCardAction>
+                  <div className="flex items-center gap-1.5">
+                    <AdminCardAction onClick={() => toggleActive(b)}>{b.is_active ? "활성" : "비활성"}</AdminCardAction>
+                    <AdminCardAction danger onClick={() => remove(b.id)}>삭제</AdminCardAction>
+                  </div>
+                </AdminCardFooter>
+              </AdminCard>
+            );
+          })}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
+          <thead>
+            <tr>
+              <th className={`${t.adminTableHeaderCell} w-14`}>아이콘</th>
+              <th className={t.adminTableHeaderCell}>이름</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>조건</th>
+              <th className={`${t.adminTableHeaderCell} w-24`}>보유</th>
+              <th className={`${t.adminTableHeaderCell} w-20`}>상태</th>
+              <th className={`${t.adminTableHeaderCell} w-16`} />
+            </tr>
+          </thead>
+          <tbody>
+            {[...rows].sort(compareBadges).map((b) => (
+              <tr key={b.id} onClick={() => startEdit(b)} className={`cursor-pointer ${t.adminTableRowHover} ${editing === b.id ? t.adminTableRowActive : ""}`}>
+                <td className={`${t.adminTableCell} text-xl`}>{b.icon}</td>
+                <td className={t.adminTableCell}>
+                  <div className="font-bold flex items-center gap-1">
+                    {b.label}
+                    {b.secret_tier === "secret" && <span className="text-[10px] font-bold text-blue border border-blue rounded px-1">시크릿</span>}
+                    {b.secret_tier === "super_secret" && <span className="text-[10px] font-bold text-red border border-red rounded px-1">슈퍼시크릿</span>}
+                    {b.secret_tier === "limited" && <span className="text-[10px] font-bold text-gold border border-gold rounded px-1">기간한정</span>}
+                  </div>
+                  <div className="text-muted text-xs">{b.description}</div>
+                </td>
+                <td className={t.adminTableCell}>
+                  {b.condition_text
+                    ? b.condition_text
+                    : b.award_type === "auto"
+                    ? `연속 ${b.streak_threshold}일`
+                    : b.award_type === "date"
+                    ? b.date_condition === "between"
+                      ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
+                      : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+                    : b.award_type === "action"
+                    ? "특정 행동 시 자동"
+                    : b.award_type === "secret_trigger"
+                    ? b.trigger_type
+                      ? TRIGGER_TYPE_LABEL[b.trigger_type]
+                      : "시크릿 트리거"
+                    : "수동 부여"}
+                </td>
+                <td className={t.adminTableCell}>
+                  <button
+                    className="text-xs font-bold text-blue"
+                    onClick={(e) => { e.stopPropagation(); openHolders(b); }}
+                  >
+                    {badgeCounts.get(b.id) ?? 0}명 보유
+                  </button>
+                </td>
+                <td className={t.adminTableCell}>
+                  <button
+                    className={`text-xs font-bold ${b.is_active ? "text-teal" : "text-muted"}`}
+                    onClick={(e) => { e.stopPropagation(); toggleActive(b); }}
+                  >
+                    {b.is_active ? "활성" : "비활성"}
+                  </button>
+                </td>
+                <td className={t.adminTableCell}>
+                  <button className={t.adminBtnDanger} onClick={(e) => { e.stopPropagation(); remove(b.id); }}>삭제</button>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</td></tr>}
+          </tbody>
+        </AdminTable>
+
+        <div className={`${t.adminEditPanel} mt-5`}>
+          <h3 className="mb-1">뱃지 직접 부여</h3>
+          <p className="text-muted text-xs mb-3">학생을 검색해 원하는 뱃지를 바로 지급합니다. 자동 지급 뱃지도 예외적으로 직접 줄 수 있습니다.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-[1fr_1fr_auto] gap-2 items-start">
+            <div>
+              <label className="text-xs font-bold text-muted block mb-1">학생 선택</label>
+              <AccountPicker
+                profiles={profiles}
+                linkedProfile={grantUser}
+                onLink={(p) => setGrantUser(p)}
+                onUnlink={() => setGrantUser(null)}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-bold text-muted block mb-1">뱃지 선택</label>
+              <select
+                className={`${t.adminInput} w-full`}
+                value={grantBadgeId}
+                onChange={(e) => setGrantBadgeId(e.target.value)}
+                disabled={!grantUser || grantableBadges.length === 0}
+              >
+                <option value="">
+                  {!grantUser ? "학생을 먼저 선택하세요" : grantableBadges.length === 0 ? "모든 뱃지를 이미 획득했습니다" : "뱃지를 선택하세요"}
+                </option>
+                {grantableBadges.map((b) => (
+                  <option key={b.id} value={b.id}>{b.icon} {b.label}</option>
+                ))}
+              </select>
+              {grantUser && (
+                <p className="text-muted text-[11px] mt-1">
+                  {adminDisplayName(grantUser)}님이 아직 못 받은 뱃지만 표시됩니다.
+                </p>
+              )}
+            </div>
+            <button
+              onClick={grantBadge}
+              disabled={!grantUser || !grantBadgeId}
+              className={`${t.adminBtnPrimary} disabled:opacity-40 sm:mt-[22px]`}
+            >
+              부여
+            </button>
+          </div>
+          {grantMsg && <p className="text-sm mt-2 font-bold text-teal">{grantMsg}</p>}
+
+          {grantUser && (
+            <div className="mt-4 pt-4 border-t border-border">
+              <h4 className="text-sm font-bold mb-2">
+                {adminDisplayName(grantUser)}님이 보유한 뱃지
+              </h4>
+              {grantUserEarnedBadges.length === 0 ? (
+                <p className="text-muted text-xs">아직 획득한 뱃지가 없습니다.</p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {grantUserEarnedBadges.map((b) => (
+                    <div key={b.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] dark:bg-white/10 rounded-lg px-3 py-2">
+                      <span className="text-sm flex items-center gap-1.5">
+                        <span className="text-lg">{b.icon}</span>
+                        {b.label}
+                      </span>
+                      <button onClick={() => revokeBadge(b.id)} className="text-red text-xs font-bold shrink-0">회수</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+      {editing && (
+        <div className={editing !== "new" ? "hidden sm:block" : ""}>{formPanel}</div>
       )}
     </div>
     {viewingHoldersBadge && (

@@ -227,18 +227,13 @@ export default function AdminActivityLogsPage() {
 
       <AdminCardList>
         {rows.map((r) => (
-          <AdminCard key={r.id} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
-            <AdminCardTitle>
-              {actionLabel(r)} · {TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}
-            </AdminCardTitle>
-            <AdminCardMeta>
-              <span>{fmtDateTime(r.created_at)}</span>
-              <span>· {maskPII ? (r.user_id ? fakeName(r.user_id) : "시스템") : adminDisplayName(r.profiles, "시스템")}</span>
-            </AdminCardMeta>
-            <div className="text-sm truncate">{maskPII ? fakeText() : summarize(r)}</div>
-            {expandedId === r.id && (
-              <div className="p-3 -mx-4 -mb-4 mt-1 bg-[#F7F8FB] dark:bg-white/10 border-t border-border">
-                {maskPII ? (
+          <AdminCard
+            key={r.id}
+            onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}
+            selected={expandedId === r.id}
+            detail={
+              expandedId === r.id ? (
+                maskPII ? (
                   <div className="text-muted text-xs">
                     🔒 designer 계정에는 변경 전/후 상세 내용이 표시되지 않습니다(개인정보 보호).
                   </div>
@@ -257,9 +252,18 @@ export default function AdminActivityLogsPage() {
                       </pre>
                     </div>
                   </div>
-                )}
-              </div>
-            )}
+                )
+              ) : undefined
+            }
+          >
+            <AdminCardTitle>
+              {actionLabel(r)} · {TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}
+            </AdminCardTitle>
+            <AdminCardMeta>
+              <span>{fmtDateTime(r.created_at)}</span>
+              <span>· {maskPII ? (r.user_id ? fakeName(r.user_id) : "시스템") : adminDisplayName(r.profiles, "시스템")}</span>
+            </AdminCardMeta>
+            <div className="text-sm truncate">{maskPII ? fakeText() : summarize(r)}</div>
           </AdminCard>
         ))}
         {!loading && rows.length === 0 && <div className="text-muted text-center py-8 text-sm">기록이 없습니다.</div>}

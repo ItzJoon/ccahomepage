@@ -20,20 +20,48 @@ export function AdminCard({
   children,
   onClick,
   faded = false,
+  selected = false,
+  detail,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   /** 숨김 처리된 글처럼 목록에서 흐리게 표시해야 하는 항목. */
   faded?: boolean;
+  /** 지금 선택(수정 중)된 카드인지 — 테두리/좌측 강조 바/배경 틴트로 눈에 띄게 표시한다. */
+  selected?: boolean;
+  /** 선택됐을 때 카드 바로 아래에 아코디언으로 펼쳐 보여줄 내용(수정 폼, 상세 등).
+   * 데스크톱 표 옆의 고정 패널과 같은 내용을 그대로 넘기면 된다 — 이 카드 자체가
+   * sm:hidden 목록 안에만 있으므로 데스크톱에는 영향이 없다. grid-template-rows를
+   * 0fr↔1fr로 트랜지션하는 방식이라 내용 높이를 몰라도 부드럽게 펼쳐지고 접힌다. */
+  detail?: React.ReactNode;
 }) {
   return (
     <div
-      onClick={onClick}
-      className={`border border-border rounded-xl p-4 bg-surface flex flex-col gap-2 ${onClick ? "cursor-pointer" : ""} ${
-        faded ? "opacity-60" : ""
-      }`}
+      className={`rounded-xl border overflow-hidden bg-surface transition-colors ${
+        selected ? "border-blue" : "border-border"
+      } ${faded ? "opacity-60" : ""}`}
     >
-      {children}
+      <div
+        onClick={onClick}
+        className={`flex flex-col gap-2 p-4 border-l-4 ${onClick ? "cursor-pointer" : ""} ${
+          selected ? "border-l-blue bg-[#EAF0FB] dark:bg-white/10" : "border-l-transparent"
+        }`}
+      >
+        {children}
+      </div>
+      {detail && (
+        <div
+          className={`grid transition-[grid-template-rows] duration-300 ease-in-out ${
+            selected ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+          }`}
+        >
+          <div className="overflow-hidden">
+            <div className="border-t border-border p-4" onClick={(e) => e.stopPropagation()}>
+              {detail}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

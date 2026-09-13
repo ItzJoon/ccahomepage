@@ -68,6 +68,39 @@ export default function AdminRulesPage() {
     setExistingFiles((f) => f.filter((x) => x.id !== attId));
   };
 
+  const formPanel = (
+    <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sm:sticky sm:top-20`}>
+      <h3>{editing === "new" ? "규정 추가" : "규정 수정"}</h3>
+      <label className="text-xs font-bold text-muted mt-2">제목</label>
+      <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
+      <label className="text-xs font-bold text-muted mt-2">분류</label>
+      <input className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+      <label className="text-xs font-bold text-muted mt-2">표시 순서 (작을수록 위)</label>
+      <input
+        type="number"
+        className={t.adminInput}
+        value={form.order_index}
+        onChange={(e) => setForm({ ...form, order_index: Number(e.target.value) })}
+      />
+      <label className="text-xs font-bold text-muted mt-2">본문</label>
+      <textarea rows={10} className={t.adminInput} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+      <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
+      <div className="flex flex-wrap gap-1.5 mb-1">
+        {existingFiles.map((f) => (
+          <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
+            📎 {f.file_name}
+            <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">✕</button>
+          </span>
+        ))}
+      </div>
+      <FileUpload files={newFiles} onChange={setNewFiles} />
+      <div className="flex gap-2 mt-3.5">
+        <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+        <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
+      </div>
+    </div>
+  );
+
   return (
     <div className={`grid grid-cols-1 gap-[18px] items-start ${editing ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
@@ -77,7 +110,12 @@ export default function AdminRulesPage() {
         </div>
         <AdminCardList>
           {rows.map((r) => (
-            <AdminCard key={r.id} onClick={() => startEdit(r)}>
+            <AdminCard
+              key={r.id}
+              onClick={() => (editing === r.id ? setEditing(null) : startEdit(r))}
+              selected={editing === r.id}
+              detail={editing === r.id ? formPanel : undefined}
+            >
               <AdminCardTitle>{r.title}</AdminCardTitle>
               <AdminCardFooter>
                 <span className="text-xs text-muted">{r.category}</span>
@@ -114,36 +152,7 @@ export default function AdminRulesPage() {
         </AdminTable>
       </div>
       {editing && (
-        <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
-          <h3>{editing === "new" ? "규정 추가" : "규정 수정"}</h3>
-          <label className="text-xs font-bold text-muted mt-2">제목</label>
-          <input className={t.adminInput} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-          <label className="text-xs font-bold text-muted mt-2">분류</label>
-          <input className={t.adminInput} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-          <label className="text-xs font-bold text-muted mt-2">표시 순서 (작을수록 위)</label>
-          <input
-            type="number"
-            className={t.adminInput}
-            value={form.order_index}
-            onChange={(e) => setForm({ ...form, order_index: Number(e.target.value) })}
-          />
-          <label className="text-xs font-bold text-muted mt-2">본문</label>
-          <textarea rows={10} className={t.adminInput} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-          <label className="text-xs font-bold text-muted mt-2">첨부파일</label>
-          <div className="flex flex-wrap gap-1.5 mb-1">
-            {existingFiles.map((f) => (
-              <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
-                📎 {f.file_name}
-                <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">✕</button>
-              </span>
-            ))}
-          </div>
-          <FileUpload files={newFiles} onChange={setNewFiles} />
-          <div className="flex gap-2 mt-3.5">
-            <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
-            <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
-          </div>
-        </div>
+        <div className={editing !== "new" ? "hidden sm:block" : ""}>{formPanel}</div>
       )}
     </div>
   );

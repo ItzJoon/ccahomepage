@@ -109,6 +109,102 @@ export default function AdminOrganizationsPage() {
   const unlinkMemberAccount = () => setMemberForm((f) => ({ ...f, user_id: "" }));
   const linkedMemberProfile = profiles.find((p) => p.id === memberForm.user_id) || null;
 
+  const formPanel = (
+    <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sm:sticky sm:top-20`}>
+      <h3>{editing === "new" ? "부서 추가" : "부서 수정"}</h3>
+      <label className="text-xs font-bold text-muted mt-2">부서명</label>
+      <input className={t.adminInput} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+      <label className="text-xs font-bold text-muted mt-2">슬러그 (URL, 영문)</label>
+      <input className={t.adminInput} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="예: exec" />
+      <label className="text-xs font-bold text-muted mt-2">소속</label>
+      <select
+        className={t.adminInput}
+        value={form.category}
+        onChange={(e) => setForm({ ...form, category: e.target.value as Organization["category"] })}
+      >
+        {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+      </select>
+      <label className="text-xs font-bold text-muted mt-2">색상 태그</label>
+      <select className={t.adminInput} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}>
+        {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
+      </select>
+      <label className="text-xs font-bold text-muted mt-2">소개</label>
+      <textarea rows={3} className={t.adminInput} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
+      <label className="text-xs font-bold text-muted mt-2">주요 역할</label>
+      <textarea rows={3} className={t.adminInput} value={form.role_description} onChange={(e) => setForm({ ...form, role_description: e.target.value })} />
+      <div className="flex gap-2 mt-3.5">
+        <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
+        <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
+      </div>
+
+      {editing === "new" ? (
+        <p className="text-muted text-xs border-t border-border mt-4 pt-4">저장 후 이 부서에 구성원을 추가할 수 있습니다.</p>
+      ) : (
+        <div className="border-t border-border mt-4 pt-4">
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-bold">소속 구성원 ({orgMembers.length})</h4>
+            <button
+              type="button"
+              onClick={() => setAddingMember((v) => !v)}
+              className="text-xs font-bold text-blue"
+            >
+              {addingMember ? "닫기" : "+ 구성원 추가"}
+            </button>
+          </div>
+          <ul className="list-none m-0 p-0 flex flex-col gap-1.5 mb-2 max-h-56 overflow-auto">
+            {orgMembers.map((m) => {
+              const photo = m.photo_url || m.profile?.profile_image;
+              return (
+                <li key={m.id} className="flex items-center gap-2 text-sm border border-border rounded-lg px-2 py-1.5">
+                  {photo ? (
+                    <img src={photo} alt={m.name} className="w-7 h-7 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-7 h-7 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold shrink-0">
+                      {m.name[0]}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="truncate font-bold">{m.name}</div>
+                    {m.position && <div className="text-muted text-xs truncate">{m.position}</div>}
+                  </div>
+                  <button type="button" onClick={() => removeMember(m.id)} className={`${t.adminBtnDanger} shrink-0`}>삭제</button>
+                </li>
+              );
+            })}
+            {orgMembers.length === 0 && <li className="text-muted text-xs text-center py-3">구성원이 없습니다.</li>}
+          </ul>
+          {addingMember && (
+            <div className="border border-border rounded-lg p-2.5 flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-muted">계정 연결 (선택)</label>
+              <AccountPicker
+                profiles={profiles}
+                linkedProfile={linkedMemberProfile}
+                onLink={linkMemberAccount}
+                onUnlink={unlinkMemberAccount}
+              />
+              <label className="text-xs font-bold text-muted mt-1">이름</label>
+              <input
+                className={t.adminInput}
+                value={memberForm.name}
+                onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
+              />
+              <label className="text-xs font-bold text-muted mt-1">직책</label>
+              <input
+                className={t.adminInput}
+                value={memberForm.position}
+                onChange={(e) => setMemberForm({ ...memberForm, position: e.target.value })}
+              />
+              <button type="button" onClick={addMember} className={`${t.adminBtnPrimary} text-xs mt-1`}>
+                구성원 추가
+              </button>
+              <p className="text-muted text-[11px]">소개글 등 세부 정보는 "부서 구성원" 탭에서 추가로 입력할 수 있습니다.</p>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="flex border border-border rounded-lg overflow-hidden w-fit mb-4">
@@ -137,7 +233,12 @@ export default function AdminOrganizationsPage() {
             </div>
             <AdminCardList>
               {[...rows].sort((a, b) => a.order_index - b.order_index).map((o) => (
-                <AdminCard key={o.id} onClick={() => startEdit(o)}>
+                <AdminCard
+                  key={o.id}
+                  onClick={() => (editing === o.id ? setEditing(null) : startEdit(o))}
+                  selected={editing === o.id}
+                  detail={editing === o.id ? formPanel : undefined}
+                >
                   <AdminCardTitle>
                     <Badge color={o.color}>{o.name}</Badge>
                     <span className="text-muted text-xs font-normal ml-2">
@@ -184,99 +285,10 @@ export default function AdminOrganizationsPage() {
             </AdminTable>
           </div>
           {editing && (
-            <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
-              <h3>{editing === "new" ? "부서 추가" : "부서 수정"}</h3>
-              <label className="text-xs font-bold text-muted mt-2">부서명</label>
-              <input className={t.adminInput} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <label className="text-xs font-bold text-muted mt-2">슬러그 (URL, 영문)</label>
-              <input className={t.adminInput} value={form.slug} onChange={(e) => setForm({ ...form, slug: e.target.value })} placeholder="예: exec" />
-              <label className="text-xs font-bold text-muted mt-2">소속</label>
-              <select
-                className={t.adminInput}
-                value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value as Organization["category"] })}
-              >
-                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
-              </select>
-              <label className="text-xs font-bold text-muted mt-2">색상 태그</label>
-              <select className={t.adminInput} value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })}>
-                {COLORS.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <label className="text-xs font-bold text-muted mt-2">소개</label>
-              <textarea rows={3} className={t.adminInput} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              <label className="text-xs font-bold text-muted mt-2">주요 역할</label>
-              <textarea rows={3} className={t.adminInput} value={form.role_description} onChange={(e) => setForm({ ...form, role_description: e.target.value })} />
-              <div className="flex gap-2 mt-3.5">
-                <button onClick={save} disabled={!isDirty} className={`${t.adminBtnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`}>저장</button>
-                <button onClick={() => setEditing(null)} className={t.adminBtnSecondary}>취소</button>
-              </div>
-
-              {editing === "new" ? (
-                <p className="text-muted text-xs border-t border-border mt-4 pt-4">저장 후 이 부서에 구성원을 추가할 수 있습니다.</p>
-              ) : (
-                <div className="border-t border-border mt-4 pt-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <h4 className="text-sm font-bold">소속 구성원 ({orgMembers.length})</h4>
-                    <button
-                      type="button"
-                      onClick={() => setAddingMember((v) => !v)}
-                      className="text-xs font-bold text-blue"
-                    >
-                      {addingMember ? "닫기" : "+ 구성원 추가"}
-                    </button>
-                  </div>
-                  <ul className="list-none m-0 p-0 flex flex-col gap-1.5 mb-2 max-h-56 overflow-auto">
-                    {orgMembers.map((m) => {
-                      const photo = m.photo_url || m.profile?.profile_image;
-                      return (
-                        <li key={m.id} className="flex items-center gap-2 text-sm border border-border rounded-lg px-2 py-1.5">
-                          {photo ? (
-                            <img src={photo} alt={m.name} className="w-7 h-7 rounded-full object-cover" />
-                          ) : (
-                            <div className="w-7 h-7 rounded-full bg-navy text-white flex items-center justify-center text-[10px] font-bold shrink-0">
-                              {m.name[0]}
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <div className="truncate font-bold">{m.name}</div>
-                            {m.position && <div className="text-muted text-xs truncate">{m.position}</div>}
-                          </div>
-                          <button type="button" onClick={() => removeMember(m.id)} className={`${t.adminBtnDanger} shrink-0`}>삭제</button>
-                        </li>
-                      );
-                    })}
-                    {orgMembers.length === 0 && <li className="text-muted text-xs text-center py-3">구성원이 없습니다.</li>}
-                  </ul>
-                  {addingMember && (
-                    <div className="border border-border rounded-lg p-2.5 flex flex-col gap-1.5">
-                      <label className="text-xs font-bold text-muted">계정 연결 (선택)</label>
-                      <AccountPicker
-                        profiles={profiles}
-                        linkedProfile={linkedMemberProfile}
-                        onLink={linkMemberAccount}
-                        onUnlink={unlinkMemberAccount}
-                      />
-                      <label className="text-xs font-bold text-muted mt-1">이름</label>
-                      <input
-                        className={t.adminInput}
-                        value={memberForm.name}
-                        onChange={(e) => setMemberForm({ ...memberForm, name: e.target.value })}
-                      />
-                      <label className="text-xs font-bold text-muted mt-1">직책</label>
-                      <input
-                        className={t.adminInput}
-                        value={memberForm.position}
-                        onChange={(e) => setMemberForm({ ...memberForm, position: e.target.value })}
-                      />
-                      <button type="button" onClick={addMember} className={`${t.adminBtnPrimary} text-xs mt-1`}>
-                        구성원 추가
-                      </button>
-                      <p className="text-muted text-[11px]">소개글 등 세부 정보는 "부서 구성원" 탭에서 추가로 입력할 수 있습니다.</p>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
+            // 기존 부서를 펼친 경우 모바일 카드 아코디언(위 detail prop)에 이미 같은
+            // 패널이 보이므로, 640px 미만에서는 여기 두 번째 사본을 숨긴다("부서 추가"는
+            // 카드가 없어 아코디언을 못 붙이므로 이 자리 그대로 보여준다).
+            <div className={editing !== "new" ? "hidden sm:block" : ""}>{formPanel}</div>
           )}
         </div>
       )}

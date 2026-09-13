@@ -68,13 +68,59 @@ export default function AdminBoardPage() {
 
   const current = rows.find((r) => r.id === openId) ?? null;
 
+  const formPanel = current && (
+    <div className={`${t.adminEditPanel} sm:sticky sm:top-20`}>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <h3 className="m-0">{current.title}</h3>
+        <button type="button" onClick={() => setOpenId(null)} className="text-muted text-xl leading-none shrink-0">
+          ✕
+        </button>
+      </div>
+      <div className="flex items-center gap-1.5 text-xs text-muted mb-3 flex-wrap">
+        {current.author_id ? (
+          <AdminPersonMenu userId={current.author_id} name={adminDisplayName(current.author)} />
+        ) : (
+          <span>{adminDisplayName(current.author)}</span>
+        )}
+        <span>· {fmt(current.created_at)}</span>
+        <Link href={`/board/${current.id}`} target="_blank" className="text-blue font-bold ml-auto">
+          실제 페이지에서 보기 ↗
+        </Link>
+      </div>
+      <p className="text-sm whitespace-pre-wrap">{current.content}</p>
+      {current.image_url && (
+        <ImageLightbox
+          src={current.image_url}
+          alt="첨부 이미지"
+          className="max-w-full rounded-lg border border-border mt-2 object-contain"
+        />
+      )}
+      <div className="flex gap-2 mt-3.5">
+        <button onClick={() => toggleHidden(current.id, current.is_hidden)} className={t.adminBtnSecondary}>
+          {current.is_hidden ? "숨김 해제" : "숨김"}
+        </button>
+        {canDelete && (
+          <button onClick={() => remove(current.id)} className={t.adminBtnDanger}>
+            삭제
+          </button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_380px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">게시판 관리</h2>
         <AdminCardList>
           {rows.map((p) => (
-            <AdminCard key={p.id} onClick={() => openPost(p)} faded={!!p.is_hidden}>
+            <AdminCard
+              key={p.id}
+              onClick={() => (openId === p.id ? setOpenId(null) : openPost(p))}
+              faded={!!p.is_hidden}
+              selected={openId === p.id}
+              detail={openId === p.id ? formPanel : undefined}
+            >
               <AdminCardTitle>
                 {!p.reviewed_at && <span className="inline-block w-2 h-2 rounded-full bg-red mr-1.5" title="관리자 미확인" />}
                 {p.title}
@@ -175,45 +221,7 @@ export default function AdminBoardPage() {
         </AdminTable>
       </div>
 
-      {current && (
-        <div className={`${t.adminEditPanel} sticky top-20`}>
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <h3 className="m-0">{current.title}</h3>
-            <button type="button" onClick={() => setOpenId(null)} className="text-muted text-xl leading-none shrink-0">
-              ✕
-            </button>
-          </div>
-          <div className="flex items-center gap-1.5 text-xs text-muted mb-3 flex-wrap">
-            {current.author_id ? (
-              <AdminPersonMenu userId={current.author_id} name={adminDisplayName(current.author)} />
-            ) : (
-              <span>{adminDisplayName(current.author)}</span>
-            )}
-            <span>· {fmt(current.created_at)}</span>
-            <Link href={`/board/${current.id}`} target="_blank" className="text-blue font-bold ml-auto">
-              실제 페이지에서 보기 ↗
-            </Link>
-          </div>
-          <p className="text-sm whitespace-pre-wrap">{current.content}</p>
-          {current.image_url && (
-            <ImageLightbox
-              src={current.image_url}
-              alt="첨부 이미지"
-              className="max-w-full rounded-lg border border-border mt-2 object-contain"
-            />
-          )}
-          <div className="flex gap-2 mt-3.5">
-            <button onClick={() => toggleHidden(current.id, current.is_hidden)} className={t.adminBtnSecondary}>
-              {current.is_hidden ? "숨김 해제" : "숨김"}
-            </button>
-            {canDelete && (
-              <button onClick={() => remove(current.id)} className={t.adminBtnDanger}>
-                삭제
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {current && <div className="hidden sm:block">{formPanel}</div>}
     </div>
   );
 }

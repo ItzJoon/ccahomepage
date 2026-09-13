@@ -171,6 +171,79 @@ export default function AdminReportsPage() {
     reloadSettings(); // realtime이 아니므로 직접 갱신
   };
 
+  const formPanel = current && (
+    <div className={`${t.adminEditPanel} flex flex-col gap-2 sm:sticky sm:top-20`}>
+      <div className="flex items-center justify-between">
+        <h3 className="m-0">신고 상세</h3>
+        <button type="button" onClick={() => setOpenId(null)} className="text-muted text-xl leading-none">✕</button>
+      </div>
+      <p className="text-xs text-muted m-0">
+        {TARGET_TYPE_LABEL[current.target_type]} · {fmtDateTime(current.created_at)}
+      </p>
+      <p className="text-sm m-0"><span className="font-bold">신고자:</span> {displayUser(current.reporter_id)}</p>
+      <p className="text-sm m-0"><span className="font-bold">사유:</span> {current.reason || "-"}</p>
+      {current.context && <p className="text-sm m-0"><span className="font-bold">비고:</span> {current.context}</p>}
+
+      {postLinkId && (
+        <Link href={`/board/${postLinkId}`} target="_blank" className="text-blue text-xs font-bold w-fit">
+          {current.target_type === "board_comment" ? "댓글이 달린 게시물 보기 ↗" : "신고된 게시물 보기 ↗"}
+        </Link>
+      )}
+
+      {currentContent && (
+        <div className="bg-bg rounded-lg p-3 mt-1">
+          {currentContent.title && <div className="font-bold text-sm mb-1">{currentContent.title}</div>}
+          <div className="text-sm whitespace-pre-wrap">{currentContent.content}</div>
+          {currentContent.is_hidden && <div className="text-muted text-xs mt-1">(현재 숨김 상태)</div>}
+        </div>
+      )}
+
+      {canModerateReport && currentContent && (
+        <div className="flex gap-2 mt-1">
+          <button onClick={toggleHiddenContent} className={t.adminBtnSecondary}>
+            {currentContent.is_hidden ? "숨김 해제" : "숨김 처리"}
+          </button>
+          <button onClick={removeContent} className={t.adminBtnDanger}>삭제</button>
+        </div>
+      )}
+
+      {current.target_author_id && (
+        <div className="border-t border-border mt-2 pt-3 flex flex-col gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
+            <div className="flex items-center gap-3 shrink-0">
+              <Link href={`/members/${current.target_author_id}`} target="_blank" className="text-blue text-xs font-bold">
+                프로필 보기 ↗
+              </Link>
+              {isAdmin && (
+                <button
+                  type="button"
+                  onClick={() => setEditingProfileId(current.target_author_id)}
+                  className="text-blue text-xs font-bold"
+                >
+                  닉네임 · 소개 수정
+                </button>
+              )}
+            </div>
+          </div>
+          {canModerateReport ? (
+            <ModerationPanel
+              targetUserId={current.target_author_id}
+              reportId={current.id}
+              onAfterAction={() => markReviewed(current.id)}
+            />
+          ) : (
+            <p className="text-muted text-xs">제재 조치는 admin 이상만 가능합니다.</p>
+          )}
+        </div>
+      )}
+
+      {actionMsg && (
+        <div className="text-sm font-bold bg-[#E4F5EE] dark:bg-white/10 text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
+      )}
+    </div>
+  );
+
   return (
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_380px]" : ""}`}>
       <div className="min-w-0">
@@ -228,7 +301,12 @@ export default function AdminReportsPage() {
 
         <AdminCardList>
           {rows.map((r) => (
-            <AdminCard key={r.id} onClick={() => openReport(r)}>
+            <AdminCard
+              key={r.id}
+              onClick={() => (openId === r.id ? setOpenId(null) : openReport(r))}
+              selected={openId === r.id}
+              detail={openId === r.id ? formPanel : undefined}
+            >
               <AdminCardTitle>
                 <AuthorCell name={r.target_type === "profile" ? displayUser(r.target_id) : displayUser(r.target_author_id)} />
               </AdminCardTitle>
@@ -304,78 +382,7 @@ export default function AdminReportsPage() {
         </AdminTable>
       </div>
 
-      {current && (
-        <div className={`${t.adminEditPanel} flex flex-col gap-2 sticky top-20`}>
-          <div className="flex items-center justify-between">
-            <h3 className="m-0">신고 상세</h3>
-            <button type="button" onClick={() => setOpenId(null)} className="text-muted text-xl leading-none">✕</button>
-          </div>
-          <p className="text-xs text-muted m-0">
-            {TARGET_TYPE_LABEL[current.target_type]} · {fmtDateTime(current.created_at)}
-          </p>
-          <p className="text-sm m-0"><span className="font-bold">신고자:</span> {displayUser(current.reporter_id)}</p>
-          <p className="text-sm m-0"><span className="font-bold">사유:</span> {current.reason || "-"}</p>
-          {current.context && <p className="text-sm m-0"><span className="font-bold">비고:</span> {current.context}</p>}
-
-          {postLinkId && (
-            <Link href={`/board/${postLinkId}`} target="_blank" className="text-blue text-xs font-bold w-fit">
-              {current.target_type === "board_comment" ? "댓글이 달린 게시물 보기 ↗" : "신고된 게시물 보기 ↗"}
-            </Link>
-          )}
-
-          {currentContent && (
-            <div className="bg-bg rounded-lg p-3 mt-1">
-              {currentContent.title && <div className="font-bold text-sm mb-1">{currentContent.title}</div>}
-              <div className="text-sm whitespace-pre-wrap">{currentContent.content}</div>
-              {currentContent.is_hidden && <div className="text-muted text-xs mt-1">(현재 숨김 상태)</div>}
-            </div>
-          )}
-
-          {canModerateReport && currentContent && (
-            <div className="flex gap-2 mt-1">
-              <button onClick={toggleHiddenContent} className={t.adminBtnSecondary}>
-                {currentContent.is_hidden ? "숨김 해제" : "숨김 처리"}
-              </button>
-              <button onClick={removeContent} className={t.adminBtnDanger}>삭제</button>
-            </div>
-          )}
-
-          {current.target_author_id && (
-            <div className="border-t border-border mt-2 pt-3 flex flex-col gap-2">
-              <div className="flex items-center justify-between gap-2">
-                <div className="text-sm font-bold">작성자: {displayUser(current.target_author_id)}</div>
-                <div className="flex items-center gap-3 shrink-0">
-                  <Link href={`/members/${current.target_author_id}`} target="_blank" className="text-blue text-xs font-bold">
-                    프로필 보기 ↗
-                  </Link>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => setEditingProfileId(current.target_author_id)}
-                      className="text-blue text-xs font-bold"
-                    >
-                      닉네임 · 소개 수정
-                    </button>
-                  )}
-                </div>
-              </div>
-              {canModerateReport ? (
-                <ModerationPanel
-                  targetUserId={current.target_author_id}
-                  reportId={current.id}
-                  onAfterAction={() => markReviewed(current.id)}
-                />
-              ) : (
-                <p className="text-muted text-xs">제재 조치는 admin 이상만 가능합니다.</p>
-              )}
-            </div>
-          )}
-
-          {actionMsg && (
-            <div className="text-sm font-bold bg-[#E4F5EE] dark:bg-white/10 text-teal rounded-lg px-3 py-2 mt-1">{actionMsg}</div>
-          )}
-        </div>
-      )}
+      {current && <div className="hidden sm:block">{formPanel}</div>}
 
       {editingProfileId && (
         <ProfileQuickEditModal

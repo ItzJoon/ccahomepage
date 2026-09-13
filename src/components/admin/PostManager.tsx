@@ -566,7 +566,7 @@ export default function PostManager({
     });
 
   const formPanel = (
-    <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sticky top-20`}>
+    <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sm:sticky sm:top-20`}>
       <div className="flex items-center justify-between">
         <h3 className="m-0">{editing === "new" ? "새 글 작성" : "글 수정"}</h3>
         {hideList && (
@@ -882,7 +882,13 @@ export default function PostManager({
           {rows.map((n) => {
             const readOnlyForMe = isTeacher && n.type !== "notice" && n.author_id !== myId;
             return (
-              <AdminCard key={n.id} onClick={() => startEdit(n)} faded={!!n.is_hidden}>
+              <AdminCard
+                key={n.id}
+                onClick={() => (editing === n.id ? closePanel() : startEdit(n))}
+                faded={!!n.is_hidden}
+                selected={editing === n.id}
+                detail={editing === n.id ? formPanel : undefined}
+              >
                 <AdminCardTitle>
                   {kindLabel(n) && <span className="text-[11px] font-bold text-blue mr-1">[{kindLabel(n)}]</span>}
                   {n.is_pinned && <span className="pin mr-1">고정</span>}
@@ -1033,7 +1039,12 @@ export default function PostManager({
           </tbody>
         </AdminTable>
       </div>
-      {editing && formPanel}
+      {editing && (
+        // 기존 글을 펼친 경우 모바일 카드 아코디언(위 detail prop)에 이미 같은 패널이
+        // 보이므로, 640px 미만에서는 여기 두 번째 사본을 숨긴다("새 글 작성"은 카드가
+        // 없어 아코디언을 못 붙이므로 이 자리 그대로 보여준다).
+        <div className={editing !== "new" ? "hidden sm:block" : ""}>{formPanel}</div>
+      )}
     </div>
   );
 }

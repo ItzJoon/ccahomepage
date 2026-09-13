@@ -89,13 +89,53 @@ export default function AdminQnaPage() {
 
   const current = rows.find((q) => q.id === openId);
 
+  const formPanel = current && (
+    <div className={`${t.adminEditPanel} sm:sticky sm:top-20`}>
+      <h3>{current.title}</h3>
+      <p className="text-xs text-muted mb-1 flex items-center gap-1 flex-wrap">
+        질문자:
+        {current.user_id ? (
+          <AdminPersonMenu userId={current.user_id} name={adminDisplayName(current.asker, "알 수 없음")} />
+        ) : (
+          <span>{adminDisplayName(current.asker, "알 수 없음")}</span>
+        )}
+        {" · "}
+        {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
+      </p>
+      <p className="text-sm">{current.content}</p>
+      {current.image_url && (
+        <ImageLightbox src={current.image_url} alt="첨부 이미지" className="max-w-full max-h-56 rounded-lg border border-border mb-2 object-contain" />
+      )}
+      <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
+      <textarea rows={5} className={`${t.adminInput} w-full mt-1`} value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
+      {myId && (
+        <div className="mt-2">
+          <ImageUpload userId={myId} value={answerImageUrl} onChange={setAnswerImageUrl} />
+        </div>
+      )}
+      <div className="flex gap-2 mt-3.5">
+        <button onClick={() => submitAnswer(current)} className={t.adminBtnPrimary}>답변 등록</button>
+        <button onClick={() => setOpenId(null)} className={t.adminBtnSecondary}>닫기</button>
+        {canDelete && (
+          <button onClick={() => removeQuestion(current.id)} className="text-red text-sm font-bold ml-auto">질문 삭제</button>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">Q&amp;A 관리</h2>
         <AdminCardList>
           {rows.map((q) => (
-            <AdminCard key={q.id} onClick={() => openQ(q)} faded={!!q.is_hidden}>
+            <AdminCard
+              key={q.id}
+              onClick={() => (openId === q.id ? setOpenId(null) : openQ(q))}
+              faded={!!q.is_hidden}
+              selected={openId === q.id}
+              detail={openId === q.id ? formPanel : undefined}
+            >
               <AdminCardTitle>
                 {!q.reviewed_at && <span className="inline-block w-2 h-2 rounded-full bg-red mr-1.5" title="관리자 미확인" />}
                 {q.title}
@@ -203,39 +243,7 @@ export default function AdminQnaPage() {
           </tbody>
         </AdminTable>
       </div>
-      {current && (
-        <div className={`${t.adminEditPanel} sticky top-20`}>
-          <h3>{current.title}</h3>
-          <p className="text-xs text-muted mb-1 flex items-center gap-1 flex-wrap">
-            질문자:
-            {current.user_id ? (
-              <AdminPersonMenu userId={current.user_id} name={adminDisplayName(current.asker, "알 수 없음")} />
-            ) : (
-              <span>{adminDisplayName(current.asker, "알 수 없음")}</span>
-            )}
-            {" · "}
-            {current.author_display_name ? "학생 목록에 이름 공개" : "학생 목록에는 익명으로 표시"}
-          </p>
-          <p className="text-sm">{current.content}</p>
-          {current.image_url && (
-            <ImageLightbox src={current.image_url} alt="첨부 이미지" className="max-w-full max-h-56 rounded-lg border border-border mb-2 object-contain" />
-          )}
-          <label className="text-xs font-bold text-muted mt-2 block">답변 작성</label>
-          <textarea rows={5} className={`${t.adminInput} w-full mt-1`} value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
-          {myId && (
-            <div className="mt-2">
-              <ImageUpload userId={myId} value={answerImageUrl} onChange={setAnswerImageUrl} />
-            </div>
-          )}
-          <div className="flex gap-2 mt-3.5">
-            <button onClick={() => submitAnswer(current)} className={t.adminBtnPrimary}>답변 등록</button>
-            <button onClick={() => setOpenId(null)} className={t.adminBtnSecondary}>닫기</button>
-            {canDelete && (
-              <button onClick={() => removeQuestion(current.id)} className="text-red text-sm font-bold ml-auto">질문 삭제</button>
-            )}
-          </div>
-        </div>
-      )}
+      {current && <div className="hidden sm:block">{formPanel}</div>}
     </div>
   );
 }
