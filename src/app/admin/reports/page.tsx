@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta } from "@/components/admin/AdminCard";
 import AuthorCell from "@/components/admin/AuthorCell";
 import ModerationPanel from "@/components/admin/ModerationPanel";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
@@ -225,7 +226,36 @@ export default function AdminReportsPage() {
           </div>
         )}
 
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((r) => (
+            <AdminCard key={r.id} onClick={() => openReport(r)}>
+              <AdminCardTitle>
+                <AuthorCell name={r.target_type === "profile" ? displayUser(r.target_id) : displayUser(r.target_author_id)} />
+              </AdminCardTitle>
+              {r.context && <div className="text-muted text-xs -mt-1 truncate" title={r.context}>{r.context}</div>}
+              <AdminCardMeta>
+                <span>신고자 {displayUser(r.reporter_id)}</span>
+                <span>· {TARGET_TYPE_LABEL[r.target_type] ?? r.target_type}</span>
+                <span>· {fmtDateTime(r.created_at)}</span>
+              </AdminCardMeta>
+              <div className="text-sm">{r.reason || "-"}</div>
+              <div className="flex items-center justify-end pt-2 mt-1 border-t border-border">
+                <select
+                  className={`${t.adminInput} min-h-[44px]`}
+                  value={r.status}
+                  onClick={(e) => e.stopPropagation()}
+                  onChange={(e) => setStatus(r.id, e.target.value as ReportStatus)}
+                >
+                  {Object.entries(STATUS_LABEL).map(([v, label]) => (
+                    <option key={v} value={v}>{label}</option>
+                  ))}
+                </select>
+              </div>
+            </AdminCard>
+          ))}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">접수된 신고가 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>신고자</th>

@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "./AdminCard";
 import AuthorCell from "./AuthorCell";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
 import RichTextEditor from "./RichTextEditor";
@@ -877,7 +878,66 @@ export default function PostManager({
             명단에 담당 과목/학급 정보가 없어 공지를 등록할 수 없습니다. 관리자에게 문의해 주세요.
           </p>
         )}
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((n) => {
+            const readOnlyForMe = isTeacher && n.type !== "notice" && n.author_id !== myId;
+            return (
+              <AdminCard key={n.id} onClick={() => startEdit(n)} faded={!!n.is_hidden}>
+                <AdminCardTitle>
+                  {kindLabel(n) && <span className="text-[11px] font-bold text-blue mr-1">[{kindLabel(n)}]</span>}
+                  {n.is_pinned && <span className="pin mr-1">고정</span>}
+                  {n.title}
+                  {n.image_url && (
+                    <span className="ml-1 text-muted text-sm" title="사진 첨부됨">
+                      📷
+                    </span>
+                  )}
+                </AdminCardTitle>
+                <AdminCardMeta>
+                  <AuthorCell name={adminDisplayName(n.author)} />
+                  <span>·</span>
+                  <span>{n.publish_at}</span>
+                </AdminCardMeta>
+                <AdminCardFooter>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span
+                      className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                        n.status === "published"
+                          ? "bg-[#E4F5EE] dark:bg-white/10 text-teal"
+                          : n.status === "scheduled"
+                          ? "bg-[#FFF3DC] dark:bg-white/10 text-gold"
+                          : "bg-[#EEF1F6] dark:bg-white/10 text-muted"
+                      }`}
+                    >
+                      {n.status === "published" ? "발행" : n.status === "scheduled" ? "예약" : "임시저장"}
+                    </span>
+                    {n.is_hidden && (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {!readOnlyForMe && (
+                      <AdminCardAction onClick={() => toggleHidden(n.id, n.is_hidden)}>
+                        {n.is_hidden ? "숨김 해제" : "숨김"}
+                      </AdminCardAction>
+                    )}
+                    {iAmAdmin ? (
+                      <AdminCardAction danger onClick={() => remove(n.id)}>
+                        삭제
+                      </AdminCardAction>
+                    ) : (
+                      <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다.">
+                        🔒
+                      </span>
+                    )}
+                  </div>
+                </AdminCardFooter>
+              </AdminCard>
+            );
+          })}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>

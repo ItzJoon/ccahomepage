@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -93,7 +94,27 @@ export default function AdminEventsPage() {
           <h2 className="text-[22px]">일정 관리</h2>
           <button onClick={startNew} className={t.adminBtnPrimary}>+ 새 일정</button>
         </div>
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((e) => (
+            <AdminCard key={e.id} onClick={() => startEdit(e)} faded={!!e.is_hidden}>
+              <AdminCardTitle>{e.title}</AdminCardTitle>
+              <AdminCardMeta>
+                <span>{e.start_at}</span>
+                <span>·</span>
+                <span>{adminDisplayName(e.profiles, "등록자 정보 없음")}</span>
+              </AdminCardMeta>
+              <AdminCardFooter>
+                <div>{e.is_hidden && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>}</div>
+                <div className="flex items-center gap-1.5">
+                  <AdminCardAction onClick={() => toggleHidden(e.id, e.is_hidden)}>{e.is_hidden ? "숨김 해제" : "숨김"}</AdminCardAction>
+                  <AdminCardAction danger onClick={() => remove(e.id)}>삭제</AdminCardAction>
+                </div>
+              </AdminCardFooter>
+            </AdminCard>
+          ))}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>

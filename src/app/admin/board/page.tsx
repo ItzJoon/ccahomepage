@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import AuthorCell from "@/components/admin/AuthorCell";
 import AdminPersonMenu from "@/components/admin/AdminPersonMenu";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -71,7 +72,45 @@ export default function AdminBoardPage() {
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_380px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">게시판 관리</h2>
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((p) => (
+            <AdminCard key={p.id} onClick={() => openPost(p)} faded={!!p.is_hidden}>
+              <AdminCardTitle>
+                {!p.reviewed_at && <span className="inline-block w-2 h-2 rounded-full bg-red mr-1.5" title="관리자 미확인" />}
+                {p.title}
+              </AdminCardTitle>
+              <AdminCardMeta>
+                <span onClick={(e) => e.stopPropagation()}>
+                  {p.author_id ? (
+                    <AdminPersonMenu userId={p.author_id} name={adminDisplayName(p.author)} />
+                  ) : (
+                    <AuthorCell name={adminDisplayName(p.author)} />
+                  )}
+                </span>
+                <span>· {fmt(p.created_at)}</span>
+              </AdminCardMeta>
+              <AdminCardFooter>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    p.is_hidden ? "bg-[#EEF1F6] dark:bg-white/10 text-muted" : "bg-[#E4F5EE] dark:bg-white/10 text-teal"
+                  }`}
+                >
+                  {p.is_hidden ? "숨김" : "공개"}
+                </span>
+                <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                  <AdminCardAction onClick={() => toggleHidden(p.id, p.is_hidden)}>{p.is_hidden ? "숨김 해제" : "숨김"}</AdminCardAction>
+                  {canDelete ? (
+                    <AdminCardAction danger onClick={() => remove(p.id)}>삭제</AdminCardAction>
+                  ) : (
+                    <span className="text-muted text-xs" title="삭제는 admin 이상만 가능합니다">🔒</span>
+                  )}
+                </div>
+              </AdminCardFooter>
+            </AdminCard>
+          ))}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>

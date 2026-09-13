@@ -9,13 +9,19 @@ export default function AdminTable({
   children,
   minWidth = 640,
   className = "",
+  hasCardFallback = false,
 }: {
   children: React.ReactNode;
   minWidth?: number;
   className?: string;
+  /** true면 640px 미만에서 표 자체를 숨긴다 — 호출하는 화면이 그 자리에
+   * AdminCardList로 만든 모바일 카드 목록을 별도로 나란히 렌더링해야 한다
+   * (안 그러면 모바일에서 목록이 통째로 사라져 보인다). 기존 화면들은 이 prop을
+   * 안 주면 지금처럼 계속 표+가로 스크롤로 보인다(하위호환, 기본값 false). */
+  hasCardFallback?: boolean;
 }) {
   return (
-    <div className="overflow-x-auto">
+    <div className={`overflow-x-auto ${hasCardFallback ? "hidden sm:block" : ""}`}>
       <table className={`w-full border-collapse bg-surface ${className}`} style={{ minWidth }}>
         {children}
       </table>

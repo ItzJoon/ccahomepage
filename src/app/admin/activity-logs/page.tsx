@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta } from "@/components/admin/AdminCard";
 import { Fragment, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useMyRole } from "@/hooks/useMyRole";
@@ -224,7 +225,47 @@ export default function AdminActivityLogsPage() {
         />
       </div>
 
-      <AdminTable>
+      <AdminCardList>
+        {rows.map((r) => (
+          <AdminCard key={r.id} onClick={() => setExpandedId(expandedId === r.id ? null : r.id)}>
+            <AdminCardTitle>
+              {actionLabel(r)} · {TABLE_LABELS[r.target_table ?? ""] ?? r.target_table}
+            </AdminCardTitle>
+            <AdminCardMeta>
+              <span>{fmtDateTime(r.created_at)}</span>
+              <span>· {maskPII ? (r.user_id ? fakeName(r.user_id) : "시스템") : adminDisplayName(r.profiles, "시스템")}</span>
+            </AdminCardMeta>
+            <div className="text-sm truncate">{maskPII ? fakeText() : summarize(r)}</div>
+            {expandedId === r.id && (
+              <div className="p-3 -mx-4 -mb-4 mt-1 bg-[#F7F8FB] dark:bg-white/10 border-t border-border">
+                {maskPII ? (
+                  <div className="text-muted text-xs">
+                    🔒 designer 계정에는 변경 전/후 상세 내용이 표시되지 않습니다(개인정보 보호).
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3 text-xs">
+                    <div>
+                      <div className="font-bold text-muted mb-1">변경 전</div>
+                      <pre className="whitespace-pre-wrap break-all bg-surface border border-border rounded-lg p-2.5 m-0">
+                        {r.before_data ? JSON.stringify(relabelRolesForDisplay(r.before_data), null, 2) : "(없음)"}
+                      </pre>
+                    </div>
+                    <div>
+                      <div className="font-bold text-muted mb-1">변경 후</div>
+                      <pre className="whitespace-pre-wrap break-all bg-surface border border-border rounded-lg p-2.5 m-0">
+                        {r.after_data ? JSON.stringify(relabelRolesForDisplay(r.after_data), null, 2) : "(없음)"}
+                      </pre>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </AdminCard>
+        ))}
+        {!loading && rows.length === 0 && <div className="text-muted text-center py-8 text-sm">기록이 없습니다.</div>}
+        {loading && <div className="text-muted text-center py-8 text-sm">불러오는 중…</div>}
+      </AdminCardList>
+      <AdminTable hasCardFallback>
         <thead>
           <tr>
             <th className={`${t.adminTableHeaderCell} w-40`}>시각</th>

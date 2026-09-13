@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps } from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -74,7 +75,19 @@ export default function AdminRulesPage() {
           <h2 className="text-[22px]">규정 관리</h2>
           <button onClick={startNew} className={t.adminBtnPrimary}>+ 규정 추가</button>
         </div>
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((r) => (
+            <AdminCard key={r.id} onClick={() => startEdit(r)}>
+              <AdminCardTitle>{r.title}</AdminCardTitle>
+              <AdminCardFooter>
+                <span className="text-xs text-muted">{r.category}</span>
+                <AdminCardAction danger onClick={() => remove(r.id)}>삭제</AdminCardAction>
+              </AdminCardFooter>
+            </AdminCard>
+          ))}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 규정이 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>

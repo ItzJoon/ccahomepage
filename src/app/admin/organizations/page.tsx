@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import OrgMembersManager from "@/components/admin/OrgMembersManager";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -134,7 +135,26 @@ export default function AdminOrganizationsPage() {
               <h2 className="text-[22px]">부서 관리</h2>
               <button onClick={startNew} className={t.adminBtnPrimary}>+ 부서 추가</button>
             </div>
-            <AdminTable>
+            <AdminCardList>
+              {[...rows].sort((a, b) => a.order_index - b.order_index).map((o) => (
+                <AdminCard key={o.id} onClick={() => startEdit(o)}>
+                  <AdminCardTitle>
+                    <Badge color={o.color}>{o.name}</Badge>
+                    <span className="text-muted text-xs font-normal ml-2">
+                      {o.category === "judiciary" ? "사법위원회" : "학생자치회"}
+                    </span>
+                  </AdminCardTitle>
+                  <AdminCardFooter>
+                    <div className="flex items-center gap-1.5">
+                      <AdminCardAction onClick={() => move(o, -1)}>▲</AdminCardAction>
+                      <AdminCardAction onClick={() => move(o, 1)}>▼</AdminCardAction>
+                    </div>
+                    <AdminCardAction danger onClick={() => remove(o.id)}>삭제</AdminCardAction>
+                  </AdminCardFooter>
+                </AdminCard>
+              ))}
+            </AdminCardList>
+            <AdminTable hasCardFallback>
               <thead>
                 <tr>
                   <th className={`${t.adminTableHeaderCell} w-16`}>순서</th>

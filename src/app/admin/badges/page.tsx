@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -344,7 +345,47 @@ export default function AdminBadgesPage() {
           (이미 받은 학생의 뱃지는 항상 유지됩니다). "시크릿"으로 설정하면 획득하기 전까지 학생 목록에
           아예 보이지 않다가, 지급받는 순간 드러납니다.
         </p>
-        <AdminTable>
+        <AdminCardList>
+          {[...rows].sort(compareBadges).map((b) => {
+            const conditionText = b.condition_text
+              ? b.condition_text
+              : b.award_type === "auto"
+              ? `연속 ${b.streak_threshold}일`
+              : b.award_type === "date"
+              ? b.date_condition === "between"
+                ? `${b.date_condition_value}~${b.date_condition_value_end} 사이 로그인`
+                : `${b.date_condition_value} ${dateConditionLabel[b.date_condition ?? "before"]}`
+              : b.award_type === "action"
+              ? "특정 행동 시 자동"
+              : b.award_type === "secret_trigger"
+              ? b.trigger_type
+                ? TRIGGER_TYPE_LABEL[b.trigger_type]
+                : "시크릿 트리거"
+              : "수동 부여";
+            return (
+              <AdminCard key={b.id} onClick={() => startEdit(b)}>
+                <AdminCardTitle>
+                  <span className="text-xl mr-1.5 align-middle">{b.icon}</span>
+                  {b.label}
+                  {b.secret_tier === "secret" && <span className="ml-1 text-[10px] font-bold text-blue border border-blue rounded px-1 align-middle">시크릿</span>}
+                  {b.secret_tier === "super_secret" && <span className="ml-1 text-[10px] font-bold text-red border border-red rounded px-1 align-middle">슈퍼시크릿</span>}
+                  {b.secret_tier === "limited" && <span className="ml-1 text-[10px] font-bold text-gold border border-gold rounded px-1 align-middle">기간한정</span>}
+                </AdminCardTitle>
+                <div className="text-muted text-xs">{b.description}</div>
+                <AdminCardMeta>{conditionText}</AdminCardMeta>
+                <AdminCardFooter>
+                  <AdminCardAction onClick={() => openHolders(b)}>{badgeCounts.get(b.id) ?? 0}명 보유</AdminCardAction>
+                  <div className="flex items-center gap-1.5">
+                    <AdminCardAction onClick={() => toggleActive(b)}>{b.is_active ? "활성" : "비활성"}</AdminCardAction>
+                    <AdminCardAction danger onClick={() => remove(b.id)}>삭제</AdminCardAction>
+                  </div>
+                </AdminCardFooter>
+              </AdminCard>
+            );
+          })}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 뱃지가 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={`${t.adminTableHeaderCell} w-14`}>아이콘</th>

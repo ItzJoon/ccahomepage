@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta } from "@/components/admin/AdminCard";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -88,7 +89,58 @@ export default function AdminUsersPage() {
           <option value="12">12학년</option>
         </select>
       </div>
-      <AdminTable>
+      <AdminCardList>
+        {list.map((p) => {
+          const targetIsPrivileged = p.role === "admin" || p.role === "superadmin";
+          const canEdit = iAmAdmin && (iAmSuperadmin || !targetIsPrivileged) && p.role !== "superadmin";
+          const lockReason = !iAmAdmin
+            ? "editor는 권한 열람만 가능합니다. 변경은 admin 이상만 할 수 있습니다."
+            : p.role === "superadmin"
+            ? "developer 권한은 이 화면에서 바꿀 수 없습니다(본인 포함) — DB에서 직접 변경해야 합니다."
+            : "developer만 admin/developer 계정의 권한을 변경할 수 있습니다";
+          const dm = directoryByEmail[p.email];
+          return (
+            <AdminCard key={p.id}>
+              <AdminCardTitle>{maskPII ? fakeName(p.id) : p.name || "-"}</AdminCardTitle>
+              <AdminCardMeta>
+                <span>{maskPII ? fakeEmail(p.id) : p.email}</span>
+                {dm?.member_type === "student" && (
+                  <span>· 학생 · {dm.grade}학년 {dm.homeroom ? HOMEROOM_LABEL[dm.homeroom] : ""}</span>
+                )}
+                {dm?.member_type === "teacher" && <span>· 교사 · {dm.subject || "-"}</span>}
+              </AdminCardMeta>
+              <div className="flex items-center justify-between gap-2 flex-wrap pt-2 mt-1 border-t border-border">
+                {canEdit || iAmDesigner ? (
+                  <select
+                    className={`${t.adminInput} min-h-[44px]`}
+                    value={p.role}
+                    disabled={!canEdit}
+                    onChange={(e) => changeRole(p.id, e.target.value)}
+                  >
+                    {(canEdit ? selectableRoles : ROLES).map((r) => <option key={r} value={r}>{roleLabel(r)}</option>)}
+                  </select>
+                ) : (
+                  <span className="text-sm text-muted" title={lockReason}>
+                    {roleLabel(p.role)}
+                  </span>
+                )}
+                <div className="flex items-center gap-3 text-xs text-muted">
+                  <label className="flex items-center gap-1">
+                    <input type="checkbox" disabled checked={p.is_council} title="부서 관리에서 자동으로 계산됩니다." />
+                    임원회
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
+                    사법위원회
+                  </label>
+                </div>
+              </div>
+            </AdminCard>
+          );
+        })}
+        {list.length === 0 && <div className="text-muted text-center py-8 text-sm">사용자가 없습니다.</div>}
+      </AdminCardList>
+      <AdminTable hasCardFallback>
         <thead>
           <tr>
             <th className={t.adminTableHeaderCell}>이름</th>

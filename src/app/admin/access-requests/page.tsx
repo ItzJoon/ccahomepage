@@ -6,6 +6,7 @@ import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AdminTable from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import { fakeEmail } from "@/lib/fakeData";
 import { adminDisplayName } from "@/lib/displayName";
 import { roleLabel } from "@/lib/roleLabel";
@@ -225,7 +226,35 @@ export default function AdminAccessRequestsPage() {
       </div>
 
       <h3 className="text-sm font-bold text-muted mb-2">대기 중인 요청 ({pending.length})</h3>
-      <AdminTable className="mb-6">
+      <AdminCardList>
+        {pending.map((r) => (
+          <AdminCard key={r.id}>
+            <AdminCardTitle>{maskPII ? fakeEmail(r.id) : r.email}</AdminCardTitle>
+            <AdminCardMeta>{new Date(r.attempted_at).toLocaleString("ko-KR")}</AdminCardMeta>
+            <AdminCardFooter>
+              <div />
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => approve(r)}
+                  disabled={busyId === r.id}
+                  className="min-h-[44px] px-3.5 bg-teal text-white font-bold text-sm rounded-lg disabled:opacity-50"
+                >
+                  허용
+                </button>
+                <button
+                  onClick={() => block(r)}
+                  disabled={busyId === r.id}
+                  className="min-h-[44px] px-3.5 bg-red text-white font-bold text-sm rounded-lg disabled:opacity-50"
+                >
+                  차단
+                </button>
+              </div>
+            </AdminCardFooter>
+          </AdminCard>
+        ))}
+        {pending.length === 0 && <div className="text-muted text-center py-6 text-sm">대기 중인 요청이 없습니다.</div>}
+      </AdminCardList>
+      <AdminTable className="mb-6" hasCardFallback>
         <thead>
           <tr>
             <th className={t.adminTableHeaderCell}>이메일</th>
@@ -271,7 +300,57 @@ export default function AdminAccessRequestsPage() {
       </AdminTable>
 
       <h3 className="text-sm font-bold text-muted mb-2">처리 이력 ({decided.length})</h3>
-      <AdminTable>
+      <AdminCardList>
+        {decided.map((r) => {
+          const label = STATUS_LABEL[r.status];
+          const profile = profileByEmail[r.email];
+          return (
+            <AdminCard key={r.id}>
+              <AdminCardTitle>{maskPII ? fakeEmail(r.id) : r.email}</AdminCardTitle>
+              <AdminCardMeta>
+                <span className={`font-bold ${label.className}`}>{label.text}</span>
+                <span>· {new Date(r.attempted_at).toLocaleString("ko-KR")}</span>
+              </AdminCardMeta>
+              <AdminCardMeta>
+                <span>처리 {r.decided_at ? new Date(r.decided_at).toLocaleString("ko-KR") : "-"}</span>
+                <span>· {r.decided_by ? adminDisplayName(deciders[r.decided_by]) : "-"}</span>
+              </AdminCardMeta>
+              {!profile ? (
+                <span className="text-muted text-xs">가입 전</span>
+              ) : r.status === "approved" && isSuperadmin && profile.role !== "superadmin" ? (
+                <select
+                  className={`${t.adminInput} min-h-[44px]`}
+                  value={profile.role}
+                  disabled={busyId === profile.id}
+                  onChange={(e) => changeExternalRole(profile.id, e.target.value)}
+                >
+                  {ASSIGNABLE_ROLES.map((role) => (
+                    <option key={role} value={role}>{roleLabel(role)}</option>
+                  ))}
+                </select>
+              ) : (
+                <span className="text-sm text-muted">{roleLabel(profile.role)}</span>
+              )}
+              <AdminCardFooter>
+                <div />
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {r.status === "approved" && (
+                    <AdminCardAction danger onClick={() => revokeApproval(r)} disabled={busyId === r.id}>다시 막기</AdminCardAction>
+                  )}
+                  {r.status === "blocked" && (
+                    <AdminCardAction onClick={() => unblock(r)} disabled={busyId === r.id}>차단 해제</AdminCardAction>
+                  )}
+                  {r.status === "blocked" && isSuperadmin && (
+                    <AdminCardAction onClick={() => resetToPending(r)} disabled={busyId === r.id}>대기 상태로</AdminCardAction>
+                  )}
+                </div>
+              </AdminCardFooter>
+            </AdminCard>
+          );
+        })}
+        {decided.length === 0 && <div className="text-muted text-center py-6 text-sm">처리 이력이 없습니다.</div>}
+      </AdminCardList>
+      <AdminTable hasCardFallback>
         <thead>
           <tr>
             <th className={t.adminTableHeaderCell}>이메일</th>

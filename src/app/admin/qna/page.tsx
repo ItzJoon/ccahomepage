@@ -1,6 +1,7 @@
 "use client";
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -92,7 +93,44 @@ export default function AdminQnaPage() {
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">Q&amp;A 관리</h2>
-        <AdminTable>
+        <AdminCardList>
+          {rows.map((q) => (
+            <AdminCard key={q.id} onClick={() => openQ(q)} faded={!!q.is_hidden}>
+              <AdminCardTitle>
+                {!q.reviewed_at && <span className="inline-block w-2 h-2 rounded-full bg-red mr-1.5" title="관리자 미확인" />}
+                {q.title}
+              </AdminCardTitle>
+              <AdminCardMeta>
+                <span onClick={(e) => q.user_id && e.stopPropagation()}>
+                  {q.user_id ? (
+                    <AdminPersonMenu userId={q.user_id} name={adminDisplayName(q.asker)} />
+                  ) : (
+                    <AuthorCell name={adminDisplayName(q.asker)} />
+                  )}
+                </span>
+                {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
+              </AdminCardMeta>
+              <AdminCardFooter>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${q.status === "answered" ? "bg-[#E4F5EE] dark:bg-white/10 text-teal" : "bg-[#FFF3DC] dark:bg-white/10 text-gold"}`}>
+                    {q.status === "answered" ? "답변완료" : "대기"}
+                  </span>
+                  {q.is_hidden && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>}
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <AdminCardAction onClick={() => toggleHidden(q.id, q.is_hidden)}>{q.is_hidden ? "숨김 해제" : "숨김"}</AdminCardAction>
+                  {canDelete ? (
+                    <AdminCardAction danger onClick={() => removeQuestion(q.id)}>삭제</AdminCardAction>
+                  ) : (
+                    <span className="text-muted text-xs" title="질문 삭제는 admin 이상만 가능합니다">🔒</span>
+                  )}
+                </div>
+              </AdminCardFooter>
+            </AdminCard>
+          ))}
+          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">질문이 없습니다.</div>}
+        </AdminCardList>
+        <AdminTable hasCardFallback>
           <thead>
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>
