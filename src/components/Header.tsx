@@ -339,7 +339,12 @@ export default function Header({
         맞춰뒀다. */}
     <nav
       className={`sm:hidden fixed bottom-0 inset-x-0 z-30 ${t.headerBg} ${t.headerText} ${t.mobileBorder}`}
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+      // 홈 버튼이 없는 아이폰(X 이후)은 화면 맨 아래에 홈 인디케이터 제스처 바가 있어서,
+      // 탭바 아이콘이 거기 바로 붙어 있으면 눌리기 불편하고 카카오톡 등과 다르게 답답해
+      // 보인다. env(safe-area-inset-bottom)만 쓰면 그 값이 0인 기기(안드로이드, 홈 버튼
+      // 있는 구형 아이폰)에서는 여백이 아예 없어지므로, max()로 "최소 기본 여백은 항상
+      // 확보하고, 홈 인디케이터가 그보다 더 크게 필요하면 그만큼 더 확보"하게 한다.
+      style={{ paddingBottom: "max(0.625rem, env(safe-area-inset-bottom))" }}
     >
       <div className="flex">
         {visibleBottomTabs.map((tab) => {

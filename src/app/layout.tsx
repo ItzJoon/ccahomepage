@@ -42,6 +42,9 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: "#16233f",
+  // 모바일 하단 탭바가 iOS 홈 인디케이터 영역을 env(safe-area-inset-bottom)으로 피해가려면
+  // 이 값이 계산돼야 하는데, viewport-fit=cover가 없으면 사파리가 항상 0으로 취급한다.
+  viewportFit: "cover",
 };
 
 // 구글이 이 사이트를 "중앙기독고등학교 학생자치회"라는 조직/웹사이트로 명확히 인식하도록
