@@ -97,7 +97,17 @@ export default function Header({
   const [quickEditOpen, setQuickEditOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  // 하단 탭바를 눌렀을 때 실제 페이지 전환(서버 왕복)이 끝나기 전까지는 pathname이
+  // 그대로라 활성 표시가 바뀌지 않는데, 그 사이(길게는 수백 ms) 탭이 눌린 건지 아닌지
+  // 아무 반응이 없어서 "느리다"고 느껴진다 — 탭을 누른 즉시 그 탭을 활성 표시로
+  // 낙관적으로(optimistic) 바꿔서 탭 자체는 항상 즉각 반응하게 하고, 실제 전환이 끝나면
+  // (pathname이 바뀌면) 원래 방식대로 정리한다.
+  const [pendingTabHref, setPendingTabHref] = useState<string | null>(null);
   const profileMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPendingTabHref(null);
+  }, [pathname]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
@@ -348,15 +358,18 @@ export default function Header({
     >
       <div className="flex">
         {visibleBottomTabs.map((tab) => {
-          const active = tab.match(pathname);
+          const reallyActive = tab.match(pathname);
+          const pending = pendingTabHref === tab.href && !reallyActive;
+          const active = reallyActive || pending;
           const Icon = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
+              onClick={() => setPendingTabHref(tab.href)}
               className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[11px] ${
                 active ? `${t.navActive} font-bold` : "text-gray-400 font-medium"
-              }`}
+              } ${pending ? "animate-pulse" : ""}`}
             >
               <Icon size={23} strokeWidth={active ? 2.4 : 1.8} />
               {tab.label}
@@ -364,13 +377,17 @@ export default function Header({
           );
         })}
         {(() => {
-          const mypageActive = profile ? pathname.startsWith("/mypage") : pathname === "/login";
+          const mypageHref = profile ? "/mypage" : "/login";
+          const reallyActive = profile ? pathname.startsWith("/mypage") : pathname === "/login";
+          const pending = pendingTabHref === mypageHref && !reallyActive;
+          const mypageActive = reallyActive || pending;
           return (
             <Link
-              href={profile ? "/mypage" : "/login"}
+              href={mypageHref}
+              onClick={() => setPendingTabHref(mypageHref)}
               className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[11px] ${
                 mypageActive ? `${t.navActive} font-bold` : "text-gray-400 font-medium"
-              }`}
+              } ${pending ? "animate-pulse" : ""}`}
             >
               <UserCircle size={23} strokeWidth={mypageActive ? 2.4 : 1.8} />
               마이페이지

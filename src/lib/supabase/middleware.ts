@@ -201,13 +201,29 @@ export async function updateSession(request: NextRequest) {
   const gatedFeatureKey = Object.keys(FEATURE_GATED_PREFIXES).find(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
   );
+  // 사이트 제한(수업시간 등) 대상 경로인지 — 실제로 이 체크를 적용할지는 role까지 봐야
+  // 하지만(학생 계정만 대상), 조회 자체는 role과 무관하게 미리 해둔다(아래 참고).
+  const RESTRICTABLE_VIEW_PREFIXES = ["/qna", "/board"];
+  const isRestrictableViewPath = RESTRICTABLE_VIEW_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+
+  // feature_flags(메뉴 on/off)와 site_restrictions(수업시간 열람 제한)는 서로 무관한
+  // 조회인데, 예전엔 이 두 조회를 순서대로(직렬로) 기다려서 /qna, /board처럼 두 체크가
+  // 모두 걸리는 경로에서 Supabase 왕복이 그만큼 누적돼 하단 탭바로 이동할 때마다 체감
+  // 지연이 생겼다(위 93번 줄과 동일한 종류의 문제). 병렬로 한 번에 가져온다 — 학생이
+  // 아닌 로그인 사용자가 /qna·/board에 들어올 때도 site_restrictions을 함께 조회하게
+  // 되지만(원래는 role==="student"일 때만 조회), 이 테이블은 행이 하나뿐인 아주 가벼운
+  // 조회라 그 정도 낭비보다 지연을 없애는 이득이 훨씬 크다.
+  const [flagResult, restrictionResult] = await Promise.all([
+    gatedFeatureKey
+      ? supabase.from("feature_flags").select("enabled").eq("key", FEATURE_GATED_PREFIXES[gatedFeatureKey]).maybeSingle()
+      : Promise.resolve({ data: null as { enabled: boolean } | null }),
+    user && isRestrictableViewPath
+      ? supabase.from("site_restrictions").select("is_enabled, windows, exclude_weekends").eq("id", "default").maybeSingle()
+      : Promise.resolve({ data: null as { is_enabled: boolean; windows: unknown; exclude_weekends: boolean } | null }),
+  ]);
+
   if (gatedFeatureKey) {
-    const { data: flag } = await supabase
-      .from("feature_flags")
-      .select("enabled")
-      .eq("key", FEATURE_GATED_PREFIXES[gatedFeatureKey])
-      .maybeSingle();
-    if (flag?.enabled === false) {
+    if (flagResult.data?.enabled === false) {
       const url = request.nextUrl.clone();
       url.pathname = "/";
       return redirect(url);
@@ -218,17 +234,8 @@ export async function updateSession(request: NextRequest) {
   // 아예 열람도 못 하게 막는다(작성 제한은 각 테이블 RLS의 is_student_restricted_now()가
   // 담당 — supabase/schema.sql 92번). 열람은 미들웨어에서 미리 안내 화면으로 돌려보내는
   // 게, 페이지가 뜬 다음에야 빈 목록만 보이는 것보다 자연스럽다.
-  const RESTRICTABLE_VIEW_PREFIXES = ["/qna", "/board"];
-  if (
-    user &&
-    role === "student" &&
-    RESTRICTABLE_VIEW_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`))
-  ) {
-    const { data: restriction } = await supabase
-      .from("site_restrictions")
-      .select("is_enabled, windows, exclude_weekends")
-      .eq("id", "default")
-      .maybeSingle();
+  if (user && role === "student" && isRestrictableViewPath) {
+    const restriction = restrictionResult.data;
     const isWeekendKST = [0, 6].includes(nowKSTDayOfWeek());
     if (restriction?.is_enabled && !(restriction.exclude_weekends && isWeekendKST)) {
       const nowHM = new Intl.DateTimeFormat("en-GB", {
