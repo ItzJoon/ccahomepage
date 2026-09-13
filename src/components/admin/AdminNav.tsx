@@ -168,9 +168,14 @@ export default function AdminNav({
         <div className="md:hidden fixed inset-0 z-30 bg-black/40" onClick={close} aria-hidden />
       )}
       <aside
+        // 모바일에서는 이 사이드바 자체가 화면 전체 높이(h-screen)의 스크롤 영역이라,
+        // 마지막 항목("테마" 등)이 그냥 p-2.5(10px)만으로는 화면 맨 아래(특히 홈
+        // 인디케이터가 있는 아이폰)에 거의 붙어서 잘린 것처럼 보인다 — 하단만 더 넉넉하게
+        // 띄우고, 홈 인디케이터 안전영역만큼 추가로 더 확보한다(하단 탭바와 동일한 방식).
+        // md 이상(데스크톱 고정 사이드바)은 이 문제가 없으므로 원래 여백을 그대로 둔다.
         className={`${mobileOpen ? "flex" : "hidden"} md:flex flex-col gap-0.5 fixed md:static top-0 left-0 z-40 md:z-auto
         w-[240px] md:w-[190px] h-screen md:h-auto overflow-y-auto
-        bg-surface border-r ${t.adminAsideBorder} p-2.5 shrink-0`}
+        bg-surface border-r ${t.adminAsideBorder} p-2.5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] md:pb-2.5 shrink-0`}
       >
       {hasAdminRole && (
         <>

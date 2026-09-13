@@ -266,7 +266,10 @@ export default function Header({
         // 본문(홈 화면 히어로 등)이 그대로 비쳐서 마치 메뉴가 중간에 잘린 것처럼
         // 보였다 — min-h로 항상 화면을 꽉 채우게 해서 어떤 기기에서도 이어지는
         // 배경 없이 끊겨 보이지 않게 한다(배경은 부모 header의 headerBg를 그대로 물려받음).
-        <div className={`sm:hidden min-h-[100dvh] ${t.mobileBorder} px-5 py-3`}>
+        // 계정 섹션(로그아웃/로그인 등) 마지막 항목이 py-3(12px)만으로는 화면 맨 아래(특히
+        // 홈 인디케이터가 있는 아이폰)에 거의 붙어 보이는 문제가 관리자 사이드바와
+        // 동일하게 있어서, 하단만 넉넉하게 더 띄우고 홈 인디케이터 안전영역도 더한다.
+        <div className={`sm:hidden min-h-[100dvh] ${t.mobileBorder} px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))]`}>
           <div className="flex gap-2 mb-2.5">
             <input
               className="flex-1 border border-border rounded-md px-2.5 py-1.5 text-sm"
