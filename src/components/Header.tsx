@@ -36,10 +36,10 @@ const NAV = [
 // 여기서 별도로 다룬다(아래 mobileBottomTabs 계산부 참고).
 const BOTTOM_TAB_HREFS = new Set(["/", "/notices", "/qna", "/board"]);
 const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon; flagKey?: string; match: (p: string) => boolean }[] = [
-  { href: "/", label: "홈", icon: Home, match: (p) => p === "/" },
-  { href: "/notices", label: "공지사항", icon: Megaphone, flagKey: "notices", match: (p) => p.startsWith("/notices") },
   { href: "/qna", label: "Q&A", icon: MessageCircleQuestion, flagKey: "qna", match: (p) => p.startsWith("/qna") },
   { href: "/board", label: "게시판", icon: MessageSquare, flagKey: "board", match: (p) => p.startsWith("/board") },
+  { href: "/", label: "홈", icon: Home, match: (p) => p === "/" },
+  { href: "/notices", label: "공지사항", icon: Megaphone, flagKey: "notices", match: (p) => p.startsWith("/notices") },
 ];
 
 export default function Header({
