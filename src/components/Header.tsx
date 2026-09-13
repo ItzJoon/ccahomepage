@@ -29,6 +29,18 @@ const NAV = [
   { href: "/patch-notes", label: "패치노트" },
 ];
 
+// 모바일(640px 미만) 화면 하단 고정 탭바에 들어가는 항목 — 학생들이 가장 자주 쓸 만한
+// 메뉴만 추려서 항상 한 번에 누를 수 있게 하고, 나머지는 "더보기"(모바일 헤더 메뉴)로
+// 뺀다. 마이페이지는 NAV 배열이 아니라 프로필 유무에 따라 로그인/마이페이지로 갈리므로
+// 여기서 별도로 다룬다(아래 mobileBottomTabs 계산부 참고).
+const BOTTOM_TAB_HREFS = new Set(["/", "/notices", "/qna", "/board"]);
+const BOTTOM_TABS: { href: string; label: string; icon: string; flagKey?: string; match: (p: string) => boolean }[] = [
+  { href: "/", label: "홈", icon: "🏠", match: (p) => p === "/" },
+  { href: "/notices", label: "공지사항", icon: "📢", flagKey: "notices", match: (p) => p.startsWith("/notices") },
+  { href: "/qna", label: "Q&A", icon: "💬", flagKey: "qna", match: (p) => p.startsWith("/qna") },
+  { href: "/board", label: "게시판", icon: "📝", flagKey: "board", match: (p) => p.startsWith("/board") },
+];
+
 export default function Header({
   profile,
   customPages,
@@ -45,6 +57,10 @@ export default function Header({
   // superadmin이 /admin/feature-flags에서 끈 메뉴는 학생 화면 내비게이션에서도 숨긴다
   // (URL 직접 접근은 middleware.ts가 별도로 막는다).
   const visibleNav = NAV.filter((n) => !n.flagKey || !disabledFeatures?.has(n.flagKey));
+  // 모바일 헤더의 "더보기" 목록 — 하단 탭바에 이미 있는 항목(홈/공지사항/Q&A/게시판)은
+  // 중복이라 빼고, 나머지(학생자치회 소개/구성원/랭킹/일정/뉴스/생활규정/패치노트)만 남긴다.
+  const moreNav = visibleNav.filter((n) => !BOTTOM_TAB_HREFS.has(n.href));
+  const visibleBottomTabs = BOTTOM_TABS.filter((n) => !n.flagKey || !disabledFeatures?.has(n.flagKey));
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -125,7 +141,7 @@ export default function Header({
           <span className="whitespace-nowrap">학생자치회</span>
         </Link>
 
-        <nav className="hidden md:flex gap-1 flex-wrap flex-1 min-w-0">
+        <nav className="hidden sm:flex gap-1 flex-wrap flex-1 min-w-0">
           {visibleNav.map((n) => (
             <Link
               key={n.href}
@@ -146,7 +162,7 @@ export default function Header({
           ))}
         </nav>
 
-        <div className="hidden md:flex items-center gap-2 shrink-0">
+        <div className="hidden sm:flex items-center gap-2 shrink-0">
           {searchOpen ? (
             <input
               autoFocus
@@ -220,12 +236,12 @@ export default function Header({
           )}
         </div>
 
-        <div className="md:hidden flex items-center gap-1 shrink-0">
+        <div className="sm:hidden flex items-center gap-1 shrink-0">
           <button
             type="button"
             className={`w-11 h-11 flex items-center justify-center rounded-md text-xl leading-none ${t.iconBtnHover}`}
             onClick={() => setMobileOpen((v) => !v)}
-            aria-label={mobileOpen ? "메뉴 닫기" : "메뉴 열기"}
+            aria-label={mobileOpen ? "더보기 메뉴 닫기" : "더보기 메뉴 열기"}
             aria-expanded={mobileOpen}
           >
             {mobileOpen ? "✕" : "☰"}
@@ -239,7 +255,7 @@ export default function Header({
         // 본문(홈 화면 히어로 등)이 그대로 비쳐서 마치 메뉴가 중간에 잘린 것처럼
         // 보였다 — min-h로 항상 화면을 꽉 채우게 해서 어떤 기기에서도 이어지는
         // 배경 없이 끊겨 보이지 않게 한다(배경은 부모 header의 headerBg를 그대로 물려받음).
-        <div className={`md:hidden min-h-[100dvh] ${t.mobileBorder} px-5 py-3`}>
+        <div className={`sm:hidden min-h-[100dvh] ${t.mobileBorder} px-5 py-3`}>
           <div className="flex gap-2 mb-2.5">
             <input
               className="flex-1 border border-border rounded-md px-2.5 py-1.5 text-sm"
@@ -253,7 +269,7 @@ export default function Header({
             </button>
           </div>
           <nav className="flex flex-col gap-0.5">
-            {visibleNav.map((n) => (
+            {moreNav.map((n) => (
               <Link
                 key={n.href}
                 href={n.href}
@@ -277,9 +293,6 @@ export default function Header({
           <div className={`flex flex-col gap-0.5 mt-2 pt-2 ${t.mobileBorder}`}>
             {profile ? (
               <>
-                <Link href="/mypage" onClick={closeMobile} className={`px-2.5 py-2 rounded-md text-sm font-semibold ${t.navIdle}`}>
-                  마이페이지
-                </Link>
                 <button
                   onClick={() => {
                     closeMobile();
@@ -316,6 +329,45 @@ export default function Header({
         </div>
       )}
     </header>
+
+    {/* 카카오톡/인스타그램처럼 모바일(640px 미만)에서만 화면 하단에 고정되는 탭바 —
+        학생들이 가장 자주 쓸 만한 5개(홈/공지사항/Q&A/게시판/마이페이지)만 담고, 나머지는
+        위 "더보기"(☰) 메뉴에 그대로 남겨둔다. /admin은 이 Header 자체를 안 쓰고
+        AdminHeader+사이드바를 따로 쓰므로 자동으로 적용되지 않는다. 페이지 본문이 이
+        아래 가려지지 않도록 (site)/layout.tsx의 <main>에 모바일 전용 하단 여백을
+        맞춰뒀다. */}
+    <nav
+      className={`sm:hidden fixed bottom-0 inset-x-0 z-30 ${t.headerBg} ${t.headerText} ${t.mobileBorder}`}
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex">
+        {visibleBottomTabs.map((tab) => {
+          const active = tab.match(pathname);
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold ${
+                active ? t.navActive : t.navIdle
+              }`}
+            >
+              <span className="text-lg leading-none">{tab.icon}</span>
+              {tab.label}
+            </Link>
+          );
+        })}
+        <Link
+          href={profile ? "/mypage" : "/login"}
+          className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold ${
+            (profile ? pathname.startsWith("/mypage") : pathname === "/login") ? t.navActive : t.navIdle
+          }`}
+        >
+          <span className="text-lg leading-none">👤</span>
+          마이페이지
+        </Link>
+      </div>
+    </nav>
+
     {toast !== null && <CheckInToast streak={toast.streak} streakReset={toast.streakReset} />}
     {freezePrompt && (
       <FreezeChoiceModal

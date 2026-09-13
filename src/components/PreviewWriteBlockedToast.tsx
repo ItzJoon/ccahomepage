@@ -24,7 +24,7 @@ export default function PreviewWriteBlockedToast() {
   if (!message) return null;
 
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[110] bg-navy text-white text-sm font-bold rounded-full px-5 py-3 shadow-lg">
+    <div className="fixed bottom-20 sm:bottom-4 left-1/2 -translate-x-1/2 z-[110] bg-navy text-white text-sm font-bold rounded-full px-5 py-3 shadow-lg">
       🚫 {message}
     </div>
   );

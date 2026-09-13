@@ -187,7 +187,12 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           {profile && <SuspensionWatcher userId={profile.id} email={profile.email} />}
           <RestrictionGuardWatcher role={profile?.role ?? null} />
           <SecretBadgeWatchers userId={profile?.id ?? null} />
-          <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
+          {/* 모바일 하단 고정 탭바(Header.tsx)에 본문 마지막 내용이 가려지지 않도록,
+              탭바가 보이는 640px 미만에서만 여유 있게 하단 여백을 더 준다(탭바 높이 +
+              iOS 홈 인디케이터 안전영역 + 여백). */}
+          <main className="flex-1 max-w-[1180px] mx-auto px-5 pt-7 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-7 w-full">
+            {children}
+          </main>
           <Footer initialThemeKey={initialThemeKey} />
         </div>
       </PrevPathProvider>
