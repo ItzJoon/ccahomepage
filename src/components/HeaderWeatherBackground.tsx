@@ -185,13 +185,18 @@ export default function HeaderWeatherBackground() {
           {/* 스파클만으로는 카드 전체에서 "맑음"이 잘 안 느껴진다는 피드백 — 카드
               한쪽에 은은하게 번지는 큰 노란빛 wash를 깔아서 화면 전체 톤으로도
               맑은 날씨가 한눈에 느껴지게 한다(스파클/glow와는 별개 레이어). */}
+          {/* 모바일 폭에서는 제목이 두 줄로 줄바꿈되면서 카드 안 세로 공간을 더 많이
+              차지하는데, 데스크톱 기준 크기(카드의 75%×95%)를 그대로 쓰면 이 흐릿한
+              빛 번짐이 제목 글자 위까지 뒤덮어서 지저분해 보인다(실기기 확인) — 640px
+              미만에서만 확실히 카드 구석에만 머물도록 작게 줄이고, 그 이상에서는
+              기존 크기를 그대로 유지한다. */}
           <div
-            className="absolute -top-16 -right-16 w-[75%] h-[95%] rounded-full animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
+            className="absolute -top-16 -right-16 w-[45%] h-[55%] sm:w-[75%] sm:h-[95%] rounded-full animate-weather-bg-glow motion-reduce:animate-none motion-reduce:opacity-30"
             style={{
               background: "radial-gradient(circle, rgba(253,224,71,0.3) 0%, rgba(253,224,71,0.12) 45%, rgba(253,224,71,0) 75%)",
             }}
           />
-          <svg className="absolute -top-4 -right-4 w-64 h-64 sm:w-80 sm:h-80" viewBox="0 0 200 200">
+          <svg className="absolute -top-4 -right-4 w-36 h-36 sm:w-64 sm:h-64 md:w-80 md:h-80" viewBox="0 0 200 200">
             <defs>
               <radialGradient id="headerSunGlow" cx="50%" cy="50%" r="50%">
                 <stop offset="0%" stopColor="rgba(255,255,255,0.95)" />

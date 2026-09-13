@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAutoCheckIn } from "@/hooks/useAutoCheckIn";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { Home, Megaphone, MessageCircleQuestion, MessageSquare, UserCircle, type LucideIcon } from "lucide-react";
 import CheckInToast from "@/components/CheckInToast";
 import BadgeCelebration from "@/components/BadgeCelebration";
 import FreezeChoiceModal from "@/components/FreezeChoiceModal";
@@ -34,11 +35,11 @@ const NAV = [
 // 뺀다. 마이페이지는 NAV 배열이 아니라 프로필 유무에 따라 로그인/마이페이지로 갈리므로
 // 여기서 별도로 다룬다(아래 mobileBottomTabs 계산부 참고).
 const BOTTOM_TAB_HREFS = new Set(["/", "/notices", "/qna", "/board"]);
-const BOTTOM_TABS: { href: string; label: string; icon: string; flagKey?: string; match: (p: string) => boolean }[] = [
-  { href: "/", label: "홈", icon: "🏠", match: (p) => p === "/" },
-  { href: "/notices", label: "공지사항", icon: "📢", flagKey: "notices", match: (p) => p.startsWith("/notices") },
-  { href: "/qna", label: "Q&A", icon: "💬", flagKey: "qna", match: (p) => p.startsWith("/qna") },
-  { href: "/board", label: "게시판", icon: "📝", flagKey: "board", match: (p) => p.startsWith("/board") },
+const BOTTOM_TABS: { href: string; label: string; icon: LucideIcon; flagKey?: string; match: (p: string) => boolean }[] = [
+  { href: "/", label: "홈", icon: Home, match: (p) => p === "/" },
+  { href: "/notices", label: "공지사항", icon: Megaphone, flagKey: "notices", match: (p) => p.startsWith("/notices") },
+  { href: "/qna", label: "Q&A", icon: MessageCircleQuestion, flagKey: "qna", match: (p) => p.startsWith("/qna") },
+  { href: "/board", label: "게시판", icon: MessageSquare, flagKey: "board", match: (p) => p.startsWith("/board") },
 ];
 
 export default function Header({
@@ -343,28 +344,34 @@ export default function Header({
       <div className="flex">
         {visibleBottomTabs.map((tab) => {
           const active = tab.match(pathname);
+          const Icon = tab.icon;
           return (
             <Link
               key={tab.href}
               href={tab.href}
-              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold ${
-                active ? t.navActive : t.navIdle
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[11px] ${
+                active ? `${t.navActive} font-bold` : "text-gray-400 font-medium"
               }`}
             >
-              <span className="text-lg leading-none">{tab.icon}</span>
+              <Icon size={23} strokeWidth={active ? 2.4 : 1.8} />
               {tab.label}
             </Link>
           );
         })}
-        <Link
-          href={profile ? "/mypage" : "/login"}
-          className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 text-[11px] font-semibold ${
-            (profile ? pathname.startsWith("/mypage") : pathname === "/login") ? t.navActive : t.navIdle
-          }`}
-        >
-          <span className="text-lg leading-none">👤</span>
-          마이페이지
-        </Link>
+        {(() => {
+          const mypageActive = profile ? pathname.startsWith("/mypage") : pathname === "/login";
+          return (
+            <Link
+              href={profile ? "/mypage" : "/login"}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 text-[11px] ${
+                mypageActive ? `${t.navActive} font-bold` : "text-gray-400 font-medium"
+              }`}
+            >
+              <UserCircle size={23} strokeWidth={mypageActive ? 2.4 : 1.8} />
+              마이페이지
+            </Link>
+          );
+        })()}
       </div>
     </nav>
 

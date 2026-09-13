@@ -151,7 +151,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <>
       <PrevPathProvider>
-        <div className="min-h-screen flex flex-col">
+        {/* 모바일 하단 고정 탭바(Header.tsx)에 페이지 맨 아래 내용(푸터 포함)이 가려지지
+            않도록, 탭바가 보이는 640px 미만에서만 이 전체 래퍼 맨 아래에 여백을 더 준다
+            (main에만 주면 그 아래 Footer가 탭바에 그대로 가려진다 — 실제 기기 스크롤
+            테스트에서 확인된 문제). 탭바 높이 + iOS 홈 인디케이터 안전영역 + 여백. */}
+        <div className="min-h-screen flex flex-col pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-0">
           {previewAsStudent && <StudentPreviewBanner />}
           {previewAsStudent && <PreviewWriteBlockedToast />}
           <Header
@@ -187,12 +191,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
           {profile && <SuspensionWatcher userId={profile.id} email={profile.email} />}
           <RestrictionGuardWatcher role={profile?.role ?? null} />
           <SecretBadgeWatchers userId={profile?.id ?? null} />
-          {/* 모바일 하단 고정 탭바(Header.tsx)에 본문 마지막 내용이 가려지지 않도록,
-              탭바가 보이는 640px 미만에서만 여유 있게 하단 여백을 더 준다(탭바 높이 +
-              iOS 홈 인디케이터 안전영역 + 여백). */}
-          <main className="flex-1 max-w-[1180px] mx-auto px-5 pt-7 pb-[calc(4.5rem+env(safe-area-inset-bottom))] sm:pb-7 w-full">
-            {children}
-          </main>
+          <main className="flex-1 max-w-[1180px] mx-auto px-5 py-7 w-full">{children}</main>
           <Footer initialThemeKey={initialThemeKey} />
         </div>
       </PrevPathProvider>
