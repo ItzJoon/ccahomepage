@@ -5476,3 +5476,12 @@ begin
   );
 end;
 $$ language plpgsql security definer set search_path = public;
+
+-- ------------------------------------------------------------
+-- 128. 사이트 잠금 안내에 "예정 종료일 미정" 선택 추가
+-- ------------------------------------------------------------
+-- maintenance_until은 date 컬럼이라 "미정" 같은 문자열을 못 담는다 — 별도 플래그를
+-- 두고, 켜져 있으면 날짜 대신 "미정"으로 안내한다(언제 끝날지 모르는 Vercel 사용량
+-- 한도 초과 같은 상황에서, 날짜를 비워서 안내 자체를 안 보여주는 것보다 "미정이지만
+-- 알고는 있다"고 명시하는 쪽이 낫다).
+alter table site_settings add column if not exists maintenance_until_unknown boolean not null default false;

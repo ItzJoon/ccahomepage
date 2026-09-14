@@ -366,6 +366,7 @@ export interface SiteSettings {
   maintenance_mode: boolean;
   maintenance_message: string;
   maintenance_until: string | null;
+  maintenance_until_unknown: boolean;
   restrict_external_checkin: boolean;
   warning_suspend_threshold: number;
   warning_suspend_days: number;

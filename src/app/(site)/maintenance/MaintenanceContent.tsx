@@ -27,7 +27,11 @@ export default function MaintenanceContent() {
     router.refresh();
   };
 
-  const untilLabel = settings?.maintenance_until ? settings.maintenance_until.replaceAll("-", ".") : null;
+  const untilLabel = settings?.maintenance_until_unknown
+    ? "미정"
+    : settings?.maintenance_until
+    ? settings.maintenance_until.replaceAll("-", ".")
+    : null;
 
   return (
     <div className="min-h-[70vh] flex items-center justify-center px-5">

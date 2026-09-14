@@ -16,7 +16,12 @@ export default function AdminMaintenancePage() {
   const { isAdmin: iAmAdmin, role } = useMyRole();
   const isDesigner = role === "designer";
   const { t } = useHomeTheme();
-  const [form, setForm] = useState({ maintenance_mode: false, maintenance_message: "", maintenance_until: "" });
+  const [form, setForm] = useState({
+    maintenance_mode: false,
+    maintenance_message: "",
+    maintenance_until: "",
+    maintenance_until_unknown: false,
+  });
   const [saving, setSaving] = useState(false);
   const [savedMsg, setSavedMsg] = useState(false);
 
@@ -26,6 +31,7 @@ export default function AdminMaintenancePage() {
         maintenance_mode: settings.maintenance_mode,
         maintenance_message: settings.maintenance_message,
         maintenance_until: settings.maintenance_until || "",
+        maintenance_until_unknown: settings.maintenance_until_unknown,
       });
     }
   }, [settings]);
@@ -33,7 +39,8 @@ export default function AdminMaintenancePage() {
   const isDirty = !!settings && (
     form.maintenance_mode !== settings.maintenance_mode ||
     form.maintenance_message !== settings.maintenance_message ||
-    form.maintenance_until !== (settings.maintenance_until || "")
+    form.maintenance_until !== (settings.maintenance_until || "") ||
+    form.maintenance_until_unknown !== settings.maintenance_until_unknown
   );
 
   const save = async () => {
@@ -50,7 +57,9 @@ export default function AdminMaintenancePage() {
       .update({
         maintenance_mode: form.maintenance_mode,
         maintenance_message: form.maintenance_message,
-        maintenance_until: form.maintenance_until || null,
+        // "미정"과 특정 날짜는 동시에 표시할 이유가 없으므로 서로 배타적으로 저장한다.
+        maintenance_until: form.maintenance_until_unknown ? null : form.maintenance_until || null,
+        maintenance_until_unknown: form.maintenance_until_unknown,
       })
       .eq("id", "default");
     if (turningOn) {
@@ -100,11 +109,22 @@ export default function AdminMaintenancePage() {
         <label className="text-xs font-bold text-muted mt-3">예정 종료일 (선택, 안내 화면에 표시됨)</label>
         <input
           type="date"
-          disabled={!iAmAdmin}
+          disabled={!iAmAdmin || form.maintenance_until_unknown}
           className={`${t.adminInput} disabled:bg-[#F7F8FB] dark:disabled:bg-white/5`}
           value={form.maintenance_until}
           onChange={(e) => setForm({ ...form, maintenance_until: e.target.value })}
         />
+        <label className="flex items-center gap-2 text-sm mt-1.5">
+          <input
+            type="checkbox"
+            disabled={!iAmAdmin}
+            checked={form.maintenance_until_unknown}
+            onChange={(e) =>
+              setForm({ ...form, maintenance_until_unknown: e.target.checked, maintenance_until: "" })
+            }
+          />
+          종료일 미정 (Vercel 사용량 한도 초과처럼 언제 끝날지 모를 때)
+        </label>
 
         {iAmAdmin || isDesigner ? (
           <div className="flex items-center gap-2 mt-3.5">
