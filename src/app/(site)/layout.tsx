@@ -164,6 +164,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
             checkInEligible={checkInEligible}
             initialThemeKey={initialThemeKey}
             disabledFeatures={disabledFeatures}
+            maintenanceMode={!!settings?.maintenance_mode}
           />
           {/* 로그인 화면 등 비로그인 상태에서도 (site) layout이 그려지는 페이지가 있는데,
               배너/팝업이 로그인 폼 자체를 덮어버리는 문제가 있었다 — patch_notePopup과

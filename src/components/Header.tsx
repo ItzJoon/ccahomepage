@@ -48,12 +48,14 @@ export default function Header({
   checkInEligible = true,
   initialThemeKey,
   disabledFeatures,
+  maintenanceMode = false,
 }: {
   profile: Profile | null;
   customPages: PageDoc[];
   checkInEligible?: boolean;
   initialThemeKey?: HomeThemeKey;
   disabledFeatures?: Set<string>;
+  maintenanceMode?: boolean;
 }) {
   // superadmin이 /admin/feature-flags에서 끈 메뉴는 학생 화면 내비게이션에서도 숨긴다
   // (URL 직접 접근은 middleware.ts가 별도로 막는다).
@@ -220,10 +222,13 @@ export default function Header({
                     </Link>
                     <button
                       onClick={() => {
+                        if (maintenanceMode) return;
                         setProfileMenuOpen(false);
                         setQuickEditOpen(true);
                       }}
-                      className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem}`}
+                      disabled={maintenanceMode}
+                      title={maintenanceMode ? "사이트 잠금 중에는 닉네임·소개를 수정할 수 없습니다." : undefined}
+                      className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem} disabled:opacity-40 disabled:cursor-not-allowed`}
                     >
                       닉네임 · 소개 수정
                     </button>
@@ -309,10 +314,13 @@ export default function Header({
               <>
                 <button
                   onClick={() => {
+                    if (maintenanceMode) return;
                     closeMobile();
                     setQuickEditOpen(true);
                   }}
-                  className={`px-2.5 py-2 rounded-md text-sm text-left ${t.navIdle}`}
+                  disabled={maintenanceMode}
+                  title={maintenanceMode ? "사이트 잠금 중에는 닉네임·소개를 수정할 수 없습니다." : undefined}
+                  className={`px-2.5 py-2 rounded-md text-sm text-left ${t.navIdle} disabled:opacity-40 disabled:cursor-not-allowed`}
                 >
                   닉네임 · 소개 수정
                 </button>

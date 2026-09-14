@@ -29,14 +29,17 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // 깜빡임이 있었다((site)/layout.tsx에서 같은 문제를 고친 것과 동일한 원인). 여기서도
   // 서버에서 미리 조회한 값을 초기값으로 내려준다.
   const supabase = createClient();
-  const { data: siteTheme } = await supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle();
+  const [{ data: siteTheme }, { data: settings }] = await Promise.all([
+    supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
+    supabase.from("site_settings").select("maintenance_mode").eq("id", "default").maybeSingle(),
+  ]);
   const rawThemeValue = siteTheme?.theme ?? "";
   const initialThemeKey = isHomeThemeKey(rawThemeValue) ? rawThemeValue : DEFAULT_HOME_THEME;
 
   return (
     <AdminThemeProvider initialThemeKey={initialThemeKey}>
       <div className="min-h-screen bg-bg">
-        <AdminHeader profile={profile} initialThemeKey={initialThemeKey} />
+        <AdminHeader profile={profile} initialThemeKey={initialThemeKey} maintenanceMode={!!settings?.maintenance_mode} />
         {/* md 미만에서는 AdminNav 안의 모바일 메뉴 토글 바가 이 컨테이너의 직계 자식으로
             들어가므로, flex를 md부터만 걸어야 그 토글 바가 사이드바/본문과 나란히
             눌리지 않고 전체 너비로 따로 놓인다(모바일에서는 그냥 위→아래로 쌓인다). */}

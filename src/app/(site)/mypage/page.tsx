@@ -63,6 +63,19 @@ export default function MyPage() {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, [supabase]);
 
+  // 사이트 잠금 중에는 닉네임/소개 수정도 막는다 — 잠금 중 이 페이지에 들어올 수 있는
+  // 건 admin/superadmin/viewer/designer뿐이지만(middleware.ts), 그 계정들도 잠금 기간
+  // 동안은 쓰기 작업을 최소화하기 위해 헤더의 "닉네임·소개 수정"과 동일하게 막는다.
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  useEffect(() => {
+    supabase
+      .from("site_settings")
+      .select("maintenance_mode")
+      .eq("id", "default")
+      .maybeSingle()
+      .then(({ data }) => setMaintenanceMode(!!data?.maintenance_mode));
+  }, [supabase]);
+
   const loadProfile = useCallback(async () => {
     if (!userId) return;
     const { data } = await supabase.from("profiles").select("*").eq("id", userId).single();
@@ -283,20 +296,25 @@ export default function MyPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-muted">표시 이름 (닉네임)</label>
             <input
-              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              className="border border-border rounded-lg px-2.5 py-2 text-sm disabled:bg-[#F7F8FB] dark:disabled:bg-white/5"
               value={nickname}
               maxLength={20}
+              disabled={maintenanceMode}
               placeholder={profile?.name || "닉네임을 입력하세요"}
               onChange={(e) => setNickname(e.target.value)}
             />
             <p className="text-[11px] text-muted m-0">
               특정인 사칭, 비방 등 부적절한 닉네임은 예고 없이 관리자가 임의로 수정할 수 있습니다.
             </p>
+            {maintenanceMode && (
+              <p className="text-[11px] text-gold font-bold m-0">🔒 사이트 잠금 중에는 닉네임·소개를 수정할 수 없습니다.</p>
+            )}
             <label className="text-xs font-bold text-muted mt-2">자기소개 한 줄</label>
             <input
-              className="border border-border rounded-lg px-2.5 py-2 text-sm"
+              className="border border-border rounded-lg px-2.5 py-2 text-sm disabled:bg-[#F7F8FB] dark:disabled:bg-white/5"
               value={bio}
               maxLength={60}
+              disabled={maintenanceMode}
               placeholder="한 줄 소개를 입력하세요"
               onChange={(e) => setBio(e.target.value)}
             />
@@ -326,7 +344,7 @@ export default function MyPage() {
             </label>
             <PushNotificationToggle />
             <div className="flex items-center gap-2 mt-3">
-              <button onClick={saveProfile} disabled={saving || !isProfileDirty} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
+              <button onClick={saveProfile} disabled={saving || !isProfileDirty || maintenanceMode} className="bg-navy text-white font-bold text-sm rounded-lg px-4 py-2 disabled:opacity-40 disabled:cursor-not-allowed">
                 {saving ? "저장 중…" : "저장"}
               </button>
               {savedMsg && <span className="text-teal text-sm font-bold">저장되었습니다 ✓</span>}

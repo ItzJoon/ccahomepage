@@ -11,7 +11,15 @@ import { startStudentPreview as startStudentPreviewSession } from "@/lib/student
 import type { HomeThemeKey } from "@/lib/homeTheme";
 import type { Profile } from "@/lib/types";
 
-export default function AdminHeader({ profile, initialThemeKey }: { profile: Profile; initialThemeKey?: HomeThemeKey }) {
+export default function AdminHeader({
+  profile,
+  initialThemeKey,
+  maintenanceMode = false,
+}: {
+  profile: Profile;
+  initialThemeKey?: HomeThemeKey;
+  maintenanceMode?: boolean;
+}) {
   const { t } = useHomeTheme(initialThemeKey);
   const router = useRouter();
   const supabase = createClient();
@@ -113,10 +121,13 @@ export default function AdminHeader({ profile, initialThemeKey }: { profile: Pro
                   </Link>
                   <button
                     onClick={() => {
+                      if (maintenanceMode) return;
                       setProfileMenuOpen(false);
                       setQuickEditOpen(true);
                     }}
-                    className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem}`}
+                    disabled={maintenanceMode}
+                    title={maintenanceMode ? "사이트 잠금 중에는 닉네임·소개를 수정할 수 없습니다." : undefined}
+                    className={`block w-full text-left px-4 py-2 text-sm ${t.profileDropdownItem} disabled:opacity-40 disabled:cursor-not-allowed`}
                   >
                     닉네임 · 소개 수정
                   </button>
