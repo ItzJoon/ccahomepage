@@ -5324,3 +5324,20 @@ alter table attachments add column if not exists display_mode text not null defa
 alter table attachments drop constraint if exists attachments_display_mode_check;
 alter table attachments add constraint attachments_display_mode_check
   check (display_mode in ('viewer', 'download'));
+
+-- ------------------------------------------------------------
+-- 126. 스토리지 버킷에 파일 크기/형식 제한을 서버 단에도 걸기
+-- ------------------------------------------------------------
+-- 지금까지 "5MB 이하 이미지만" 같은 제한이 전부 ImageUpload.tsx/MultiImageUpload.tsx의
+-- 클라이언트 JS 검사뿐이었다 — 로그인한 사용자가 API를 직접 호출하면 우회해서 아무
+-- 크기·형식의 파일이나 올릴 수 있었다. 특히 124번에서 attachments 버킷을 학생 계정도
+-- 쓸 수 있게 넓혀서 이 구멍의 영향 범위가 커졌다. 버킷 자체에 기존 클라이언트 검사와
+-- 같거나 더 넉넉한 기준으로 제한을 걸어서, 정상적인 기존 업로드는 그대로 통과하되
+-- 우회 시도만 막는다.
+update storage.buckets set file_size_limit = 5 * 1024 * 1024, allowed_mime_types = array['image/*'] where id = 'board-images';
+update storage.buckets set file_size_limit = 5 * 1024 * 1024, allowed_mime_types = array['image/*'] where id = 'profile-photos';
+update storage.buckets set file_size_limit = 50 * 1024 * 1024, allowed_mime_types = array['video/*'] where id = 'news-videos';
+update storage.buckets set file_size_limit = 10 * 1024 * 1024, allowed_mime_types = array['image/*'] where id = 'meal-plans';
+-- attachments는 관리자 PDF/문서, 댓글·답변 이미지, 알림/패치노트 mp3 사운드까지 섞여 있어서
+-- mime type을 좁히면 기존 업로드가 깨질 위험이 있다 — 용량만 넉넉하게(20MB) 제한한다.
+update storage.buckets set file_size_limit = 20 * 1024 * 1024 where id = 'attachments';

@@ -1,9 +1,25 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
 import { sortPatchNoteItemsForDisplay } from "@/lib/patchNotes";
+import { truncateForMeta } from "@/lib/metaSummary";
 import type { PatchNoteCategory, PatchNoteItem } from "@/lib/types";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: note } = await supabase.from("patch_notes").select("title, version, patch_note_items(content)").eq("id", params.id).maybeSingle();
+  if (!note) return {};
+  const title = note.version ? `${note.version} ${note.title}` : note.title;
+  const firstItem = (note.patch_note_items as { content: string }[] | null)?.[0]?.content;
+  const description = firstItem ? truncateForMeta(firstItem) : undefined;
+  return {
+    title,
+    description,
+    openGraph: { title, description },
+  };
+}
 
 const CATEGORY_LABEL: Record<PatchNoteCategory, string> = {
   feature: "신규 기능",

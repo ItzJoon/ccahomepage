@@ -1,6 +1,8 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import DetailBackLink from "@/components/DetailBackLink";
+import { truncateForMeta } from "@/lib/metaSummary";
 import type { Member } from "@/lib/types";
 
 type MemberRow = Member & { profile: { profile_image: string | null } | null };
@@ -11,6 +13,18 @@ const COLOR_VAR: Record<string, string> = {
   red: "var(--red)",
   gold: "var(--gold)",
 };
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: org } = await supabase.from("organizations").select("name, description").eq("slug", params.slug).maybeSingle();
+  if (!org) return {};
+  const description = org.description ? truncateForMeta(org.description) : undefined;
+  return {
+    title: org.name,
+    description,
+    openGraph: { title: org.name, description },
+  };
+}
 
 export default async function OrgDetailPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();

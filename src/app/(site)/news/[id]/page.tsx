@@ -1,9 +1,23 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import DetailBackLink from "@/components/DetailBackLink";
 import AttachmentList from "@/components/AttachmentList";
 import ImageGallery from "@/components/ImageGallery";
+import { truncateForMeta } from "@/lib/metaSummary";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: post } = await supabase.from("posts").select("title, content").eq("id", params.id).eq("type", "news").maybeSingle();
+  if (!post) return {};
+  const description = truncateForMeta(post.content);
+  return {
+    title: post.title,
+    description,
+    openGraph: { title: post.title, description },
+  };
+}
 
 function fmt(d: string) {
   const dt = new Date(d);

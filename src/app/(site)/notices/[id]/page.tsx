@@ -1,14 +1,30 @@
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
 import DetailBackLink from "@/components/DetailBackLink";
-import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
+import { noticeContentToSafeHtml, noticeContentToPlainSummary } from "@/lib/sanitizeHtml";
 import ImageGallery from "@/components/ImageGallery";
 import AttachmentList from "@/components/AttachmentList";
 
 function fmt(d: string) {
   const dt = new Date(d);
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
+}
+
+// 카카오톡/디스코드 등에 이 공지 링크를 공유했을 때, 사이트 이름이 아니라 실제 이 글의
+// 제목/내용이 미리보기로 보이게 한다(공유 미리보기 title은 루트 레이아웃의
+// title.template 덕분에 "{제목} | 중앙기독고등학교 학생자치회"로 자동 완성된다).
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: post } = await supabase.from("posts").select("title, content").eq("id", params.id).maybeSingle();
+  if (!post) return {};
+  const description = noticeContentToPlainSummary(post.content);
+  return {
+    title: post.title,
+    description,
+    openGraph: { title: post.title, description },
+  };
 }
 
 export default async function NoticeDetailPage({ params }: { params: { id: string } }) {

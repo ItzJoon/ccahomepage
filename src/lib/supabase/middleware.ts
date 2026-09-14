@@ -90,6 +90,19 @@ export async function updateSession(request: NextRequest) {
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 
+  // 카카오톡/디스코드/트위터 등 링크 미리보기 크롤러는 실제 방문자가 아니라 og:title/
+  // og:description만 긁어가는데, 이런 봇까지 "명단 외 비로그인 방문자는 로그인 화면만"
+  // 규칙에 걸려 /login으로 튕기면 특정 글을 공유해도 항상 로그인 화면 미리보기만 뜨고
+  // 실제 제목/내용(각 상세 페이지의 generateMetadata)이 전혀 안 보인다 — 크롤러는 리다이렉트를
+  // 그대로 따라가서 최종 도착한 /login의 메타 태그를 가져가기 때문. 실제 콘텐츠 열람 권한
+  // 정책 자체를 바꾸는 게 아니라, 텍스트 미리보기 크롤러만 좁게 예외 처리한다(잘 알려진
+  // User-Agent 문자열만 대상 — 위조는 어차피 진짜 방문자에게는 의미가 없다).
+  const userAgent = request.headers.get("user-agent") || "";
+  const isLinkPreviewBot =
+    /kakaotalk|facebookexternalhit|twitterbot|slackbot|discordbot|telegrambot|linkedinbot|whatsapp|skypeuripreview|vkshare|line-poker|naverbot|yeti/i.test(
+      userAgent
+    );
+
   // 역할/사이트 설정/명단 등록 여부를 하나씩 순서대로(직렬로) 기다리면 매 페이지
   // 진입마다 Supabase 왕복이 여러 번 누적돼 체감상 2초 가까운 지연이 생긴다(예전에
   // (site)/layout.tsx의 직렬 조회 때문에 겪었던 것과 같은 종류의 문제가 미들웨어의
@@ -159,7 +172,7 @@ export async function updateSession(request: NextRequest) {
   // 비로그인 방문자는 이 설정과 무관하게 계속 둘러볼 수 있는 구멍이 있었다(위 체크는
   // user가 있을 때만 동작). restrict_external_checkin의 기본 의미(명시적으로 false가
   // 아니면 켜짐)를 그대로 재사용한다.
-  if (!user && !isSpecialPageExempt) {
+  if (!user && !isSpecialPageExempt && !isLinkPreviewBot) {
     const restrictionEnabled = siteSettings?.restrict_external_checkin !== false;
     if (restrictionEnabled) {
       const url = request.nextUrl.clone();

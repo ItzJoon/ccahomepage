@@ -58,3 +58,13 @@ export function noticeContentToSafeHtml(content: string): string {
   const html = isLikelyHtml(content) ? content : legacyPlainTextToHtml(content);
   return sanitizeNoticeHtml(html);
 }
+
+/** 공지 본문(HTML이든 예전 순수 텍스트든)에서 태그를 걷어낸 순수 텍스트 일부만 뽑는다 —
+ * 카카오톡/디스코드 등에 링크를 공유할 때 미리보기 설명(og:description)으로 쓴다. */
+export function noticeContentToPlainSummary(content: string, maxLength = 100): string {
+  const safeHtml = noticeContentToSafeHtml(content);
+  const text = sanitizeHtml(safeHtml, { allowedTags: [], allowedAttributes: {} })
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > maxLength ? `${text.slice(0, maxLength)}…` : text;
+}

@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import ViewCounter from "@/components/ViewCounter";
 import Linkify from "@/components/Linkify";
@@ -8,6 +9,19 @@ import ReportButton from "@/components/ReportButton";
 import DetailBackLink from "@/components/DetailBackLink";
 import ImageGallery from "@/components/ImageGallery";
 import LikeButton from "@/components/LikeButton";
+import { truncateForMeta } from "@/lib/metaSummary";
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const supabase = createClient();
+  const { data: post } = await supabase.from("board_posts").select("title, content, is_hidden").eq("id", params.id).maybeSingle();
+  if (!post || post.is_hidden) return {};
+  const description = truncateForMeta(post.content);
+  return {
+    title: post.title,
+    description,
+    openGraph: { title: post.title, description },
+  };
+}
 
 function fmt(d: string) {
   const dt = new Date(d);
