@@ -3,15 +3,22 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import Linkify from "@/components/Linkify";
 import ReportableName from "@/components/ReportableName";
 import ReportButton from "@/components/ReportButton";
 import LikeButton from "@/components/LikeButton";
-import type { BoardComment } from "@/lib/types";
+import MultiImageUpload from "@/components/MultiImageUpload";
+import ImageGallery from "@/components/ImageGallery";
+import type { BoardComment, PostGalleryImage } from "@/lib/types";
+
+const COMMENT_IMAGE_BUCKET = "attachments";
+const COMMENT_IMAGE_MAX = 3;
 
 interface Row extends BoardComment {
   author_name: string | null;
   author_avatar: string | null;
+  post_gallery_images: PostGalleryImage[];
 }
 
 function fmtDateTime(iso: string) {
@@ -40,13 +47,15 @@ export default function BoardComments({ postId, userId }: { postId: string; user
   // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
   // (supabase/schema.sql 51번 참고).
   const { rows, reload } = useRealtimeList<Row>("board_comments", {
-    select: "*, author_name, author_avatar",
+    select: "*, author_name, author_avatar, post_gallery_images(*)",
     filter: (q) => q.eq("post_id", postId),
     orderBy: { column: "created_at", ascending: true },
   });
   const [content, setContent] = useState("");
+  const [images, setImages] = useState<string[]>([]);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
+  const [replyImages, setReplyImages] = useState<string[]>([]);
   const [iAmEditorUp, setIAmEditorUp] = useState(false);
   const [iAmAdmin, setIAmAdmin] = useState(false);
 
@@ -61,15 +70,28 @@ export default function BoardComments({ postId, userId }: { postId: string; user
   const byParent = groupByParent(rows);
   const roots = byParent.get(null) ?? [];
 
-  const submitComment = async (parentId: string | null, text: string, onDone: () => void) => {
-    if (!userId || !text.trim()) return;
-    await supabase.from("board_comments").insert({ post_id: postId, parent_id: parentId, author_id: userId, content: text });
+  const submitComment = async (parentId: string | null, text: string, imgs: string[], onDone: () => void) => {
+    if (!userId || (!text.trim() && imgs.length === 0)) return;
+    const { data, error } = await supabase
+      .from("board_comments")
+      .insert({ post_id: postId, parent_id: parentId, author_id: userId, content: text })
+      .select("id")
+      .single();
+    if (error || !data) return;
+    if (imgs.length > 0) {
+      await supabase
+        .from("post_gallery_images")
+        .insert(imgs.map((url, i) => ({ board_comment_id: data.id, image_url: url, order_index: i })));
+    }
     onDone();
     reload();
   };
 
-  const removeComment = async (id: string) => {
+  // 댓글을 지울 때 첨부 이미지 행은 FK(on delete cascade)로 자동 정리되지만, 실제
+  // 스토리지에 올라간 파일 자체는 DB cascade로는 안 지워지므로 먼저 직접 지운다.
+  const removeComment = async (id: string, galleryImages: PostGalleryImage[]) => {
     if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
+    await Promise.all(galleryImages.map((img) => removeStorageFile(supabase, COMMENT_IMAGE_BUCKET, img.image_url)));
     await supabase.from("board_comments").delete().eq("id", id);
     reload();
   };
@@ -117,6 +139,12 @@ export default function BoardComments({ postId, userId }: { postId: string; user
         <p className="text-sm mt-1 mb-1 whitespace-pre-wrap">
           <Linkify text={node.content} />
         </p>
+        {node.post_gallery_images.length > 0 && (
+          <ImageGallery
+            className="max-w-[280px]"
+            urls={[...node.post_gallery_images].sort((a, b) => a.order_index - b.order_index).map((g) => g.image_url)}
+          />
+        )}
         <div className="flex items-center gap-2.5 text-xs whitespace-nowrap">
           <LikeButton targetType="board_comment" targetId={node.id} likeCount={node.like_count ?? 0} userId={userId} />
           {userId && (
@@ -130,7 +158,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
             </button>
           )}
           {(userId === node.author_id || iAmAdmin) && (
-            <button onClick={() => removeComment(node.id)} className="text-red font-bold shrink-0">
+            <button onClick={() => removeComment(node.id, node.post_gallery_images)} className="text-red font-bold shrink-0">
               삭제
             </button>
           )}
@@ -142,21 +170,30 @@ export default function BoardComments({ postId, userId }: { postId: string; user
             context="게시판 댓글"
           />
         </div>
-        {replyTo === node.id && (
-          <div className="flex gap-2 mt-1.5">
-            <textarea
-              rows={2}
-              className="flex-1 border border-border rounded-lg px-2.5 py-1.5 text-sm resize-none"
-              value={replyContent}
-              onChange={(e) => setReplyContent(e.target.value)}
-              placeholder="답글을 입력하세요"
-            />
-            <button
-              onClick={() => submitComment(rootId, replyContent, () => { setReplyContent(""); setReplyTo(null); })}
-              className="bg-navy text-white text-xs font-bold rounded-lg px-3"
-            >
-              등록
-            </button>
+        {replyTo === node.id && userId && (
+          <div className="flex flex-col gap-1.5 mt-1.5">
+            <div className="flex gap-2">
+              <textarea
+                rows={2}
+                className="flex-1 border border-border rounded-lg px-2.5 py-1.5 text-sm resize-none"
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="답글을 입력하세요"
+              />
+              <button
+                onClick={() =>
+                  submitComment(rootId, replyContent, replyImages, () => {
+                    setReplyContent("");
+                    setReplyImages([]);
+                    setReplyTo(null);
+                  })
+                }
+                className="bg-navy text-white text-xs font-bold rounded-lg px-3"
+              >
+                등록
+              </button>
+            </div>
+            <MultiImageUpload userId={userId} value={replyImages} onChange={setReplyImages} bucket={COMMENT_IMAGE_BUCKET} max={COMMENT_IMAGE_MAX} />
           </div>
         )}
         {children.map((c) => renderNode(c, depth + 1))}
@@ -168,17 +205,23 @@ export default function BoardComments({ postId, userId }: { postId: string; user
     <div className="mt-6">
       <h3 className="text-base font-bold mb-2">댓글 {rows.length}</h3>
       {userId ? (
-        <div className="flex gap-2 mb-1">
-          <textarea
-            rows={2}
-            className="flex-1 border border-border rounded-lg px-3 py-2 text-sm resize-none"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="댓글을 입력하세요"
-          />
-          <button onClick={() => submitComment(null, content, () => setContent(""))} className="bg-gold text-white font-bold text-sm rounded-lg px-4">
-            등록
-          </button>
+        <div className="flex flex-col gap-1.5 mb-1">
+          <div className="flex gap-2">
+            <textarea
+              rows={2}
+              className="flex-1 border border-border rounded-lg px-3 py-2 text-sm resize-none"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="댓글을 입력하세요"
+            />
+            <button
+              onClick={() => submitComment(null, content, images, () => { setContent(""); setImages([]); })}
+              className="bg-gold text-white font-bold text-sm rounded-lg px-4"
+            >
+              등록
+            </button>
+          </div>
+          <MultiImageUpload userId={userId} value={images} onChange={setImages} bucket={COMMENT_IMAGE_BUCKET} max={COMMENT_IMAGE_MAX} />
         </div>
       ) : (
         <p className="text-muted text-sm mb-1">로그인 후 댓글을 작성할 수 있습니다.</p>

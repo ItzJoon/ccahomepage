@@ -486,6 +486,16 @@ export interface BoardComment {
   created_at: string;
 }
 
+// 게시글/댓글/답변에 붙는 여러 장 사진 갤러리 한 장(post_gallery_images) — 어느 글
+// 종류에 붙었는지는 post_id/board_post_id/question_id/board_comment_id/answer_id 중
+// 하나만 채워지는 것으로 구분한다(supabase/schema.sql 122·124번).
+export interface PostGalleryImage {
+  id: string;
+  image_url: string;
+  image_path: string | null;
+  order_index: number;
+}
+
 export type ReportTargetType = "profile" | "board_post" | "board_comment";
 export type ReportStatus = "pending" | "reviewed" | "dismissed";
 

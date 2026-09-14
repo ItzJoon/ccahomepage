@@ -5268,3 +5268,59 @@ create policy "push_subscriptions_insert_own" on push_subscriptions for insert w
 
 drop policy if exists "push_subscriptions_delete_own" on push_subscriptions;
 create policy "push_subscriptions_delete_own" on push_subscriptions for delete using (auth.uid() = user_id);
+
+-- ------------------------------------------------------------
+-- 124. 게시판 댓글 · Q&A 답변에 이미지 첨부 (post_gallery_images 확장)
+-- ------------------------------------------------------------
+-- 122번(post_gallery_images)의 관례를 그대로 이어서, 글 종류별 nullable FK 컬럼을
+-- 나란히 추가한다(board_comment_id/answer_id 중 하나만 채워짐). 댓글은 목록 미리보기가
+-- 없으므로(게시글과 달리) 122번과 달리 legacy 단일 image_url 컬럼은 board_comments에
+-- 추가하지 않는다 — 이 테이블 하나로 충분하다. answers.image_url(3292번 마이그레이션)은
+-- 이미 있는 단일 이미지 컬럼을 그대로 "대표 이미지"(122번 board_posts.image_url과 동일한
+-- 역할)로 재사용하고, 여러 장은 이 테이블에 answer_id로 담는다.
+alter table post_gallery_images add column if not exists board_comment_id uuid references board_comments(id) on delete cascade;
+alter table post_gallery_images add column if not exists answer_id uuid references answers(id) on delete cascade;
+create index if not exists post_gallery_images_board_comment_idx on post_gallery_images(board_comment_id);
+create index if not exists post_gallery_images_answer_idx on post_gallery_images(answer_id);
+
+drop policy if exists "post_gallery_images_insert" on post_gallery_images;
+create policy "post_gallery_images_insert" on post_gallery_images for insert
+  with check (
+    is_editor_or_above()
+    or (board_post_id is not null and exists (
+      select 1 from board_posts bp where bp.id = board_post_id and bp.author_id = auth.uid()
+    ))
+    or (question_id is not null and exists (
+      select 1 from questions q where q.id = question_id and q.user_id = auth.uid()
+    ))
+    or (board_comment_id is not null and exists (
+      select 1 from board_comments bc where bc.id = board_comment_id and bc.author_id = auth.uid()
+    ))
+    -- answers는 editor 이상만 작성 가능(answers_write_admin과 동일 기준)이라 소유권
+    -- 검사가 따로 필요 없다 — is_editor_or_above() 분기가 이미 커버한다.
+  );
+
+drop policy if exists "post_gallery_images_delete" on post_gallery_images;
+create policy "post_gallery_images_delete" on post_gallery_images for delete
+  using (
+    is_editor_or_above()
+    or (board_post_id is not null and exists (
+      select 1 from board_posts bp where bp.id = board_post_id and bp.author_id = auth.uid()
+    ))
+    or (question_id is not null and exists (
+      select 1 from questions q where q.id = question_id and q.user_id = auth.uid()
+    ))
+    or (board_comment_id is not null and exists (
+      select 1 from board_comments bc where bc.id = board_comment_id and bc.author_id = auth.uid()
+    ))
+  );
+
+-- ------------------------------------------------------------
+-- 125. 첨부 PDF "뷰어로 보기" / "다운로드만" 선택
+-- ------------------------------------------------------------
+-- attachments_write_admin이 이미 for all(editor 이상)이라 이 컬럼 추가에 별도 RLS
+-- 정책 변경은 필요 없다.
+alter table attachments add column if not exists display_mode text not null default 'viewer';
+alter table attachments drop constraint if exists attachments_display_mode_check;
+alter table attachments add constraint attachments_display_mode_check
+  check (display_mode in ('viewer', 'download'));

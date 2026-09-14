@@ -6,6 +6,7 @@ import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta } from "@/compo
 import AuthorCell from "@/components/admin/AuthorCell";
 import ModerationPanel from "@/components/admin/ModerationPanel";
 import ProfileQuickEditModal from "@/components/ProfileQuickEditModal";
+import ImageGallery from "@/components/ImageGallery";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
@@ -13,6 +14,7 @@ import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { adminDisplayName } from "@/lib/displayName";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import type { Report, ReportStatus, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
@@ -36,6 +38,7 @@ interface TargetContent {
   content: string;
   is_hidden: boolean;
   post_id?: string;
+  images?: string[];
 }
 
 export default function AdminReportsPage() {
@@ -98,8 +101,18 @@ export default function AdminReportsPage() {
         (data ?? []).forEach((p: any) => { next[`board_post:${p.id}`] = { title: p.title, content: p.content, is_hidden: p.is_hidden }; });
       }
       if (commentIds.length > 0) {
-        const { data } = await supabase.from("board_comments").select("id, content, is_hidden, post_id").in("id", commentIds);
-        (data ?? []).forEach((c: any) => { next[`board_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden, post_id: c.post_id }; });
+        // 이미지만 첨부되고 글자가 없는 신고 댓글을 관리자가 내용 없이(빈 텍스트) 그냥
+        // 넘겨버리지 않도록, 첨부 이미지도 함께 가져와서 신고 검토 화면에 보여준다.
+        const { data } = await supabase
+          .from("board_comments")
+          .select("id, content, is_hidden, post_id, post_gallery_images(image_url, order_index)")
+          .in("id", commentIds);
+        (data ?? []).forEach((c: any) => {
+          const images = (c.post_gallery_images ?? [])
+            .sort((a: any, b: any) => a.order_index - b.order_index)
+            .map((g: any) => g.image_url);
+          next[`board_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden, post_id: c.post_id, images };
+        });
       }
       setContentByKey(next);
     })();
@@ -160,6 +173,9 @@ export default function AdminReportsPage() {
     if (!current) return;
     if (!confirm("이 게시물을 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
     const table = current.target_type === "board_post" ? "board_posts" : "board_comments";
+    // 댓글에 첨부된 이미지는 행 삭제(cascade)로는 스토리지 파일까지 안 지워지므로 먼저 지운다.
+    const images = currentContent?.images ?? [];
+    await Promise.all(images.map((url) => removeStorageFile(supabase, "attachments", url)));
     await supabase.from(table).delete().eq("id", current.target_id);
     await markReviewed(current.id);
     setActionMsg("삭제했습니다.");
@@ -194,6 +210,9 @@ export default function AdminReportsPage() {
         <div className="bg-bg rounded-lg p-3 mt-1">
           {currentContent.title && <div className="font-bold text-sm mb-1">{currentContent.title}</div>}
           <div className="text-sm whitespace-pre-wrap">{currentContent.content}</div>
+          {currentContent.images && currentContent.images.length > 0 && (
+            <ImageGallery className="max-w-[280px] mt-2" urls={currentContent.images} />
+          )}
           {currentContent.is_hidden && <div className="text-muted text-xs mt-1">(현재 숨김 상태)</div>}
         </div>
       )}

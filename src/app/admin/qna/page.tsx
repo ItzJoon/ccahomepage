@@ -11,8 +11,12 @@ import Badge from "@/components/Badge";
 import AuthorCell from "@/components/admin/AuthorCell";
 import AdminPersonMenu from "@/components/admin/AdminPersonMenu";
 import { adminDisplayName } from "@/lib/displayName";
-import ImageUpload from "@/components/ImageUpload";
+import { removeStorageFile } from "@/lib/storageCleanup";
 import ImageLightbox from "@/components/ImageLightbox";
+import MultiImageUpload from "@/components/MultiImageUpload";
+import type { PostGalleryImage } from "@/lib/types";
+
+const ANSWER_IMAGE_MAX = 3;
 
 interface QuestionWithAnswer {
   id: string;
@@ -26,19 +30,21 @@ interface QuestionWithAnswer {
   is_hidden: boolean;
   reviewed_at: string | null;
   created_at: string;
-  answers: { id: string; content: string; image_url: string | null }[];
+  answers: { id: string; content: string; image_url: string | null; post_gallery_images: PostGalleryImage[] }[];
   asker: { name: string | null; nickname: string | null; email: string } | null;
 }
 
 export default function AdminQnaPage() {
   const supabase = createClient();
   const { rows, reload } = useList<QuestionWithAnswer>("questions", {
-    select: "*, answers(*), asker:profiles(name, nickname, email)",
+    select: "*, answers(*, post_gallery_images(*)), asker:profiles(name, nickname, email)",
     orderBy: { column: "created_at", ascending: false },
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
-  const [answerImageUrl, setAnswerImageUrl] = useState<string | null>(null);
+  // 답변 이미지는 최대 3장까지 갤러리(post_gallery_images.answer_id)로 저장하고,
+  // answers.image_url은 첫 장을 그대로 담아 대표 이미지로 유지한다(122번 규칙과 동일).
+  const [answerImages, setAnswerImages] = useState<string[]>([]);
   const { isAdmin: iAmAdmin, role, myId } = useMyRole();
   // designer도 admin과 동일하게 질문 삭제를 쓸 수 있다(RLS의 questions_delete_admin이
   // is_designer()를 허용).
@@ -48,7 +54,14 @@ export default function AdminQnaPage() {
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
     setAnswerText(q.answers?.[0]?.content || "");
-    setAnswerImageUrl(q.answers?.[0]?.image_url || null);
+    const gallery = q.answers?.[0]?.post_gallery_images ?? [];
+    setAnswerImages(
+      gallery.length > 0
+        ? [...gallery].sort((a, b) => a.order_index - b.order_index).map((g) => g.image_url)
+        : q.answers?.[0]?.image_url
+        ? [q.answers[0].image_url]
+        : []
+    );
     // 사이드바 안 읽음 뱃지 기준(reviewed_at)을 열람 시점에 채운다 — 이미 확인한
     // 질문을 다시 열 때는 굳이 다시 쓰지 않는다.
     if (!q.reviewed_at) {
@@ -58,6 +71,9 @@ export default function AdminQnaPage() {
 
   const removeQuestion = async (id: string) => {
     if (!confirm("이 질문을 삭제하시겠습니까? 등록된 답변도 함께 삭제됩니다.")) return;
+    const q = rows.find((r) => r.id === id);
+    const images = q?.answers?.[0]?.post_gallery_images?.map((g) => g.image_url) ?? [];
+    await Promise.all(images.map((url) => removeStorageFile(supabase, "attachments", url)));
     await supabase.from("questions").delete().eq("id", id);
     setOpenId(null);
     reload();
@@ -76,14 +92,34 @@ export default function AdminQnaPage() {
     const {
       data: { user },
     } = await supabase.auth.getUser();
+    const representativeUrl = answerImages[0] ?? null;
+    let answerId: string;
     if (q.answers && q.answers.length > 0) {
-      await supabase.from("answers").update({ content: answerText, image_url: answerImageUrl }).eq("id", q.answers[0].id);
+      answerId = q.answers[0].id;
+      await supabase.from("answers").update({ content: answerText, image_url: representativeUrl }).eq("id", answerId);
+      // 갤러리는 매번 통째로 다시 쓴다(수정 시 어떤 장을 빼고 더했는지 일일이 비교하는
+      // 대신 지우고 새로 넣는 게 더 간단하고 안전 — post_gallery_images 삭제 시
+      // 스토리지 파일 자체는 남지만, 답변 이미지는 용량이 작고 자주 안 바뀌는 데이터라
+      // 이 정도 낭비는 감수한다. 완전히 새로 쓰는 게 아니라 답변 자체를 삭제할 때는
+      // removeQuestion에서 스토리지까지 정리한다).
+      await supabase.from("post_gallery_images").delete().eq("answer_id", answerId);
     } else {
-      await supabase.from("answers").insert({ question_id: q.id, content: answerText, image_url: answerImageUrl, answered_by: user?.id });
+      const { data, error } = await supabase
+        .from("answers")
+        .insert({ question_id: q.id, content: answerText, image_url: representativeUrl, answered_by: user?.id })
+        .select("id")
+        .single();
+      if (error || !data) return;
+      answerId = data.id;
+    }
+    if (answerImages.length > 0) {
+      await supabase
+        .from("post_gallery_images")
+        .insert(answerImages.map((url, i) => ({ answer_id: answerId, image_url: url, order_index: i })));
     }
     await supabase.from("questions").update({ status: "answered", reviewed_at: new Date().toISOString() }).eq("id", q.id);
     setOpenId(null);
-    setAnswerImageUrl(null);
+    setAnswerImages([]);
     reload();
   };
 
@@ -110,7 +146,7 @@ export default function AdminQnaPage() {
       <textarea rows={5} className={`${t.adminInput} w-full mt-1`} value={answerText} onChange={(e) => setAnswerText(e.target.value)} />
       {myId && (
         <div className="mt-2">
-          <ImageUpload userId={myId} value={answerImageUrl} onChange={setAnswerImageUrl} />
+          <MultiImageUpload userId={myId} value={answerImages} onChange={setAnswerImages} bucket="attachments" max={ANSWER_IMAGE_MAX} />
         </div>
       )}
       <div className="flex gap-2 mt-3.5">

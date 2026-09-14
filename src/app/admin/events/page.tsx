@@ -11,7 +11,7 @@ import { adminDisplayName } from "@/lib/displayName";
 import type { EventItem } from "@/lib/types";
 
 interface EventWithAttachments extends EventItem {
-  attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
+  attachments: { id: string; file_url: string; file_name: string; file_path: string | null; display_mode: "viewer" | "download" }[];
   profiles: { name: string | null; nickname: string | null } | null;
 }
 
@@ -56,12 +56,12 @@ export default function AdminEventsPage() {
         .select()
         .single();
       if (!error && data && newFiles.length > 0) {
-        await supabase.from("attachments").insert(newFiles.map((f) => ({ event_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+        await supabase.from("attachments").insert(newFiles.map((f) => ({ event_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
     } else if (editing) {
       await supabase.from("events").update(payload).eq("id", editing);
       if (newFiles.length > 0) {
-        await supabase.from("attachments").insert(newFiles.map((f) => ({ event_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+        await supabase.from("attachments").insert(newFiles.map((f) => ({ event_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
     }
     setEditing(null);
@@ -87,6 +87,11 @@ export default function AdminEventsPage() {
     setExistingFiles((f) => f.filter((x) => x.id !== attId));
   };
 
+  const updateExistingFileMode = async (attId: string, mode: "viewer" | "download") => {
+    await supabase.from("attachments").update({ display_mode: mode }).eq("id", attId);
+    setExistingFiles((f) => f.map((x) => (x.id === attId ? { ...x, display_mode: mode } : x)));
+  };
+
   const formPanel = (
     <div className={`${t.adminEditPanel} flex flex-col gap-1.5 sm:sticky sm:top-20`}>
       <h3>{editing === "new" ? "새 일정" : "일정 수정"}</h3>
@@ -107,6 +112,17 @@ export default function AdminEventsPage() {
         {existingFiles.map((f) => (
           <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
             📎 {f.file_name}
+            {f.file_name.toLowerCase().endsWith(".pdf") && (
+              <select
+                value={f.display_mode}
+                onChange={(e) => updateExistingFileMode(f.id, e.target.value as "viewer" | "download")}
+                className="bg-transparent border border-border rounded px-1 py-0.5 text-[11px]"
+                title="이 PDF를 어떻게 보여줄지 선택"
+              >
+                <option value="viewer">뷰어로 보기</option>
+                <option value="download">다운로드만</option>
+              </select>
+            )}
             <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">✕</button>
           </span>
         ))}

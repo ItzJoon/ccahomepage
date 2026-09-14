@@ -10,7 +10,7 @@ import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
 import type { RuleDoc } from "@/lib/types";
 
 interface RuleWithAttachments extends RuleDoc {
-  attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
+  attachments: { id: string; file_url: string; file_name: string; file_path: string | null; display_mode: "viewer" | "download" }[];
 }
 
 const empty = { title: "", category: "공통", content: "", order_index: 0 };
@@ -44,12 +44,12 @@ export default function AdminRulesPage() {
     if (editing === "new") {
       const { data, error } = await supabase.from("rules").insert(form).select().single();
       if (!error && data && newFiles.length > 0) {
-        await supabase.from("attachments").insert(newFiles.map((f) => ({ rule_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+        await supabase.from("attachments").insert(newFiles.map((f) => ({ rule_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
     } else if (editing) {
       await supabase.from("rules").update({ ...form, updated_at: new Date().toISOString() }).eq("id", editing);
       if (newFiles.length > 0) {
-        await supabase.from("attachments").insert(newFiles.map((f) => ({ rule_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+        await supabase.from("attachments").insert(newFiles.map((f) => ({ rule_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
     }
     setEditing(null);
@@ -66,6 +66,11 @@ export default function AdminRulesPage() {
     if (path) await supabase.storage.from("attachments").remove([path]);
     await supabase.from("attachments").delete().eq("id", attId);
     setExistingFiles((f) => f.filter((x) => x.id !== attId));
+  };
+
+  const updateExistingFileMode = async (attId: string, mode: "viewer" | "download") => {
+    await supabase.from("attachments").update({ display_mode: mode }).eq("id", attId);
+    setExistingFiles((f) => f.map((x) => (x.id === attId ? { ...x, display_mode: mode } : x)));
   };
 
   const formPanel = (
@@ -89,6 +94,17 @@ export default function AdminRulesPage() {
         {existingFiles.map((f) => (
           <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
             📎 {f.file_name}
+            {f.file_name.toLowerCase().endsWith(".pdf") && (
+              <select
+                value={f.display_mode}
+                onChange={(e) => updateExistingFileMode(f.id, e.target.value as "viewer" | "download")}
+                className="bg-transparent border border-border rounded px-1 py-0.5 text-[11px]"
+                title="이 PDF를 어떻게 보여줄지 선택"
+              >
+                <option value="viewer">뷰어로 보기</option>
+                <option value="download">다운로드만</option>
+              </select>
+            )}
             <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">✕</button>
           </span>
         ))}

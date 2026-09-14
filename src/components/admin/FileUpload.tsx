@@ -10,6 +10,15 @@ export interface AttachmentRef {
   file_name: string;
   file_path: string;
   size: number;
+  // PDF에만 의미가 있는 설정 — 'viewer'면 상세 페이지 본문에 클릭 없이 바로 펼쳐서
+  // 보여주고(PdfInlineViewer), 'download'면 파일명+다운로드 링크만 있는 기존 단순
+  // 첨부파일 방식으로 보여준다(AttachmentList.tsx가 분기). PDF가 아닌 파일에는
+  // 아무 영향이 없다.
+  display_mode: "viewer" | "download";
+}
+
+function isPdfFile(fileName: string) {
+  return fileName.toLowerCase().endsWith(".pdf");
 }
 
 /**
@@ -42,7 +51,7 @@ export default function FileUpload({
       return;
     }
     const { data: pub } = supabase.storage.from("attachments").getPublicUrl(path);
-    onChange([...files, { file_url: pub.publicUrl, file_name: file.name, file_path: path, size: file.size }]);
+    onChange([...files, { file_url: pub.publicUrl, file_name: file.name, file_path: path, size: file.size, display_mode: "viewer" }]);
     setUploading(false);
   };
 
@@ -52,11 +61,26 @@ export default function FileUpload({
     onChange(files.filter((_, i) => i !== idx));
   };
 
+  const setDisplayMode = (idx: number, mode: "viewer" | "download") => {
+    onChange(files.map((f, i) => (i === idx ? { ...f, display_mode: mode } : f)));
+  };
+
   return (
     <div className="flex flex-wrap gap-1.5 items-center">
       {files.map((f, i) => (
         <span key={i} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
           📎 {f.file_name}
+          {isPdfFile(f.file_name) && (
+            <select
+              value={f.display_mode}
+              onChange={(e) => setDisplayMode(i, e.target.value as "viewer" | "download")}
+              className="bg-transparent border border-border rounded px-1 py-0.5 text-[11px]"
+              title="이 PDF를 어떻게 보여줄지 선택"
+            >
+              <option value="viewer">뷰어로 보기</option>
+              <option value="download">다운로드만</option>
+            </select>
+          )}
           <button type="button" onClick={() => remove(i)} className="text-muted">
             ✕
           </button>

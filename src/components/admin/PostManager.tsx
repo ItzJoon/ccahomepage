@@ -402,7 +402,7 @@ export default function PostManager({
       if (newFiles.length > 0) {
         await supabase
           .from("attachments")
-          .insert(newFiles.map((f) => ({ post_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+          .insert(newFiles.map((f) => ({ post_id: data.id, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
       if (galleryUrls.length > 0) {
         await supabase
@@ -422,7 +422,7 @@ export default function PostManager({
       if (newFiles.length > 0) {
         await supabase
           .from("attachments")
-          .insert(newFiles.map((f) => ({ post_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size })));
+          .insert(newFiles.map((f) => ({ post_id: editing, file_url: f.file_url, file_name: f.file_name, file_path: f.file_path, size: f.size, display_mode: f.display_mode })));
       }
       // 갤러리는 순서 변경/추가/삭제를 개별 diff하는 대신 통째로 지우고 다시 넣는다
       // (한 글당 사진 몇 장 수준이라 비용이 미미하고, 순서까지 항상 정확히 일치시킬
@@ -545,6 +545,13 @@ export default function PostManager({
     if (path) await supabase.storage.from("attachments").remove([path]);
     await supabase.from("attachments").delete().eq("id", attId);
     setExistingFiles((f) => f.filter((x) => x.id !== attId));
+  };
+
+  // 이미 저장된 PDF도 나중에 뷰어/다운로드 방식을 바꿀 수 있어야 하므로, 새로 올리는
+  // 파일(FileUpload)뿐 아니라 기존 첨부에도 즉시 반영되는 토글을 둔다.
+  const updateExistingFileMode = async (attId: string, mode: "viewer" | "download") => {
+    await supabase.from("attachments").update({ display_mode: mode }).eq("id", attId);
+    setExistingFiles((f) => f.map((x) => (x.id === attId ? { ...x, display_mode: mode } : x)));
   };
 
   const closePanel = () => {
@@ -757,6 +764,17 @@ export default function PostManager({
         {existingFiles.map((f) => (
           <span key={f.id} className="bg-[#F2F4F8] dark:bg-white/10 rounded-full px-2.5 py-1 text-xs flex items-center gap-1.5">
             📎 {f.file_name}
+            {f.file_name.toLowerCase().endsWith(".pdf") && (
+              <select
+                value={f.display_mode}
+                onChange={(e) => updateExistingFileMode(f.id, e.target.value as "viewer" | "download")}
+                className="bg-transparent border border-border rounded px-1 py-0.5 text-[11px]"
+                title="이 PDF를 어떻게 보여줄지 선택"
+              >
+                <option value="viewer">뷰어로 보기</option>
+                <option value="download">다운로드만</option>
+              </select>
+            )}
             <button type="button" onClick={() => removeExistingFile(f.id, f.file_path)} className="text-muted">
               ✕
             </button>

@@ -1,7 +1,7 @@
 import type { Post, PostType } from "@/lib/types";
 
 export interface PostWithAttachments extends Post {
-  attachments: { id: string; file_url: string; file_name: string; file_path: string | null }[];
+  attachments: { id: string; file_url: string; file_name: string; file_path: string | null; display_mode: "viewer" | "download" }[];
   author: { name: string | null; nickname: string | null; email: string } | null;
 }
 

@@ -9,10 +9,10 @@ import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import MultiImageUpload from "@/components/MultiImageUpload";
-import ImageLightbox from "@/components/ImageLightbox";
 import ImageGallery from "@/components/ImageGallery";
 import ReportableName from "@/components/ReportableName";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
+import type { PostGalleryImage } from "@/lib/types";
 
 const DRAFT_KEY = "qna_new";
 
@@ -26,7 +26,7 @@ interface QuestionWithAnswer {
   author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
-  answers: { id: string; content: string; image_url: string | null; created_at: string }[];
+  answers: { id: string; content: string; image_url: string | null; created_at: string; post_gallery_images: PostGalleryImage[] }[];
 }
 
 
@@ -51,7 +51,7 @@ export default function QnaPage() {
   const [galleryCache, setGalleryCache] = useState<Record<string, string[]>>({});
 
   const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
-    select: "*, answers(*)",
+    select: "*, answers(*, post_gallery_images(*))",
     orderBy: { column: "created_at", ascending: false },
   });
 
@@ -266,13 +266,22 @@ export default function QnaPage() {
                     <div className="mt-2.5 bg-bg rounded-lg p-2.5">
                       <strong>학생자치회 답변</strong>
                       <p className="m-0"><Linkify text={q.answers[0].content} /></p>
-                      {q.answers[0].image_url && (
-                        <ImageLightbox
-                          src={q.answers[0].image_url}
-                          alt="첨부 이미지"
-                          className="max-w-full max-h-64 rounded-lg border border-border mt-2 object-contain"
-                        />
-                      )}
+                      {(() => {
+                        const gallery = q.answers[0].post_gallery_images ?? [];
+                        const urls =
+                          gallery.length > 0
+                            ? [...gallery].sort((a, b) => a.order_index - b.order_index).map((g) => g.image_url)
+                            : q.answers[0].image_url
+                            ? [q.answers[0].image_url]
+                            : [];
+                        if (urls.length === 0) return null;
+                        return (
+                          <ImageGallery
+                            urls={urls}
+                            className={urls.length === 1 ? "max-w-full max-h-64 rounded-lg border border-border mt-2 object-contain" : "mt-2"}
+                          />
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="text-muted">아직 답변이 등록되지 않았습니다.</p>

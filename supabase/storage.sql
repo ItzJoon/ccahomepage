@@ -14,25 +14,37 @@ create policy "attachments_bucket_public_read"
 on storage.objects for select
 using (bucket_id = 'attachments');
 
--- 업로드: editor 이상만 가능
+-- 업로드: editor 이상은 버킷 전체(공지/PDF 등), 일반 로그인 사용자는 자기 user_id
+-- 폴더(`{user_id}/파일명`)에 한해서만 — 댓글/답변 이미지 첨부 기능(schema.sql 124번)이
+-- 학생 본인 계정으로 이 버킷에 직접 올려야 해서, profile-photos 버킷과 동일한 패턴으로
+-- 확장했다(기존에는 editor 이상만 전체 쓰기 가능했음).
 drop policy if exists "attachments_bucket_insert_editor" on storage.objects;
-create policy "attachments_bucket_insert_editor"
+drop policy if exists "attachments_bucket_insert_self_or_editor" on storage.objects;
+create policy "attachments_bucket_insert_self_or_editor"
 on storage.objects for insert
 with check (
   bucket_id = 'attachments'
-  and public.is_editor_or_above()
+  and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
 );
 
--- 수정/삭제: editor 이상만 가능
+-- 수정/삭제도 동일한 기준 — 본인 폴더 파일은 본인이, 나머지는 editor 이상이 정리 가능.
 drop policy if exists "attachments_bucket_update_editor" on storage.objects;
-create policy "attachments_bucket_update_editor"
+drop policy if exists "attachments_bucket_update_self_or_editor" on storage.objects;
+create policy "attachments_bucket_update_self_or_editor"
 on storage.objects for update
-using (bucket_id = 'attachments' and public.is_editor_or_above());
+using (
+  bucket_id = 'attachments'
+  and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
+);
 
 drop policy if exists "attachments_bucket_delete_editor" on storage.objects;
-create policy "attachments_bucket_delete_editor"
+drop policy if exists "attachments_bucket_delete_self_or_editor" on storage.objects;
+create policy "attachments_bucket_delete_self_or_editor"
 on storage.objects for delete
-using (bucket_id = 'attachments' and public.is_editor_or_above());
+using (
+  bucket_id = 'attachments'
+  and (public.is_editor_or_above() or (storage.foldername(name))[1] = auth.uid()::text)
+);
 
 -- 프로필 사진 버킷 (구성원 프로필 이미지 + 기능2: 마이페이지 개인 프로필 사진)
 insert into storage.buckets (id, name, public)
