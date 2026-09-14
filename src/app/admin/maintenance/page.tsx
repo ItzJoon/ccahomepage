@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { todayKST } from "@/lib/date";
 import type { SiteSettings } from "@/lib/types";
 
 export default function AdminMaintenancePage() {
@@ -37,6 +38,13 @@ export default function AdminMaintenancePage() {
 
   const save = async () => {
     setSaving(true);
+    // 사이트 잠금 중에는 학생들이 실제로 체크인을 할 수 없으므로(관리자 발행 화면
+    // 대신 점검 안내만 보임) Vercel 사용량 한도 초과 같은 사이트 전체 장애와 똑같이
+    // 연속 접속(streak)이 끊길 위험이 있다 — 잠금을 켜고 끄는 시점에 맞춰
+    // site_outages(schema.sql 127번) 기간을 자동으로 열고/닫아서, 관리자가 SQL을
+    // 따로 실행하지 않아도 이 버튼 하나로 streak가 보호되게 한다.
+    const turningOn = form.maintenance_mode && !settings?.maintenance_mode;
+    const turningOff = !form.maintenance_mode && settings?.maintenance_mode;
     await supabase
       .from("site_settings")
       .update({
@@ -45,6 +53,11 @@ export default function AdminMaintenancePage() {
         maintenance_until: form.maintenance_until || null,
       })
       .eq("id", "default");
+    if (turningOn) {
+      await supabase.from("site_outages").insert({ started_at: todayKST(), note: "사이트 잠금(관리자 점검 모드)" });
+    } else if (turningOff) {
+      await supabase.from("site_outages").update({ ended_at: todayKST() }).is("ended_at", null);
+    }
     setSaving(false);
     setSavedMsg(true);
     reload(); // realtime이 아니므로 저장 후 기준값(isDirty 비교 대상)을 직접 갱신
@@ -59,6 +72,8 @@ export default function AdminMaintenancePage() {
       <p className="text-muted mb-4 text-sm">
         켜면 admin/developer를 제외한 모든 사용자(비로그인 포함, editor도 포함)가 어떤 페이지에
         들어와도 <code>/maintenance</code> 안내 화면으로 이동합니다. admin 이상만 켜고 끌 수 있습니다.
+        잠금 중에는 아무도 체크인을 할 수 없어서, 켜고 끄는 동안은 연속 접속(streak)이
+        끊기지 않도록 자동으로 보호됩니다.
       </p>
 
       <div className={`${t.adminEditPanel} flex flex-col gap-1.5`}>
