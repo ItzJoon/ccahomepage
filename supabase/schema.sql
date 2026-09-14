@@ -5341,3 +5341,138 @@ update storage.buckets set file_size_limit = 10 * 1024 * 1024, allowed_mime_type
 -- attachments는 관리자 PDF/문서, 댓글·답변 이미지, 알림/패치노트 mp3 사운드까지 섞여 있어서
 -- mime type을 좁히면 기존 업로드가 깨질 위험이 있다 — 용량만 넉넉하게(20MB) 제한한다.
 update storage.buckets set file_size_limit = 20 * 1024 * 1024 where id = 'attachments';
+
+-- ------------------------------------------------------------
+-- 127. 사이트 전체 장애(Vercel 사용량 한도 등) 기간에 연속 접속(streak)이 깨지지
+--      않도록 보호
+-- ------------------------------------------------------------
+-- 지금까지는 하루 결석만 프리즈로 메울 수 있었다(check_in_attendance의
+-- v_freeze_eligible이 정확히 "그저께 마지막 방문"일 때만 true) — Vercel 사용량 한도
+-- 등으로 사이트 자체가 며칠씩 통째로 막히면 아무도 체크인을 할 수 없는데, 이런
+-- 다일(多日) 공백은 프리즈로 못 메워서 사이트가 복구되는 순간 전교생의 streak가
+-- 전부 1로 리셋돼버린다. "사이트 전체가 막혀 있던 기간"을 별도로 기록해두고,
+-- streak 연속 여부를 계산할 때 그 기간에 해당하는 날짜는 애초에 없었던 것처럼
+-- 건너뛰게 한다.
+create table if not exists site_outages (
+  id uuid primary key default uuid_generate_v4(),
+  started_at date not null,
+  -- 아직 복구 전이면 null로 열어두고, 복구되면 그날 날짜로 채워 넣는다.
+  ended_at date,
+  note text,
+  created_by uuid references profiles(id),
+  created_at timestamptz not null default now()
+);
+
+alter table site_outages enable row level security;
+
+drop policy if exists "site_outages_read_all" on site_outages;
+create policy "site_outages_read_all" on site_outages for select using (true);
+
+drop policy if exists "site_outages_write_admin" on site_outages;
+create policy "site_outages_write_admin" on site_outages for all
+  using (is_admin()) with check (is_admin());
+
+-- (last_date, today) 구간에서 "사이트가 막혀 있어서 체크인이 애초에 불가능했던" 날짜
+-- 수를 센다(양 끝 날짜 자체는 제외 — 그 사이에 낀 날짜만). ended_at이 아직 null이면
+-- (장애가 진행 중이면) 오늘까지를 장애 기간으로 본다. 여러 장애 기간이 겹쳐도
+-- distinct로 중복 없이 센다.
+create or replace function count_outage_days(p_from date, p_to date)
+returns int language sql stable as $$
+  select count(distinct d)::int
+  from site_outages o
+  cross join lateral generate_series(
+    greatest(p_from + 1, o.started_at),
+    least(p_to - 1, coalesce(o.ended_at, current_date)),
+    interval '1 day'
+  ) as d
+  where greatest(p_from + 1, o.started_at) <= least(p_to - 1, coalesce(o.ended_at, current_date));
+$$;
+
+-- check_in_attendance를 "실제 날짜 차이" 대신 "장애 기간을 뺀 유효 공백"으로 연속
+-- 여부를 판단하도록 재정의한다. site_outages에 기록된 기간이 없으면 v_outage_days가
+-- 항상 0이라 기존 로직과 완전히 동일하게 동작한다(장애가 없던 지금까지의 모든 계정에
+-- 회귀 없음).
+create or replace function check_in_attendance(p_user_id uuid, p_use_freeze boolean default false)
+returns json as $$
+declare
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_last_date date;
+  v_last_streak int;
+  v_freeze_credits int;
+  v_freeze_eligible boolean;
+  v_use_freeze boolean;
+  v_next_streak int;
+  v_inserted_streak int;
+  v_total_visits int;
+  v_freeze_delta int := 0;
+  v_new_freeze_credits int;
+  v_max_streak int;
+  v_outage_days int := 0;
+  v_effective_gap int;
+begin
+  if p_user_id is distinct from auth.uid() then
+    raise exception '본인만 체크인할 수 있습니다';
+  end if;
+
+  if exists (select 1 from user_attendance where user_id = p_user_id and visit_date = v_today) then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select visit_date, streak_count into v_last_date, v_last_streak
+    from user_attendance where user_id = p_user_id order by visit_date desc limit 1;
+
+  select freeze_credits into v_freeze_credits from profiles where id = p_user_id;
+
+  if v_last_date is not null then
+    v_outage_days := count_outage_days(v_last_date, v_today);
+    v_effective_gap := (v_today - v_last_date) - v_outage_days;
+  end if;
+
+  v_freeze_eligible := v_effective_gap is not null
+    and v_effective_gap = 2
+    and coalesce(v_freeze_credits, 0) > 0;
+
+  v_use_freeze := v_freeze_eligible and p_use_freeze;
+
+  v_next_streak := case
+    when v_effective_gap is not null and v_effective_gap <= 1 then coalesce(v_last_streak, 0) + 1
+    when v_use_freeze then coalesce(v_last_streak, 0) + 1
+    else 1
+  end;
+
+  insert into user_attendance (user_id, visit_date, streak_count, is_freeze)
+  values (p_user_id, v_today, v_next_streak, v_use_freeze)
+  on conflict (user_id, visit_date) do nothing
+  returning streak_count into v_inserted_streak;
+
+  if not found then
+    return json_build_object('streak', null, 'used_freeze', false);
+  end if;
+
+  select count(*) into v_total_visits from user_attendance where user_id = p_user_id;
+
+  if v_use_freeze then
+    v_freeze_delta := v_freeze_delta - 1;
+  end if;
+  if v_total_visits % 7 = 0 then
+    v_freeze_delta := v_freeze_delta + 1;
+  end if;
+
+  if v_freeze_delta <> 0 then
+    update profiles set freeze_credits = greatest(least(freeze_credits + v_freeze_delta, 3), 0)
+      where id = p_user_id
+      returning freeze_credits into v_new_freeze_credits;
+  else
+    v_new_freeze_credits := coalesce(v_freeze_credits, 0);
+  end if;
+
+  update profiles set max_streak = greatest(max_streak, v_inserted_streak)
+    where id = p_user_id
+    returning max_streak into v_max_streak;
+
+  return json_build_object(
+    'streak', v_inserted_streak, 'used_freeze', v_use_freeze,
+    'freeze_credits', v_new_freeze_credits, 'max_streak', v_max_streak
+  );
+end;
+$$ language plpgsql security definer set search_path = public;
