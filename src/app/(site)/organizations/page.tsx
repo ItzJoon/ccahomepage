@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useList } from "@/hooks/useList";
 import SectionTitle from "@/components/SectionTitle";
+import ListSkeleton from "@/components/ListSkeleton";
 import type { Organization } from "@/lib/types";
 
 const COLOR_VAR: Record<string, string> = {
@@ -14,7 +15,7 @@ const COLOR_VAR: Record<string, string> = {
 };
 
 export default function OrganizationsPage() {
-  const { rows } = useList<Organization>("organizations", {
+  const { rows, loading } = useList<Organization>("organizations", {
     orderBy: { column: "order_index" },
   });
   const [q, setQ] = useState("");
@@ -62,7 +63,9 @@ export default function OrganizationsPage() {
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
-      {list.length === 0 ? (
+      {loading && rows.length === 0 ? (
+        <ListSkeleton />
+      ) : list.length === 0 ? (
         <div className="text-muted text-center py-8 text-sm">
           {q.trim() ? "검색 결과가 없습니다." : "등록된 부서가 없습니다."}
         </div>

@@ -8,6 +8,7 @@ import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import ReportableName from "@/components/ReportableName";
 import MultiImageUpload from "@/components/MultiImageUpload";
+import ListSkeleton from "@/components/ListSkeleton";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { BoardPost } from "@/lib/types";
 
@@ -58,7 +59,7 @@ export default function BoardPage() {
   // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
   // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
   // (supabase/schema.sql 51번 참고).
-  const { rows, reload } = useRealtimeList<Row>("board_posts", {
+  const { rows, loading, reload } = useRealtimeList<Row>("board_posts", {
     select: "*, author_name, author_avatar",
     orderBy: sort === "latest" ? { column: "created_at", ascending: false } : { column: "view_count", ascending: false },
   });
@@ -220,6 +221,9 @@ export default function BoardPage() {
           찌그러짐) — 표 자체에 최소 너비를 주고 그 바깥을 overflow-x-auto로 감싸서,
           좁은 화면에서는 표만 옆으로 스크롤되고 제목은 항상 읽을 수 있는 너비를
           유지하게 한다. */}
+      {loading && rows.length === 0 ? (
+        <ListSkeleton />
+      ) : (
       <div className="overflow-x-auto">
       <table className="w-full min-w-[560px] border-collapse bg-surface">
         <thead>
@@ -283,6 +287,7 @@ export default function BoardPage() {
         </tbody>
       </table>
       </div>
+      )}
     </div>
   );
 }

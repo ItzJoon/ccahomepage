@@ -10,6 +10,7 @@ import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import MultiImageUpload from "@/components/MultiImageUpload";
 import ImageGallery from "@/components/ImageGallery";
+import ListSkeleton from "@/components/ListSkeleton";
 import ReportableName from "@/components/ReportableName";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { PostGalleryImage } from "@/lib/types";
@@ -50,7 +51,7 @@ export default function QnaPage() {
   // 한꺼번에 조인하지 않아도 되게).
   const [galleryCache, setGalleryCache] = useState<Record<string, string[]>>({});
 
-  const { rows, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
+  const { rows, loading, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
     select: "*, answers(*, post_gallery_images(*))",
     orderBy: { column: "created_at", ascending: false },
   });
@@ -218,6 +219,8 @@ export default function QnaPage() {
             질문 등록
           </button>
         </div>
+      ) : loading && rows.length === 0 ? (
+        <ListSkeleton />
       ) : (
         <ul className="list-none m-0 p-0">
           {/* 비공개 질문은 공개 목록에 섞이지 않게 하되, 본인이 쓴 비공개 질문은 답변
@@ -301,7 +304,7 @@ export default function QnaPage() {
               )}
             </li>
           ))}
-          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 질문이 없습니다.</div>}
+          {!loading && rows.length === 0 && <div className="text-muted text-center py-8 text-sm">등록된 질문이 없습니다.</div>}
         </ul>
       )}
     </div>

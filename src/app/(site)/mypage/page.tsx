@@ -8,6 +8,7 @@ import { useBadges } from "@/hooks/useBadges";
 import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
+import ListSkeleton from "@/components/ListSkeleton";
 import type { BadgeDef, Profile, UserWarning } from "@/lib/types";
 
 function fmt(d: string) {
@@ -141,7 +142,14 @@ export default function MyPage() {
     setUploading(false);
   };
 
-  if (userId === undefined) return null;
+  if (userId === undefined) {
+    return (
+      <div>
+        <SectionTitle eyebrow="MY PAGE" title="마이페이지" />
+        <ListSkeleton rows={3} />
+      </div>
+    );
+  }
   if (userId === null) {
     return (
       <div className="text-center py-14">

@@ -7,6 +7,7 @@ import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
 import AttachmentList from "@/components/AttachmentList";
+import ListSkeleton from "@/components/ListSkeleton";
 import type { RuleDoc } from "@/lib/types";
 
 function anchorId(ruleId: string) {
@@ -20,7 +21,7 @@ function scrollToRule(ruleId: string) {
 
 export default function RulesPage() {
   useTrackPageVisit("rules"); // "탐험가" 뱃지용 방문 기록
-  const { rows } = useList<RuleDoc>("rules", {
+  const { rows, loading } = useList<RuleDoc>("rules", {
     select: "*, attachments(*)",
     orderBy: { column: "order_index" },
   });
@@ -54,6 +55,9 @@ export default function RulesPage() {
           onChange={(e) => setQ(e.target.value)}
         />
       </div>
+      {loading && rows.length === 0 ? (
+        <ListSkeleton />
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-[260px_1fr] gap-4 items-start">
         <ul className="list-none m-0 p-0 bg-surface border border-border rounded-xl overflow-hidden h-fit md:sticky md:top-20 md:max-h-[75vh] overflow-y-auto">
           {q === ""
@@ -107,6 +111,7 @@ export default function RulesPage() {
           )}
         </div>
       </div>
+      )}
     </div>
   );
 }

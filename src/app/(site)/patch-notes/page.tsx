@@ -5,6 +5,7 @@ import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import ListSkeleton from "@/components/ListSkeleton";
 import { sortCategoriesForDisplay } from "@/lib/patchNotes";
 import type { PatchNote, PatchNoteItem, PatchNoteCategory } from "@/lib/types";
 
@@ -32,10 +33,19 @@ export default function PatchNotesPage() {
   useTrackPageVisit("patch-notes");
   // RLS(patch_notes_read_published)가 is_published=true인 것만 비로그인 포함 누구에게나
   // 내려주므로 별도 필터 없이 그대로 목록으로 쓴다.
-  const { rows } = useList<Row>("patch_notes", {
+  const { rows, loading } = useList<Row>("patch_notes", {
     select: "*, patch_note_items(*)",
     orderBy: { column: "published_at", ascending: false },
   });
+
+  if (loading && rows.length === 0) {
+    return (
+      <div>
+        <SectionTitle eyebrow="PATCH NOTES" title="패치노트" />
+        <ListSkeleton />
+      </div>
+    );
+  }
 
   return (
     <div>

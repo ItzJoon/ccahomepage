@@ -10,6 +10,7 @@ import SectionTitle from "@/components/SectionTitle";
 import Badge, { Pin } from "@/components/Badge";
 import PostManager from "@/components/admin/PostManager";
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
+import ListSkeleton from "@/components/ListSkeleton";
 import type { Post } from "@/lib/types";
 
 interface Row extends Post {
@@ -28,7 +29,7 @@ export default function NoticesPage() {
   // 수강 과목 일치 / homeroom 일치), 여기서 별도로 필터링할 필요는 없다.
   // author_name은 profiles를 그대로 조인하면 다른 사람 이름이 RLS에 막혀 비어오므로,
   // 안전하게 이름만 반환하는 computed column을 대신 쓴다(supabase/schema.sql 51번 참고).
-  const { rows, reload } = useRealtimeList<Row>("posts", {
+  const { rows, loading, reload } = useRealtimeList<Row>("posts", {
     select: "*, author_name",
     filter: (q) => q.in("type", ["notice", "subject_notice", "homeroom_notice"]).eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
@@ -100,6 +101,9 @@ export default function NoticesPage() {
           </div>
         </div>
       )}
+      {loading && rows.length === 0 ? (
+        <ListSkeleton />
+      ) : (
       <AdminTable>
         <thead>
           <tr>
@@ -166,7 +170,8 @@ export default function NoticesPage() {
           ))}
         </tbody>
       </AdminTable>
-      {list.length === 0 && <div className="text-muted text-center py-8 text-sm">검색 결과가 없습니다.</div>}
+      )}
+      {!loading && list.length === 0 && <div className="text-muted text-center py-8 text-sm">검색 결과가 없습니다.</div>}
     </div>
   );
 }
