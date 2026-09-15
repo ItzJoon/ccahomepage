@@ -1,10 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// useSearchParams()를 쓰는 페이지는 Suspense로 감싸야 빌드 시 정적 생성이 된다(안 감싸면
+// "CSR bailout"으로 처리돼 강제로 동적 렌더링돼서, 이 페이지처럼 서버에서 할 일이 전혀
+// 없는(전부 클라이언트에서 처리) 화면도 매 요청마다 서버리스 함수가 뜨게 된다) — 감싸주면
+// 빌드 때 한 번 정적 HTML로 만들어져서 이후엔 서버 실행 비용이 아예 없다.
 export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const supabase = createClient();
   const params = useSearchParams();
   const next = params.get("next") || "/";

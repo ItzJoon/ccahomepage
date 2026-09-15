@@ -2,6 +2,33 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { nowKSTDayOfWeek } from "@/lib/date";
 
+// Edge 미들웨어 인스턴스가 재사용되는(warm) 동안에는 모듈 스코프 변수가 그대로
+// 남아있다 — site_settings처럼 자주 안 바뀌는 값을 요청마다 새로 조회하지 않고
+// 아주 짧게(5초)만 캐싱한다. 인스턴스가 새로 뜨면(cold start) 캐시가 비어있으니
+// 그때는 정상적으로 다시 조회하고, 5초 안에 admin이 값을 바꿔도 그 안에는 반영이
+// 안 될 수 있지만(사이트 잠금 on/off 같은 건 초 단위로 즉시일 필요는 없다) 매
+// 요청마다 나가던 Supabase 왕복을 크게 줄일 수 있다.
+let cachedSiteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
+let cachedSiteSettingsAt = 0;
+const SITE_SETTINGS_CACHE_MS = 5000;
+
+async function getCachedSiteSettings(supabase: ReturnType<typeof createServerClient>) {
+  const now = Date.now();
+  if (cachedSiteSettings && now - cachedSiteSettingsAt < SITE_SETTINGS_CACHE_MS) {
+    return { data: cachedSiteSettings };
+  }
+  const result = await supabase
+    .from("site_settings")
+    .select("maintenance_mode, restrict_external_checkin")
+    .eq("id", "default")
+    .maybeSingle();
+  if (result.data) {
+    cachedSiteSettings = result.data;
+    cachedSiteSettingsAt = now;
+  }
+  return result;
+}
+
 /**
  * 모든 요청에서 Supabase 세션 쿠키를 갱신합니다.
  * /admin 이하 경로는 로그인 + 관리자 권한(editor 이상)을 확인해 없으면 /login 으로 리다이렉트합니다.
@@ -71,22 +98,16 @@ export async function updateSession(request: NextRequest) {
   // 두 안내 페이지(/maintenance, /access-restricted)는 서로의 체크에서도 예외여야 한다.
   // 그렇지 않으면 명단 차단 → /access-restricted → 잠금 모드 체크에 걸려 /maintenance →
   // 거기서 다시 명단 차단 체크에 걸려 /access-restricted로 돌아가는 리다이렉트 루프가 생긴다.
+  // robots.txt/sitemap.xml/manifest.webmanifest/sw.js는 예전엔 여기서 예외 처리했는데,
+  // 이제 middleware.ts의 matcher 자체에서 아예 제외돼 있어(정적 파일이라 인증/권한 로직이
+  // 필요 없음) 이 함수가 그 경로들에 대해 호출되는 일 자체가 없다 — 그래서 더 이상 여기
+  // 나열할 필요가 없다.
   const isSpecialPageExempt =
     pathname === "/login" ||
     pathname === "/maintenance" ||
     pathname === "/access-restricted" ||
     pathname === "/suspended" ||
-    pathname.startsWith("/auth/callback") ||
-    // 검색엔진이 사이트 잠금 중에도 robots.txt/sitemap.xml은 정상적으로 받아갈 수 있어야
-    // 한다(HTML 리다이렉트 응답으로 오해하지 않도록). manifest.webmanifest도 같은 이유로
-    // 예외 처리한다 — "홈 화면에 추가" 설치 가능 여부를 브라우저가 판단할 때 로그인 여부와
-    // 무관하게 이 파일을 받아갈 수 있어야 한다(리다이렉트 응답이 오면 설치 불가로 처리됨).
-    pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml" ||
-    pathname === "/manifest.webmanifest" ||
-    // 서비스워커 스크립트도 마찬가지 — 리다이렉트 응답을 받으면 브라우저가 서비스워커
-    // 등록 자체를 실패로 처리해서 로그인 안 한 상태에서 푸시 구독 준비가 안 된다.
-    pathname === "/sw.js";
+    pathname.startsWith("/auth/callback");
   const isMaintenanceExempt = isSpecialPageExempt;
   const isAccessCheckExempt = isSpecialPageExempt;
 
@@ -121,7 +142,7 @@ export async function updateSession(request: NextRequest) {
     if (user) {
       const [roleResult, settingsResult, directoryResult] = await Promise.all([
         supabase.from("profiles").select("role, is_council, is_judiciary, suspended_until, suspended_reason").eq("id", user.id).single(),
-        supabase.from("site_settings").select("maintenance_mode, restrict_external_checkin").eq("id", "default").maybeSingle(),
+        getCachedSiteSettings(supabase),
         user.email
           ? supabase.from("directory_members").select("is_allowed, ban_reason").eq("email", user.email).maybeSingle()
           : Promise.resolve({ data: null }),
@@ -139,11 +160,7 @@ export async function updateSession(request: NextRequest) {
       // 로그인 여부와 무관하게 모든 방문자에게 적용돼야 하므로 이 조회만은 건너뛰면 안 된다.
       // (이전에는 이 fetch 전체가 `user &&` 조건 안에만 있어서, 잠금 중에도 비로그인
       // 방문자에게는 사이트가 그대로 보이는 버그가 있었다.)
-      const { data } = await supabase
-        .from("site_settings")
-        .select("maintenance_mode, restrict_external_checkin")
-        .eq("id", "default")
-        .maybeSingle();
+      const { data } = await getCachedSiteSettings(supabase);
       siteSettings = data;
     }
   }

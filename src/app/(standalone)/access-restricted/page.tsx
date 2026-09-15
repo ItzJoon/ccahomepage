@@ -1,10 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
+// useSearchParams()가 있는 페이지는 Suspense로 감싸야 빌드 때 정적으로 생성된다(login/page.tsx
+// 참고) — 안 그러면 매 요청마다 서버리스 함수가 뜬다.
 export default function AccessRestrictedPage() {
+  return (
+    <Suspense fallback={null}>
+      <AccessRestrictedPageInner />
+    </Suspense>
+  );
+}
+
+function AccessRestrictedPageInner() {
   const supabase = createClient();
   const router = useRouter();
   const searchParams = useSearchParams();
