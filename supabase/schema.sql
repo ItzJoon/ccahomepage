@@ -5485,3 +5485,34 @@ $$ language plpgsql security definer set search_path = public;
 -- 한도 초과 같은 상황에서, 날짜를 비워서 안내 자체를 안 보여주는 것보다 "미정이지만
 -- 알고는 있다"고 명시하는 쪽이 낫다).
 alter table site_settings add column if not exists maintenance_until_unknown boolean not null default false;
+
+-- ------------------------------------------------------------
+-- 129. 레이아웃 공통 설정 조회를 하나의 함수로 합치기 (성능)
+-- ------------------------------------------------------------
+-- (site)/layout.tsx와 admin/layout.tsx가 매 페이지 로드마다 각자 site_settings/
+-- site_theme/feature_flags를 따로따로 조회해서, 페이지 하나 뜰 때마다 이 세 테이블에
+-- 대한 왕복이 최대 3번씩 났다. 셋 다 "for select using (true)"로 전체 공개 조회라
+-- RLS로 사용자별 필터링이 전혀 없으므로, 하나의 함수로 합쳐도 노출 범위가 전혀
+-- 달라지지 않는다 — 한 번의 왕복으로 셋 다 가져온다.
+create or replace function get_layout_config()
+returns json
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select json_build_object(
+    'maintenance_mode', s.maintenance_mode,
+    'restrict_external_checkin', s.restrict_external_checkin,
+    'theme', t.theme,
+    'feature_flags', coalesce(
+      (select json_agg(json_build_object('key', f.key, 'enabled', f.enabled)) from feature_flags f),
+      '[]'::json
+    )
+  )
+  from site_settings s
+  left join site_theme t on t.id = 'default'
+  where s.id = 'default';
+$$;
+
+grant execute on function get_layout_config() to anon, authenticated;

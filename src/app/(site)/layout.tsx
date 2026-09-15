@@ -41,9 +41,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     { data: customPages },
     { data: latestBanner },
     { data: activePopups },
-    { data: settings },
-    { data: siteTheme },
-    { data: featureFlags },
+    { data: layoutConfig },
     { data: latestPatchNote },
   ] = await Promise.all([
     (async () => {
@@ -83,13 +81,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .or(`display_until.is.null,display_until.gt.${nowIso}`)
         .order("display_order", { ascending: true })
         .limit(20),
-      supabase
-        .from("site_settings")
-        .select("maintenance_mode, restrict_external_checkin")
-        .eq("id", "default")
-        .maybeSingle(),
-      supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
-      supabase.from("feature_flags").select("key, enabled"),
+      // site_settings/site_theme/feature_flags는 셋 다 전체 공개 조회(RLS: using(true))라
+      // 사용자별로 달라질 게 없어서, 3번 왕복하는 대신 하나의 함수(schema.sql 129번)로
+      // 합쳐서 한 번에 가져온다.
+      supabase.rpc("get_layout_config"),
       supabase
         .from("patch_notes")
         .select("*, patch_note_items(*)")
@@ -98,6 +93,12 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .limit(1)
         .maybeSingle(),
     ]);
+
+  const settings = layoutConfig
+    ? { maintenance_mode: layoutConfig.maintenance_mode, restrict_external_checkin: layoutConfig.restrict_external_checkin }
+    : null;
+  const siteTheme = layoutConfig ? { theme: layoutConfig.theme } : null;
+  const featureFlags: { key: string; enabled: boolean }[] = layoutConfig?.feature_flags ?? [];
 
   // 로그인한 사용자가 최신 패치노트를 아직 안 읽었으면 화면 가운데 팝업으로 보여준다
   // (PatchNotePopup). latestPatchNote 자체는 profile과 무관하게 이미 병렬로 가져왔으니,

@@ -28,12 +28,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   // 항상 기본값으로 렌더링돼서 /admin 진입마다 "기본 UI"가 잠깐 보였다 실제 테마로 바뀌는
   // 깜빡임이 있었다((site)/layout.tsx에서 같은 문제를 고친 것과 동일한 원인). 여기서도
   // 서버에서 미리 조회한 값을 초기값으로 내려준다.
+  // site_theme/site_settings를 각자 조회하던 걸 하나의 함수(schema.sql 129번)로 합쳐서
+  // 왕복을 줄인다 — (site)/layout.tsx와 동일한 최적화.
   const supabase = createClient();
-  const [{ data: siteTheme }, { data: settings }] = await Promise.all([
-    supabase.from("site_theme").select("theme").eq("id", "default").maybeSingle(),
-    supabase.from("site_settings").select("maintenance_mode").eq("id", "default").maybeSingle(),
-  ]);
-  const rawThemeValue = siteTheme?.theme ?? "";
+  const { data: layoutConfig } = await supabase.rpc("get_layout_config");
+  const rawThemeValue = layoutConfig?.theme ?? "";
+  const settings = layoutConfig ? { maintenance_mode: layoutConfig.maintenance_mode } : null;
   const initialThemeKey = isHomeThemeKey(rawThemeValue) ? rawThemeValue : DEFAULT_HOME_THEME;
 
   return (
