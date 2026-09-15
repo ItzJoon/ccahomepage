@@ -86,12 +86,8 @@ export default function Header({
   // 아니라 소속에 맞는 이름("임원회"/"사법위원회")으로 표시한다 — 실제로 갈 수 있는 곳도
   // 전체 관리자 화면이 아니라 그 활동 관리뿐이라, 버튼 이름부터 그 사실과 맞게 보여준다.
   const adminBtnLabel = hasAdminRole ? "관리자" : profile?.is_council ? "임원회" : "사법위원회";
-  // 사이트 잠금 모드는 admin/superadmin/viewer/designer가 우회하므로(middleware.ts와 동일
-  // 기준, editor는 예외 아님), 연속 접속 체크인도 같은 기준으로 잠금 중 보류 여부를 판단한다.
-  const isLockdownExempt = !!profile && ["admin", "superadmin", "viewer", "designer"].includes(profile.role);
   const { toast, celebrate, dismissCelebrate, freezePrompt, resolveFreezePrompt } = useAutoCheckIn(
     profile?.id ?? null,
-    isLockdownExempt,
     checkInEligible
   );
   const [mobileOpen, setMobileOpen] = useState(false);

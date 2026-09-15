@@ -19,7 +19,7 @@ import type { BadgeDef } from "@/lib/types";
  * 학교 구성원이 아닌 경우) 연속 접속 체크인 자체를 하지 않는다 — 이 기능은 학생/교사를
  * 위한 것이라 그 외 계정에게 "접속 1일째" 같은 팝업이 뜨는 게 맞지 않기 때문이다.
  */
-export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean = false, checkInEligible: boolean = true) {
+export function useAutoCheckIn(userId: string | null, checkInEligible: boolean = true) {
   const supabase = createClient();
   const attendance = useAttendance(userId);
   const {
@@ -57,22 +57,25 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
   };
 
   useEffect(() => {
-    if (isLockdownExempt) {
-      setMaintenanceMode(false);
-      return;
-    }
+    // admin/superadmin/viewer/designer는 잠금 중에도 사이트 자체는 볼 수 있지만(그래서
+    // isLockdownExempt=true), 그렇다고 이 사람들만 체크인이 계속되면 "잠금 중에 접속
+    // 가능한 역할만 유리해지는" 불공평이 생긴다 — 잠금 중에는 예외 역할이든 아니든
+    // 전부 동일하게 체크인을 보류해야 하므로, 여기서는 실제 잠금 여부를 그대로 조회한다.
     supabase
       .from("site_settings")
       .select("maintenance_mode")
       .eq("id", "default")
       .maybeSingle()
       .then(({ data }) => setMaintenanceMode(!!data?.maintenance_mode));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLockdownExempt]);
+  }, [supabase]);
 
   useEffect(() => {
     if (!userId || attendance.loading || attendance.checkedToday || firedRef.current) return;
     if (maintenanceMode === null) return; // 아직 점검 모드 여부를 확인 전이면 보류(값이 오면 다시 판단)
+    // 사이트 잠금 중에는 아무도(admin/superadmin/viewer/designer 같은 예외 역할 포함) 체크인이
+    // 진행되지 않는다 — firedRef를 세우지 않고 그냥 리턴하므로, 잠금이 풀리면(maintenanceMode가
+    // 이 effect의 의존성이라 다시 실행됨) 그때 정상적으로 체크인된다.
+    if (maintenanceMode) return;
     if (!checkInEligible) return; // 학교 구성원이 아닌 계정(외부 승인 계정)은 체크인하지 않음
     // badges 목록/보유 뱃지(earnedIds)가 아직 로딩 중이면 기다린다 — 여기서 바로 checkMilestones를
     // 부르면 오래된(비어있는) earnedIds를 기준으로 판단해 이미 받은 뱃지를 "새로 획득"으로 잘못
@@ -97,11 +100,6 @@ export function useAutoCheckIn(userId: string | null, isLockdownExempt: boolean 
     // 프리즈가 필요한 상황인데 보유한 프리즈가 없으면, 선택지 없이 바로 기록하고(정상
     // 접속으로 인정) streak는 리셋된다는 안내만 토스트에 덧붙인다.
     const streakWillReset = attendance.freezeEligible && attendance.freezeCredits === 0;
-    // 잠금 모드 중에도 실제 접속 기록(user_attendance)은 그대로 남겨야 접속 통계가
-    // 정확하다 — 예전엔 이 블록 전체가 잠금 중에는 실행조차 안 돼서, 사전 로그인한
-    // 학생들의 방문 기록이 하나도 안 쌓이는 문제가 있었다. 축하 토스트/뱃지 팝업 같은
-    // "정식 운영 전에 보여주기 애매한" 연출만 잠금 중에는 숨기고, 체크인 자체와 날짜
-    // 조건 뱃지처럼 조용히 지급되는 것(checkMilestones)은 계속 진행한다.
     commitCheckIn(false, streakWillReset);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, attendance.loading, attendance.checkedToday, maintenanceMode, badgesLoading]);
