@@ -2,31 +2,16 @@ import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { nowKSTDayOfWeek } from "@/lib/date";
 
-// Edge 미들웨어 인스턴스가 재사용되는(warm) 동안에는 모듈 스코프 변수가 그대로
-// 남아있다 — site_settings처럼 자주 안 바뀌는 값을 요청마다 새로 조회하지 않고
-// 아주 짧게(5초)만 캐싱한다. 인스턴스가 새로 뜨면(cold start) 캐시가 비어있으니
-// 그때는 정상적으로 다시 조회하고, 5초 안에 admin이 값을 바꿔도 그 안에는 반영이
-// 안 될 수 있지만(사이트 잠금 on/off 같은 건 초 단위로 즉시일 필요는 없다) 매
-// 요청마다 나가던 Supabase 왕복을 크게 줄일 수 있다.
-let cachedSiteSettings: { maintenance_mode: boolean; restrict_external_checkin: boolean } | null = null;
-let cachedSiteSettingsAt = 0;
-const SITE_SETTINGS_CACHE_MS = 5000;
-
+// site_settings(사이트 잠금 on/off 포함)는 행 1개짜리 아주 가벼운 조회라, 캐싱으로
+// 아끼는 비용보다 "잠금을 켠 순간과 실제로 막히는 순간 사이에 지연이 생기는" 쪽의
+// 부작용(잠금 중 일부 사용자만 연속 접속이 늘어나는 형평성 문제 등)이 더 크다고
+// 판단해 캐싱하지 않고 매 요청마다 항상 최신값을 조회한다.
 async function getCachedSiteSettings(supabase: ReturnType<typeof createServerClient>) {
-  const now = Date.now();
-  if (cachedSiteSettings && now - cachedSiteSettingsAt < SITE_SETTINGS_CACHE_MS) {
-    return { data: cachedSiteSettings };
-  }
-  const result = await supabase
+  return supabase
     .from("site_settings")
     .select("maintenance_mode, restrict_external_checkin")
     .eq("id", "default")
     .maybeSingle();
-  if (result.data) {
-    cachedSiteSettings = result.data;
-    cachedSiteSettingsAt = now;
-  }
-  return result;
 }
 
 /**
