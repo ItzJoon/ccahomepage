@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
@@ -6,9 +7,16 @@ import DetailBackLink from "@/components/DetailBackLink";
 import AttachmentList from "@/components/AttachmentList";
 import { truncateForMeta } from "@/lib/metaSummary";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+// generateMetadata와 페이지 본문이 각자 같은 일정을 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다.
+const getEvent = cache(async (id: string) => {
   const supabase = createClient();
-  const { data: event } = await supabase.from("events_with_creator").select("title, description").eq("id", params.id).maybeSingle();
+  const { data: event } = await supabase.from("events_with_creator").select("*").eq("id", id).maybeSingle();
+  return event;
+});
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const event = await getEvent(params.id);
   if (!event) return {};
   const description = event.description ? truncateForMeta(event.description) : undefined;
   return {
@@ -25,7 +33,7 @@ function fmt(d: string) {
 
 export default async function EventDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: event } = await supabase.from("events_with_creator").select("*").eq("id", params.id).single();
+  const event = await getEvent(params.id);
   if (!event) return <div className="text-muted text-center py-10">일정을 찾을 수 없습니다.</div>;
 
   const { data: attachments } = await supabase.from("attachments").select("*").eq("event_id", params.id);

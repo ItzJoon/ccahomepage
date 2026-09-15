@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
@@ -12,12 +13,19 @@ function fmt(d: string) {
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
 
+// generateMetadata와 페이지 본문이 각자 같은 글을 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다.
+const getNoticePost = cache(async (id: string) => {
+  const supabase = createClient();
+  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", id).maybeSingle();
+  return post;
+});
+
 // 카카오톡/디스코드 등에 이 공지 링크를 공유했을 때, 사이트 이름이 아니라 실제 이 글의
 // 제목/내용이 미리보기로 보이게 한다(공유 미리보기 title은 루트 레이아웃의
 // title.template 덕분에 "{제목} | 중앙기독고등학교 학생자치회"로 자동 완성된다).
 export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("title, content").eq("id", params.id).maybeSingle();
+  const post = await getNoticePost(params.id);
   if (!post) return {};
   const description = noticeContentToPlainSummary(post.content);
   return {
@@ -29,7 +37,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function NoticeDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", params.id).single();
+  const post = await getNoticePost(params.id);
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다.</div>;
   }

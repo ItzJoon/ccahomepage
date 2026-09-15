@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import ViewCounter from "@/components/ViewCounter";
 import Linkify from "@/components/Linkify";
@@ -11,9 +12,17 @@ import ImageGallery from "@/components/ImageGallery";
 import LikeButton from "@/components/LikeButton";
 import { truncateForMeta } from "@/lib/metaSummary";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+// generateMetadata와 페이지 본문이 각자 같은 글을 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다 — 같은 요청 안에서 동일한 id로 호출되면
+// 두 번째 호출은 실제 조회 없이 첫 호출 결과를 그대로 재사용한다.
+const getBoardPost = cache(async (id: string) => {
   const supabase = createClient();
-  const { data: post } = await supabase.from("board_posts").select("title, content, is_hidden").eq("id", params.id).maybeSingle();
+  const { data: post } = await supabase.from("board_posts").select("*, author_name, author_avatar").eq("id", id).maybeSingle();
+  return post;
+});
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const post = await getBoardPost(params.id);
   if (!post || post.is_hidden) return {};
   const description = truncateForMeta(post.content);
   return {
@@ -33,10 +42,7 @@ export default async function BoardDetailPage({ params }: { params: { id: string
   // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
   // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
   // (supabase/schema.sql 51번 참고).
-  const [{ data: post }, profile] = await Promise.all([
-    supabase.from("board_posts").select("*, author_name, author_avatar").eq("id", params.id).single(),
-    getCurrentProfile(),
-  ]);
+  const [post, profile] = await Promise.all([getBoardPost(params.id), getCurrentProfile()]);
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다(삭제되었거나 숨김 처리된 글일 수 있습니다).</div>;
   }

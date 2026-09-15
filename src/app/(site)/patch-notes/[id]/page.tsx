@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
@@ -7,12 +8,19 @@ import { sortPatchNoteItemsForDisplay } from "@/lib/patchNotes";
 import { truncateForMeta } from "@/lib/metaSummary";
 import type { PatchNoteCategory, PatchNoteItem } from "@/lib/types";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+// generateMetadata와 페이지 본문이 각자 같은 패치노트를 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다.
+const getPatchNote = cache(async (id: string) => {
   const supabase = createClient();
-  const { data: note } = await supabase.from("patch_notes").select("title, version, patch_note_items(content)").eq("id", params.id).maybeSingle();
+  const { data: note } = await supabase.from("patch_notes").select("*, patch_note_items(*)").eq("id", id).maybeSingle();
+  return note;
+});
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const note = await getPatchNote(params.id);
   if (!note) return {};
   const title = note.version ? `${note.version} ${note.title}` : note.title;
-  const firstItem = (note.patch_note_items as { content: string }[] | null)?.[0]?.content;
+  const firstItem = (note.patch_note_items as PatchNoteItem[] | null)?.[0]?.content;
   const description = firstItem ? truncateForMeta(firstItem) : undefined;
   return {
     title,
@@ -38,8 +46,7 @@ function fmt(d: string) {
 }
 
 export default async function PatchNoteDetailPage({ params }: { params: { id: string } }) {
-  const supabase = createClient();
-  const { data: note } = await supabase.from("patch_notes").select("*, patch_note_items(*)").eq("id", params.id).single();
+  const note = await getPatchNote(params.id);
   if (!note) {
     return <div className="text-muted text-center py-10">패치노트를 찾을 수 없습니다.</div>;
   }

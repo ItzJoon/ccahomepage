@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import Linkify from "@/components/Linkify";
@@ -7,9 +8,16 @@ import AttachmentList from "@/components/AttachmentList";
 import ImageGallery from "@/components/ImageGallery";
 import { truncateForMeta } from "@/lib/metaSummary";
 
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+// generateMetadata와 페이지 본문이 각자 같은 글을 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다.
+const getNewsPost = cache(async (id: string) => {
   const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("title, content").eq("id", params.id).eq("type", "news").maybeSingle();
+  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", id).eq("type", "news").maybeSingle();
+  return post;
+});
+
+export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
+  const post = await getNewsPost(params.id);
   if (!post) return {};
   const description = truncateForMeta(post.content);
   return {
@@ -33,7 +41,7 @@ function toDriveEmbedUrl(url: string) {
 
 export default async function NewsDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const { data: post } = await supabase.from("posts").select("*, author_name").eq("id", params.id).eq("type", "news").single();
+  const post = await getNewsPost(params.id);
   if (!post) return <div className="text-muted text-center py-10">기사를 찾을 수 없습니다.</div>;
 
   const [{ data: attachments }, { data: gallery }] = await Promise.all([

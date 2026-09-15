@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import Badge from "@/components/Badge";
 import DetailBackLink from "@/components/DetailBackLink";
@@ -14,9 +15,16 @@ const COLOR_VAR: Record<string, string> = {
   gold: "var(--gold)",
 };
 
-export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+// generateMetadata와 페이지 본문이 각자 같은 부서를 따로 조회하던 걸(요청당 왕복 2번)
+// React cache()로 감싸서 하나로 합친다.
+const getOrg = cache(async (slug: string) => {
   const supabase = createClient();
-  const { data: org } = await supabase.from("organizations").select("name, description").eq("slug", params.slug).maybeSingle();
+  const { data: org } = await supabase.from("organizations").select("*").eq("slug", slug).maybeSingle();
+  return org;
+});
+
+export async function generateMetadata({ params }: { params: { slug: string } }): Promise<Metadata> {
+  const org = await getOrg(params.slug);
   if (!org) return {};
   const description = org.description ? truncateForMeta(org.description) : undefined;
   return {
@@ -28,7 +36,7 @@ export async function generateMetadata({ params }: { params: { slug: string } })
 
 export default async function OrgDetailPage({ params }: { params: { slug: string } }) {
   const supabase = createClient();
-  const { data: org } = await supabase.from("organizations").select("*").eq("slug", params.slug).single();
+  const org = await getOrg(params.slug);
   if (!org) return <div className="text-muted text-center py-10">부서를 찾을 수 없습니다.</div>;
 
   const { data: members } = await supabase
