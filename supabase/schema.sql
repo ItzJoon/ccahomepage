@@ -5516,3 +5516,46 @@ as $$
 $$;
 
 grant execute on function get_layout_config() to anon, authenticated;
+
+-- 130. 프리즈 선택 모달이 장애 기간 보호 공백까지 "프리즈 필요"로 잘못 판단하던 버그 수정
+-- 클라이언트가 "마지막 방문일이 정확히 그저께인가"를 직접 계산해 프리즈 선택 모달을
+-- 띄울지 판단했는데, 이 계산은 site_outages(장애 기간 보호)를 몰라서 장애 기간에 걸친
+-- 공백까지 "프리즈 필요"로 잘못 판단해 불필요한 선택 모달을 띄우는 버그가 있었다
+-- (check_in_attendance가 실제로 계산하는 v_effective_gap과 기준이 달랐음). 실제로
+-- 장애 기간을 낀 이틀 공백에서 재현 확인(effective_gap=1로 프리즈가 전혀 필요 없는데
+-- 클라이언트는 "이틀 전"이라는 이유만으로 모달을 띄우려 했음). check_in_attendance의
+-- v_freeze_eligible과 동일한 계산을 그대로 노출해서 클라이언트가 같은 기준으로
+-- 판단하게 한다.
+create or replace function is_freeze_eligible(p_user_id uuid)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_today date := (timezone('Asia/Seoul', now()))::date;
+  v_last_date date;
+  v_freeze_credits int;
+  v_outage_days int := 0;
+  v_effective_gap int;
+begin
+  if p_user_id is distinct from auth.uid() then
+    raise exception '본인만 조회할 수 있습니다';
+  end if;
+
+  select visit_date into v_last_date
+    from user_attendance where user_id = p_user_id order by visit_date desc limit 1;
+  if v_last_date is null or v_last_date = v_today then
+    return false;
+  end if;
+
+  select freeze_credits into v_freeze_credits from profiles where id = p_user_id;
+
+  v_outage_days := count_outage_days(v_last_date, v_today);
+  v_effective_gap := (v_today - v_last_date) - v_outage_days;
+
+  return v_effective_gap = 2 and coalesce(v_freeze_credits, 0) > 0;
+end;
+$$;
+
+grant execute on function is_freeze_eligible(uuid) to authenticated;

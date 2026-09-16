@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { todayKST, addDaysKST } from "@/lib/date";
+import { todayKST } from "@/lib/date";
 
 export function useAttendance(userId: string | null) {
   const [streak, setStreak] = useState(0);
@@ -10,6 +10,7 @@ export function useAttendance(userId: string | null) {
   const [checkedToday, setCheckedToday] = useState(false);
   const [freezeCredits, setFreezeCredits] = useState(0);
   const [maxStreak, setMaxStreak] = useState(0);
+  const [freezeEligible, setFreezeEligible] = useState(false);
   const [loading, setLoading] = useState(true);
   const supabase = createClient();
 
@@ -18,7 +19,7 @@ export function useAttendance(userId: string | null) {
       setLoading(false);
       return;
     }
-    const [{ data }, { data: prof }] = await Promise.all([
+    const [{ data }, { data: prof }, { data: eligible }] = await Promise.all([
       supabase
         .from("user_attendance")
         .select("visit_date, streak_count")
@@ -26,6 +27,12 @@ export function useAttendance(userId: string | null) {
         .order("visit_date", { ascending: false })
         .limit(30),
       supabase.from("profiles").select("freeze_credits, max_streak").eq("id", userId).single(),
+      // "마지막 방문일이 정확히 그저께인가"를 여기서 직접 계산하면 site_outages(장애
+      // 기간 보호)를 몰라서, 장애 기간에 걸친 공백까지 "프리즈 필요"로 잘못 판단해
+      // 불필요한 선택 모달을 띄우는 버그가 있었다(check_in_attendance가 실제로 계산하는
+      // v_effective_gap과 기준이 달랐음). 같은 계산을 하는 is_freeze_eligible RPC
+      // (supabase/schema.sql) 결과를 그대로 쓴다.
+      supabase.rpc("is_freeze_eligible", { p_user_id: userId }),
     ]);
     if (data && data.length > 0) {
       setHistory(data.map((d) => d.visit_date));
@@ -34,21 +41,13 @@ export function useAttendance(userId: string | null) {
     }
     setFreezeCredits(prof?.freeze_credits ?? 0);
     setMaxStreak(prof?.max_streak ?? 0);
+    setFreezeEligible(!!eligible);
     setLoading(false);
   }, [userId, supabase]);
 
   useEffect(() => {
     load();
   }, [load]);
-
-  /**
-   * "어제 접속을 안 해서 오늘 체크인하면 프리즈가 필요한 상황"인지 여부. 프리즈는
-   * 놓친 날이 정확히 하루일 때만 이어붙일 수 있으므로(check_in_attendance RPC의
-   * v_freeze_eligible과 동일한 조건), 마지막 방문일이 그저께(오늘-2일)일 때만 true다.
-   * 이 값 자체는 화면에 "선택 UI를 보여줄지" 판단하는 용도일 뿐 아무것도 기록하지
-   * 않는다 — 실제 커밋은 항상 checkIn()을 호출해야만 일어난다.
-   */
-  const freezeEligible = !checkedToday && history.length > 0 && history[0] === addDaysKST(todayKST(), -2);
 
   /**
    * 오늘 체크인을 실제로 기록한다. useFreeze는 "프리즈가 필요한 상황일 때 학생이
