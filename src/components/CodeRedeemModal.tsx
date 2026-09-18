@@ -39,6 +39,11 @@ export default function CodeRedeemModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  // 칸이 12개로 나뉘어 있어도 Ctrl/Cmd+A는 "전체"를 한 번에 선택한 것처럼 동작해야
+  // 하므로, 실제 텍스트 선택 대신 이 플래그로 "전체 선택된 상태"를 흉내낸다 — 모든
+  // 칸을 하이라이트로 표시하고, 이 상태에서 글자를 치면 전체를 지우고 새로 시작,
+  // 삭제 키를 누르면 전체를 지우고, 복사하면 전체 코드를 클립보드에 담는다.
+  const [allSelected, setAllSelected] = useState(false);
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const isComplete = chars.every((c) => c !== "");
@@ -63,6 +68,32 @@ export default function CodeRedeemModal({
   };
 
   const handleKeyDown = (idx: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "a") {
+      e.preventDefault();
+      setAllSelected(true);
+      return;
+    }
+
+    if (allSelected) {
+      if (e.key === "Backspace" || e.key === "Delete") {
+        e.preventDefault();
+        setChars(Array(LENGTH).fill(""));
+        setAllSelected(false);
+        inputRefs.current[0]?.focus();
+        return;
+      }
+      if (/^[a-zA-Z0-9]$/.test(e.key)) {
+        e.preventDefault();
+        const next = Array(LENGTH).fill("");
+        next[0] = e.key.toUpperCase();
+        setChars(next);
+        setAllSelected(false);
+        inputRefs.current[1]?.focus();
+        return;
+      }
+      setAllSelected(false);
+    }
+
     if (e.key === "Enter") {
       if (isComplete) submit();
       return;
@@ -85,12 +116,19 @@ export default function CodeRedeemModal({
 
   const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
+    setAllSelected(false);
     const text = e.clipboardData.getData("text").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, LENGTH);
     if (!text) return;
     const next = Array(LENGTH).fill("");
     for (let i = 0; i < text.length; i++) next[i] = text[i];
     setChars(next);
     inputRefs.current[Math.min(text.length, LENGTH - 1)]?.focus();
+  };
+
+  const handleCopy = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    if (!allSelected) return;
+    e.preventDefault();
+    e.clipboardData.setData("text/plain", formattedCode);
   };
 
   const submit = async () => {
@@ -129,10 +167,13 @@ export default function CodeRedeemModal({
               </button>
             </div>
             {description && <p className="text-muted text-xs mb-3">{description}</p>}
-            <div className={`flex items-center justify-center gap-1.5 ${description ? "" : "mt-3"}`}>
+            {/* 칸마다 폭을 고정 px 대신 flex-1/min-w-0으로 잡아서, 화면이 아무리
+                좁아도(모바일) 12칸 + 하이픈 2개가 항상 모달 너비 안에 맞고 잘리지
+                않는다 — 화면이 넓으면 max-w로 각 칸이 지나치게 커지지 않게만 막는다. */}
+            <div className={`flex items-center justify-center gap-1 w-full min-w-0 ${description ? "" : "mt-3"}`}>
               {GROUP_SIZES.map((size, groupIdx) => (
-                <div key={groupIdx} className="flex items-center gap-1">
-                  {groupIdx > 0 && <span className="text-muted font-bold mx-0.5">-</span>}
+                <div key={groupIdx} className="flex items-center justify-center gap-1 flex-1 min-w-0">
+                  {groupIdx > 0 && <span className="text-muted font-bold shrink-0">-</span>}
                   {Array.from({ length: size }).map(() => {
                     const idx = flatIndex++;
                     return (
@@ -146,10 +187,16 @@ export default function CodeRedeemModal({
                         onChange={(e) => handleChange(idx, e.target.value)}
                         onKeyDown={(e) => handleKeyDown(idx, e)}
                         onPaste={handlePaste}
+                        onCopy={handleCopy}
+                        onFocus={() => setAllSelected(false)}
                         maxLength={1}
                         inputMode="text"
                         autoFocus={idx === 0}
-                        className="w-8 h-10 text-center font-mono text-lg font-bold border border-border rounded-md bg-transparent placeholder:text-muted placeholder:font-normal focus:outline-none focus:ring-2 focus:ring-blue"
+                        className={`flex-1 min-w-0 max-w-[36px] h-10 text-center font-mono text-lg font-bold border rounded-md focus:outline-none focus:ring-2 focus:ring-blue placeholder:font-normal ${
+                          allSelected
+                            ? "bg-blue/20 border-blue placeholder:text-blue"
+                            : "bg-transparent border-border placeholder:text-muted"
+                        }`}
                       />
                     );
                   })}
