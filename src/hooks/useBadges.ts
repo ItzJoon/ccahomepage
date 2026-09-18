@@ -20,19 +20,27 @@ export function useBadges(userId: string | null) {
     // secret_tier는 문자열값이 마침 "none" < "secret" < "super_secret" 알파벳 순서와
     // 정확히 일치해서, 오름차순 정렬만으로 시크릿은 뒤로, 슈퍼시크릿은 더 뒤로 보낼 수
     // 있다 — 그 안에서는 기존처럼 streak_threshold 기준으로 정렬한다.
-    const { data: badgeRows } = await supabase
-      .from("badges")
-      .select("*")
-      .eq("is_active", true)
-      .order("secret_tier", { ascending: true })
-      .order("streak_threshold", { ascending: true });
-    setBadges((badgeRows as BadgeDef[]) ?? []);
-    if (badgeRows) preloadBadgeSoundOverrides(badgeRows as BadgeDef[]);
-
-    if (userId) {
-      const { data: earned } = await supabase.from("user_badges").select("badge_id").eq("user_id", userId);
-      setEarnedIds(new Set((earned ?? []).map((e) => e.badge_id)));
-    }
+    const [{ data: badgeRows }, earnedResult] = await Promise.all([
+      supabase
+        .from("badges")
+        .select("*")
+        .order("secret_tier", { ascending: true })
+        .order("streak_threshold", { ascending: true }),
+      userId
+        ? supabase.from("user_badges").select("badge_id").eq("user_id", userId)
+        : Promise.resolve({ data: [] as { badge_id: string }[] }),
+    ]);
+    const earned = new Set((earnedResult.data ?? []).map((e) => e.badge_id));
+    // is_active=false(정원 마감 등으로 자동 비활성화된 뱃지 포함)라도 이미 획득한
+    // 사람에게는 계속 보여야 한다 — 예전엔 여기서 바로 is_active=true만 걸러서, 뱃지가
+    // 정원 마감으로 비활성화되는 순간 이미 그 뱃지를 받은 사람의 목록에서도 함께
+    // 사라지는 버그가 있었다(실제로 겪음: 정원 찬 이스터에그 뱃지를 받은 학생의
+    // 목록에 그 뱃지가 안 보임). "활성 뱃지 전체 + 내가 이미 받은 비활성 뱃지"만
+    // 노출한다 — 아직 못 받은 비활성 뱃지(더 이상 획득 불가능한 것)는 그대로 숨는다.
+    const visible = ((badgeRows as BadgeDef[]) ?? []).filter((b) => b.is_active || earned.has(b.id));
+    setBadges(visible);
+    if (badgeRows) preloadBadgeSoundOverrides(visible);
+    setEarnedIds(earned);
     setLoading(false);
   }, [userId, supabase]);
 

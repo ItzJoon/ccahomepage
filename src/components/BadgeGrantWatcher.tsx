@@ -19,6 +19,7 @@ import type { BadgeDef } from "@/lib/types";
  * 별개의 경로라 이 지연 문제와 무관함).
  */
 export default function BadgeGrantWatcher({ userId, soundEnabled = true }: { userId: string | null; soundEnabled?: boolean }) {
+  const supabase = createClient();
   const [queue, setQueue] = useState<BadgeDef[]>([]);
   const badgesRef = useRef<BadgeDef[]>([]);
   // 실시간 구독(INSERT 이벤트)과 폴링(20초 주기 안전망)이 같은 badge_id를 동시에 감지할
@@ -30,9 +31,34 @@ export default function BadgeGrantWatcher({ userId, soundEnabled = true }: { use
   // 큐에서 빠져나간 뒤에도 다시 넣지 않게 막는다.
   const notifiedRef = useRef<Set<string>>(new Set());
 
+  // celebrated=true 기록은 팝업을 큐에 넣는 시점이 아니라 사용자가 실제로 팝업을
+  // 닫은(확인한) 시점에만 남긴다 — 예전엔 큐에 넣는 즉시 기록했는데, 그 사이(실시간
+  // 이벤트를 놓쳐 20초 폴링이 뒤늦게 잡았거나, 큐에 넣자마자 탭을 닫는 등)에 사용자가
+  // 실제로 팝업을 보지 못한 채로 celebrated만 true가 되어버리면 폴링 안전망("celebrated
+  // =false인 뱃지를 다시 확인")도 더 이상 그 뱃지를 대상에서 제외해버려서 영영 축하를
+  // 못 보는 버그가 있었다(실제로 겪음: 뱃지는 정상 지급됐는데 축하 팝업이 안 떴다는 신고).
+  // supabase.rpc(...)는 내부적으로 일반 fetch라 새로고침/페이지 이동이 일어나면 응답을
+  // 받기 전에 요청 자체가 취소된다 — keepalive: true를 준 fetch는 페이지가 언로드되는
+  // 도중에도 브라우저가 전송을 이어서 시도해주므로, 팝업을 닫는 순간 탭을 바로 닫아도
+  // 기록이 씹히지 않는다.
+  const markCelebrated = (badgeId: string) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) return;
+      fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/mark_badges_celebrated`, {
+        method: "POST",
+        keepalive: true,
+        headers: {
+          "Content-Type": "application/json",
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ target_badge_ids: [badgeId] }),
+      });
+    });
+  };
+
   useEffect(() => {
     if (!userId) return;
-    const supabase = createClient();
     let cancelled = false;
 
     supabase
@@ -54,24 +80,6 @@ export default function BadgeGrantWatcher({ userId, soundEnabled = true }: { use
       if (notifiedRef.current.has(badge.id)) return;
       notifiedRef.current.add(badge.id);
       setQueue((prev) => [...prev, badge]);
-      // supabase.rpc(...)는 내부적으로 일반 fetch라 새로고침/페이지 이동이 일어나면 응답을
-      // 받기 전에 요청 자체가 취소된다 — 팝업이 뜨자마자(닫기 전에) 사용자가 곧바로
-      // 새로고침해서 확인하는 흔한 테스트 패턴에서 celebrated=true 반영이 매번 씹혀서
-      // "새로고침할 때마다 계속 뜨는" 버그로 이어졌다. keepalive: true를 준 fetch는 페이지가
-      // 언로드되는 도중에도 브라우저가 전송을 이어서 시도해주므로 이 경합을 없앤다.
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session) return;
-        fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/rpc/mark_badges_celebrated`, {
-          method: "POST",
-          keepalive: true,
-          headers: {
-            "Content-Type": "application/json",
-            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-            Authorization: `Bearer ${session.access_token}`,
-          },
-          body: JSON.stringify({ target_badge_ids: [badge.id] }),
-        });
-      });
     };
 
     let channel: ReturnType<typeof supabase.channel> | null = null;
@@ -126,6 +134,13 @@ export default function BadgeGrantWatcher({ userId, soundEnabled = true }: { use
   const current = queue[0] ?? null;
   if (!current) return null;
   return (
-    <BadgeCelebration badge={current} onClose={() => setQueue((q) => q.slice(1))} soundEnabled={soundEnabled} />
+    <BadgeCelebration
+      badge={current}
+      onClose={() => {
+        markCelebrated(current.id);
+        setQueue((q) => q.slice(1));
+      }}
+      soundEnabled={soundEnabled}
+    />
   );
 }
