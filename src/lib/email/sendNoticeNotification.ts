@@ -169,9 +169,14 @@ async function sendChunk(
         subject: `[학생자치회] ${post.title}`,
         html: buildHtml(post),
       });
+      // SMTP 응답의 accepted/rejected에는 bcc 수신자뿐 아니라 위 to(발신 계정 본인)도
+      // 함께 포함되어 온다 — 그걸 걸러내지 않으면 청크 하나당 실제 대상자가 아닌 발신
+      // 계정 주소가 "성공"으로 하나씩 더 잡혀서, 대상 인원 수보다 성공 건수가 더 많게
+      // 집계되는 버그가 있었다(실제로 겪음: 143명 대상인데 2개 청크로 나뉘어 145건 성공).
+      const selfAddress = process.env.GMAIL_USER;
       return {
-        accepted: (info.accepted ?? []).map(String),
-        rejected: (info.rejected ?? []).map(String),
+        accepted: (info.accepted ?? []).map(String).filter((a: string) => a !== selfAddress),
+        rejected: (info.rejected ?? []).map(String).filter((a: string) => a !== selfAddress),
       };
     } catch (err) {
       lastError = err;
