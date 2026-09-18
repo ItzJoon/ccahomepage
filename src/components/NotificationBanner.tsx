@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { playAttachedSound } from "@/lib/notificationSound";
+import { notificationTargetsMe } from "@/lib/notificationAudience";
 import type { NotificationItem } from "@/lib/types";
 
 /** display_until이 없으면 계속 표시(무기한), 있으면 그 시각이 지나면 만료 처리 */
@@ -20,9 +21,13 @@ function isExpired(n: NotificationItem) {
 export default function NotificationBanner({
   initial,
   soundEnabled = true,
+  userEmail,
 }: {
   initial: NotificationItem | null;
   soundEnabled?: boolean;
+  /** 발송 대상 지정(audience_emails)이 있는 알림을 realtime으로 새로 받았을 때, 이
+   * 화면 주인이 대상인지 판단하는 데 쓴다. 초기 목록은 이미 서버에서 걸러져서 온다. */
+  userEmail?: string | null;
 }) {
   const [latest, setLatest] = useState<NotificationItem | null>(initial && !isExpired(initial) ? initial : null);
   const [dismissed, setDismissed] = useState<string[]>([]);
@@ -42,7 +47,7 @@ export default function NotificationBanner({
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationItem;
-          if (n.display_type === "banner" && !isExpired(n)) setLatest(n);
+          if (n.display_type === "banner" && !isExpired(n) && notificationTargetsMe(n.audience_emails, userEmail)) setLatest(n);
         }
       )
       .on(
@@ -58,7 +63,8 @@ export default function NotificationBanner({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userEmail]);
 
   // 노출 종료 시각이 정해진 알림이면, 페이지를 계속 열어둔 사이 그 시각이 지나는 순간
   // 자동으로 숨긴다.

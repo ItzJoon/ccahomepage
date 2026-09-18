@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
 import { playAttachedSound } from "@/lib/notificationSound";
+import { notificationTargetsMe } from "@/lib/notificationAudience";
 import type { NotificationItem } from "@/lib/types";
 
 // "오늘 하루 안 보기"는 계정이 아니라 이 브라우저(localStorage)에 저장되는데, developer
@@ -48,10 +49,14 @@ export default function NotificationPopup({
   initial,
   soundEnabled = true,
   userId = null,
+  userEmail = null,
 }: {
   initial: NotificationItem[];
   soundEnabled?: boolean;
   userId?: string | null;
+  /** 발송 대상 지정(audience_emails)이 있는 알림을 realtime으로 새로 받았을 때, 이
+   * 화면 주인이 대상인지 판단하는 데 쓴다. 초기 목록은 이미 서버에서 걸러져서 온다. */
+  userEmail?: string | null;
 }) {
   const [queue, setQueue] = useState<NotificationItem[]>([]);
   const [visible, setVisible] = useState(false);
@@ -87,7 +92,7 @@ export default function NotificationPopup({
         { event: "INSERT", schema: "public", table: "notifications" },
         (payload) => {
           const n = payload.new as NotificationItem;
-          if (n.display_type === "popup" && isQueueable(n, scopeKey)) {
+          if (n.display_type === "popup" && isQueueable(n, scopeKey) && notificationTargetsMe(n.audience_emails, userEmail)) {
             setQueue((q) => (q.some((x) => x.id === n.id) ? q : [...q, n]));
           }
         }
@@ -113,7 +118,8 @@ export default function NotificationPopup({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey, userEmail]);
 
   // 노출 종료 시각이 정해진 팝업이면, 페이지를 계속 열어둔 사이 그 시각이 지나는 순간
   // 자동으로 닫고 다음 걸로 넘어간다(배너와 동일한 패턴).

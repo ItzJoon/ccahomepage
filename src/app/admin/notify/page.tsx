@@ -9,10 +9,13 @@ import Badge from "@/components/Badge";
 import ImageUpload from "@/components/ImageUpload";
 import SoundUpload from "@/components/SoundUpload";
 import EmailNotificationHistory from "@/components/admin/EmailNotificationHistory";
+import NotifyAudienceSelector, { classKey } from "@/components/admin/NotifyAudienceSelector";
+import NotifyDetailModal from "@/components/admin/NotifyDetailModal";
 import { adminDisplayName } from "@/lib/displayName";
 import { DURATION_PRESETS, computeDisplayUntil, type DurationMode } from "@/lib/notificationDuration";
 import { removeStorageFile } from "@/lib/storageCleanup";
-import type { NotificationItem } from "@/lib/types";
+import { resolveNotifyAudience, type NotifyAudience } from "@/lib/notificationAudienceResolve";
+import type { DirectoryMember, NotificationItem } from "@/lib/types";
 
 interface NotificationWithSender extends NotificationItem {
   sender: { name: string | null; nickname: string | null; email: string } | null;
@@ -40,12 +43,108 @@ export default function AdminNotifyPage() {
   const [linkUrl, setLinkUrl] = useState("");
   const [soundUrl, setSoundUrl] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
+  const [audienceMode, setAudienceMode] = useState<NotifyAudience["mode"]>("all");
+  const [audienceGrades, setAudienceGrades] = useState<Set<string>>(new Set());
+  const [audienceClasses, setAudienceClasses] = useState<Set<string>>(new Set());
+  const [audienceCustomMembers, setAudienceCustomMembers] = useState<DirectoryMember[]>([]);
+  const [viewingDetail, setViewingDetail] = useState<NotificationWithSender | null>(null);
+
+  const toggleAudienceGrade = (g: string) =>
+    setAudienceGrades((prev) => {
+      const next = new Set(prev);
+      next.has(g) ? next.delete(g) : next.add(g);
+      return next;
+    });
+  const toggleAudienceClass = (key: string) =>
+    setAudienceClasses((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+
+  const resetAudience = () => {
+    setAudienceMode("all");
+    setAudienceGrades(new Set());
+    setAudienceClasses(new Set());
+    setAudienceCustomMembers([]);
+  };
+
+  const buildAudience = (): NotifyAudience => {
+    if (audienceMode === "grades") return { mode: "grades", grades: Array.from(audienceGrades) };
+    if (audienceMode === "homerooms") {
+      const classes = Array.from(audienceClasses).map((k) => {
+        const [grade, homeroom] = k.split("-");
+        return { grade, homeroom: Number(homeroom) };
+      });
+      return { mode: "homerooms", classes };
+    }
+    if (audienceMode === "custom") return { mode: "custom", emails: audienceCustomMembers.map((m) => m.email) };
+    return { mode: "all" };
+  };
+
+  /** 이미지 URL이 실제로 아직 살아있는지 브라우저에서 직접 로드해서 확인한다. sound_url은
+   * 노출 기간이 끝나면 이 화면이 스스로 null로 비우므로(위 sweep useEffect) DB 값의
+   * null 여부만 믿어도 되지만, image_url은 그런 자동 정리 대상이 아니라서 "다시 발송"
+   * 시점에 파일이 실제로 남아있는지 직접 확인해야 안전하다(스토리지 쪽에서 별도로
+   * 지워졌을 가능성까지 방어).
+   */
+  const checkImageExists = (url: string) =>
+    new Promise<boolean>((resolve) => {
+      const img = new Image();
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = url;
+    });
+
+  /** 새 발송 폼을 과거 발송 건의 설정으로 그대로 채운다("이 설정 그대로 다시 발송"). */
+  const [prefillNotice, setPrefillNotice] = useState<string | null>(null);
+  const prefillFrom = async (n: NotificationItem) => {
+    setTitle(n.title);
+    setMessage(n.message);
+    setLevel(n.level);
+    setDurationMode("indefinite"); // 노출 기간은 "지금부터 다시" 기준이 자연스러우므로 무기한으로 초기화하고 필요하면 관리자가 다시 고른다
+    setCustomUntil("");
+    setLinkUrl(n.link_url ?? "");
+    setSoundUrl(n.sound_url); // 살아있는 파일만 sound_url에 남아있음(위 설명 참고)
+    setAudienceMode(n.audience_mode);
+    setAudienceGrades(new Set(n.audience_grades ?? []));
+    setAudienceClasses(new Set((n.audience_classes ?? []).map((c) => classKey(c.grade, c.homeroom))));
+    setAudienceCustomMembers([]); // custom 모드였으면 이메일만 남아있어 멤버 객체로 되살릴 수 없음 — 안내로 대신함
+
+    const missing: string[] = [];
+    if (n.image_url && (await checkImageExists(n.image_url))) {
+      setImageUrl(n.image_url);
+      setDisplayType(n.display_type);
+    } else {
+      if (n.image_url) missing.push("이미지");
+      setImageUrl(null);
+      setDisplayType(n.display_type === "popup" && !n.image_url ? "popup" : "banner");
+    }
+    if (n.audience_mode === "custom") missing.push("대상자 선택(직접 지정)");
+
+    setPrefillNotice(missing.length > 0 ? `이전 ${missing.join("·")}은(는) 다시 채워주세요(삭제되었거나 목록으로 복원할 수 없음).` : null);
+    setViewingDetail(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const send = async () => {
     if (!title.trim()) return;
     if (!imageUrl && !message.trim()) return; // 이미지가 없으면 텍스트 알림이므로 내용이 필수
     if (durationMode === "custom" && !customUntil) return;
+    if (audienceMode === "grades" && audienceGrades.size === 0) return;
+    if (audienceMode === "homerooms" && audienceClasses.size === 0) return;
+    if (audienceMode === "custom" && audienceCustomMembers.length === 0) return;
+
     setSending(true);
+    const audience = buildAudience();
+    const { emails: audienceEmails, description: audienceDescription } = await resolveNotifyAudience(audience);
+    const countLabel = audienceEmails === null ? "전체 학생/교사" : `${audienceEmails.length}명`;
+    const confirmed = window.confirm(`"${audienceDescription}" 대상 ${countLabel}에게 발송합니다. 계속할까요?`);
+    if (!confirmed) {
+      setSending(false);
+      return;
+    }
+
     const {
       data: { user },
     } = await supabase.auth.getUser();
@@ -59,10 +158,17 @@ export default function AdminNotifyPage() {
       link_url: imageUrl && linkUrl.trim() ? linkUrl.trim() : null,
       sound_url: soundUrl,
       sent_by: user?.id,
+      audience_mode: audience.mode,
+      audience_grades: audience.mode === "grades" ? audience.grades : null,
+      audience_classes: audience.mode === "homerooms" ? audience.classes : null,
+      audience_custom_emails: audience.mode === "custom" ? audience.emails : null,
+      audience_emails: audienceEmails,
+      audience_description: audienceDescription,
     });
     // 배너/팝업과 별개로 구독한 기기에는 실제 브라우저 푸시도 같이 보낸다(실패해도
     // 배너/팝업 자체는 이미 등록됐으니 여기서 막지 않는다 — 이메일 발송 실패 처리와
-    // 동일한 방침).
+    // 동일한 방침). 발송 대상을 지정한 경우에도 웹 푸시는 아직 대상 구분 없이 전체
+    // 구독자에게 나가는 기존 동작을 그대로 둔다(별도 개선 필요 — 이 화면 범위 밖).
     fetch("/api/push/send", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -73,6 +179,8 @@ export default function AdminNotifyPage() {
     setImageUrl(null);
     setLinkUrl("");
     setSoundUrl(null);
+    resetAudience();
+    setPrefillNotice(null);
     setSending(false);
     reload();
   };
@@ -275,6 +383,18 @@ export default function AdminNotifyPage() {
             즉시 본인 화면에서만 닫힙니다.
           </p>
         )}
+        <label className="text-xs font-bold text-muted mt-2">발송 대상</label>
+        <NotifyAudienceSelector
+          mode={audienceMode}
+          onModeChange={setAudienceMode}
+          grades={audienceGrades}
+          onToggleGrade={toggleAudienceGrade}
+          classes={audienceClasses}
+          onToggleClass={toggleAudienceClass}
+          customMembers={audienceCustomMembers}
+          onCustomMembersChange={setAudienceCustomMembers}
+        />
+        {prefillNotice && <p className="text-gold text-xs font-bold mt-2">⚠️ {prefillNotice}</p>}
         <button disabled={sending} onClick={send} className={`${t.adminBtnPrimary} mt-3.5 self-start`}>
           {sending ? "발송 중…" : "학생 화면에 즉시 발송"}
         </button>
@@ -325,12 +445,20 @@ export default function AdminNotifyPage() {
             <li key={n.id} className={`border-b border-border py-2.5 flex flex-col gap-1.5 ${isEnded(n) ? "opacity-60" : ""}`}>
               <div className="flex items-center gap-2 flex-wrap">
                 {n.level === "urgent" && <Badge color="red">긴급</Badge>}
-                <span className="flex-1 text-sm">{n.title}</span>
+                <button
+                  type="button"
+                  onClick={() => setViewingDetail(n)}
+                  className="flex-1 text-sm text-left text-blue hover:underline min-w-0 truncate"
+                  title="클릭하면 상세 내용을 볼 수 있습니다"
+                >
+                  {n.title}
+                </button>
                 <span className="text-xs text-muted">{adminDisplayName(n.sender)}</span>
                 <span className="text-xs text-muted">
                   {n.display_type === "popup" ? "팝업" : "배너"}
                   {n.image_url && " · 이미지"}
                   {n.sound_url && " · 사운드"}
+                  {n.audience_mode !== "all" && ` · ${n.audience_description}`}
                 </span>
                 <span className={`text-xs ${status.className}`}>{status.text}</span>
                 <span className="text-xs text-muted">{new Date(n.sent_at).toLocaleString("ko-KR")}</span>
@@ -375,6 +503,13 @@ export default function AdminNotifyPage() {
         {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">발송한 알림이 없습니다.</div>}
       </ul>
         </>
+      )}
+      {viewingDetail && (
+        <NotifyDetailModal
+          notification={viewingDetail}
+          onClose={() => setViewingDetail(null)}
+          onResend={() => prefillFrom(viewingDetail)}
+        />
       )}
     </div>
   );

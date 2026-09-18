@@ -163,6 +163,13 @@ export interface NotificationItem {
   sent_by: string | null;
   sent_at: string;
   display_order: number | null;
+  audience_mode: "all" | "grades" | "homerooms" | "custom";
+  audience_grades: string[] | null;
+  audience_classes: { grade: string; homeroom: number }[] | null;
+  audience_custom_emails: string[] | null;
+  /** 발송 시점에 계산해둔 최종 대상 이메일 목록. null이면 전체 공개. */
+  audience_emails: string[] | null;
+  audience_description: string | null;
 }
 
 export interface MainBlock {

@@ -13,6 +13,7 @@ import SecretBadgeWatchers from "@/components/secret/SecretBadgeWatchers";
 import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import { DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
 import { PREVIEW_STUDENT_ID } from "@/lib/previewStudent";
+import { notificationTargetsMe } from "@/lib/notificationAudience";
 
 export const dynamic = "force-dynamic";
 
@@ -39,8 +40,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   const [
     { profile, memberType },
     { data: customPages },
-    { data: latestBanner },
-    { data: activePopups },
+    { data: bannerCandidates },
+    { data: popupCandidates },
     { data: layoutConfig },
     { data: latestPatchNote },
   ] = await Promise.all([
@@ -60,14 +61,19 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .eq("is_published", true)
         .eq("menu_visible", true)
         .order("order_index"),
+      // 발송 대상(audience_emails)은 profile을 먼저 알아야 걸러낼 수 있는데, 그 프로필은
+      // 이 배열의 다른 병렬 브랜치에서 조회하는 중이라 여기서는 아직 못 쓴다. 그래서 여기선
+      // 예전처럼 "활성 상태인 것"까지만 걸러서 후보로 가져오고, 실제 "나에게 보이는 것"만
+      // 고르는 건 Promise.all이 끝난 뒤(profile.email을 알게 된 시점)에 한다 — 대상이 다른
+      // 배너가 최신이라 1건만 가져오면 정작 내 대상인 배너를 놓칠 수 있으므로, 배너도
+      // 여러 건 후보로 가져온 뒤 그중 내 대상인 것 중 최신 것을 고른다.
       supabase
         .from("notifications")
         .select("*")
         .eq("display_type", "banner")
         .or(`display_until.is.null,display_until.gt.${nowIso}`)
         .order("sent_at", { ascending: false })
-        .limit(1)
-        .maybeSingle(),
+        .limit(10),
       // 배너와 달리 팝업은 확인/오늘 하루 안 보기를 눌러야 사라지므로, 동시에 여러 개가
       // 활성화돼 있으면 최신 것 하나만 보여주고 나머지를 계속 무시하는 대신(예전 동작) 전부
       // 가져와서 클라이언트(NotificationPopup)가 보낸 순서대로 하나씩 차례로 띄운다.
@@ -93,6 +99,11 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         .limit(1)
         .maybeSingle(),
     ]);
+
+  // 후보로 가져온 배너/팝업 중 실제로 이 사용자가 대상인 것만 남긴다(발송 대상 지정
+  // 기능, supabase/schema.sql notifications.audience_emails 참고).
+  const latestBanner = (bannerCandidates ?? []).find((n) => notificationTargetsMe(n.audience_emails, profile?.email)) ?? null;
+  const activePopups = (popupCandidates ?? []).filter((n) => notificationTargetsMe(n.audience_emails, profile?.email));
 
   const settings = layoutConfig
     ? { maintenance_mode: layoutConfig.maintenance_mode, restrict_external_checkin: layoutConfig.restrict_external_checkin }
@@ -171,13 +182,18 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
               배너/팝업이 로그인 폼 자체를 덮어버리는 문제가 있었다 — patch_notePopup과
               동일하게 로그인한 사용자에게만 보여준다. */}
           {showNotifications && profile && (
-            <NotificationBanner initial={latestBanner as any} soundEnabled={profile?.notification_sound_enabled ?? true} />
+            <NotificationBanner
+              initial={latestBanner as any}
+              soundEnabled={profile?.notification_sound_enabled ?? true}
+              userEmail={profile?.email ?? null}
+            />
           )}
           {showNotifications && profile && (
             <NotificationPopup
               initial={(activePopups ?? []) as any}
               soundEnabled={profile?.notification_sound_enabled ?? true}
               userId={profile?.id ?? null}
+              userEmail={profile?.email ?? null}
             />
           )}
           {showNotifications && (

@@ -5674,3 +5674,24 @@ end;
 $$;
 
 grant execute on function redeem_badge_code(text) to authenticated;
+
+-- 132. 배너·팝업 알림(notifications)에 발송 대상 지정 추가
+-- 이메일 발송(email_notification_batches)과 같은 개념(전체/학년별/학급별/직접 입력)을
+-- 배너·팝업에도 추가한다. audience_emails는 발송 시점에 계산해둔 "이 알림을 볼 수
+-- 있는 이메일 목록"(null이면 전체 공개, 기존 동작과 동일해서 기존 행에 회귀 없음)이고,
+-- audience_mode/grades/classes/custom_emails는 "다시 발송" 시 대상 선택 폼을 그대로
+-- 복원하기 위한 원본 선택값이다 — 학년/학급 구성원이 그 사이 바뀌었을 수 있으므로
+-- 재발송 시엔 항상 이 원본 선택 기준으로 audience_emails를 다시 계산한다(과거 스냅샷을
+-- 그대로 복사하지 않음). NotificationBanner/NotificationPopup이 서버 초기 조회와
+-- realtime INSERT 핸들러 양쪽에서 notificationTargetsMe()로 이 값을 확인해 본인이
+-- 대상인 알림만 보여준다.
+alter table notifications add column if not exists audience_mode text not null default 'all'
+  check (audience_mode in ('all', 'grades', 'homerooms', 'custom'));
+alter table notifications add column if not exists audience_grades text[];
+alter table notifications add column if not exists audience_classes jsonb;
+alter table notifications add column if not exists audience_custom_emails text[];
+alter table notifications add column if not exists audience_emails text[];
+alter table notifications add column if not exists audience_description text;
+
+comment on column notifications.audience_emails is
+  '발송 시점에 계산한 최종 대상 이메일 목록. null이면 전체 공개(기존 동작과 동일). NotificationBanner/NotificationPopup이 이 컬럼으로 "나에게 보여줄지"를 판단한다.';
