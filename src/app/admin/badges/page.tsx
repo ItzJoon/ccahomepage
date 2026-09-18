@@ -115,6 +115,24 @@ export default function AdminBadgesPage() {
     return m;
   }, [userBadgeRows]);
 
+  // 보유 비율(%) 계산용 전체 인원 — 학교 명단(directory_members)의 학생+교사 전체
+  // 수만 알면 되므로 행 자체를 다 가져오지 않고 개수만 가볍게 조회한다. 이 화면(관리자
+  // 전용)에만 쓰고, 학생이 보는 다른 화면에는 노출하지 않는다.
+  const [totalMemberCount, setTotalMemberCount] = useState<number | null>(null);
+  useEffect(() => {
+    supabase
+      .from("directory_members")
+      .select("*", { count: "exact", head: true })
+      .in("member_type", ["student", "teacher"])
+      .then(({ count }) => setTotalMemberCount(count ?? 0));
+  }, [supabase]);
+
+  const holderPct = (badgeId: string) => {
+    if (!totalMemberCount) return null;
+    const count = badgeCounts.get(badgeId) ?? 0;
+    return ((count / totalMemberCount) * 100).toFixed(1);
+  };
+
   const [viewingHoldersBadge, setViewingHoldersBadge] = useState<BadgeDef | null>(null);
   const [holders, setHolders] = useState<BadgeHolder[]>([]);
   const [holdersLoading, setHoldersLoading] = useState(false);
@@ -827,7 +845,9 @@ export default function AdminBadgesPage() {
                 <div className="text-muted text-xs">{b.description}</div>
                 <AdminCardMeta>{conditionText}</AdminCardMeta>
                 <AdminCardFooter>
-                  <AdminCardAction onClick={() => openHolders(b)}>{badgeCounts.get(b.id) ?? 0}명 보유</AdminCardAction>
+                  <AdminCardAction onClick={() => openHolders(b)}>
+                    {badgeCounts.get(b.id) ?? 0}명 보유{holderPct(b.id) !== null && ` (전체의 ${holderPct(b.id)}%)`}
+                  </AdminCardAction>
                   <div className="flex items-center gap-1.5">
                     <AdminCardAction onClick={() => toggleActive(b)}>{b.is_active ? "활성" : "비활성"}</AdminCardAction>
                     <AdminCardAction danger onClick={() => remove(b.id)}>삭제</AdminCardAction>
@@ -886,7 +906,7 @@ export default function AdminBadgesPage() {
                     className="text-xs font-bold text-blue"
                     onClick={(e) => { e.stopPropagation(); openHolders(b); }}
                   >
-                    {badgeCounts.get(b.id) ?? 0}명 보유
+                    {badgeCounts.get(b.id) ?? 0}명 보유{holderPct(b.id) !== null && ` (전체의 ${holderPct(b.id)}%)`}
                   </button>
                 </td>
                 <td className={t.adminTableCell}>
@@ -991,7 +1011,10 @@ export default function AdminBadgesPage() {
             </h3>
             <button onClick={() => setViewingHoldersBadge(null)} className="text-muted text-xl leading-none shrink-0">✕</button>
           </div>
-          <p className="text-muted text-xs mb-3">총 {holders.length}명이 보유 중</p>
+          <p className="text-muted text-xs mb-3">
+            총 {holders.length}명이 보유 중
+            {holderPct(viewingHoldersBadge.id) !== null && ` (전체의 ${holderPct(viewingHoldersBadge.id)}%)`}
+          </p>
           <input
             className={`${t.adminInput} mb-3`}
             placeholder="이름 또는 이메일로 검색"
