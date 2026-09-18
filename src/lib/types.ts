@@ -226,7 +226,7 @@ export interface BadgeDef {
   label: string;
   description: string | null;
   icon: string;
-  award_type: "auto" | "manual" | "date" | "action" | "secret_trigger";
+  award_type: "auto" | "manual" | "date" | "action" | "secret_trigger" | "code_redeem";
   streak_threshold: number | null;
   date_condition: "before" | "after" | "on" | "between" | null;
   date_condition_value: string | null;
@@ -242,6 +242,16 @@ export interface BadgeDef {
   /** 시크릿 등급에서 타인이 호버(모바일은 탭)했을 때 보여줄 짧은 힌트. 슈퍼시크릿에는
    * 절대 노출하지 않는다(화면 쪽에서 강제) — 값이 있어도 무시된다. */
   hint_text: string | null;
+}
+
+export interface BadgeCode {
+  id: string;
+  badge_id: string;
+  code: string;
+  is_multi_use: boolean;
+  is_active: boolean;
+  expires_at: string | null;
+  created_at: string;
 }
 
 export interface RankingRow {

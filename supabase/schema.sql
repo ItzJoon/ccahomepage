@@ -5559,3 +5559,118 @@ end;
 $$;
 
 grant execute on function is_freeze_eligible(uuid) to authenticated;
+
+-- 131. 코드 입력(리딤)으로 획득하는 뱃지
+-- 관리자가 뱃지 관리 화면에서 코드를 발급해두면(예: 오프라인 행사에서 나눠줄 참여
+-- 코드), 학생이 그 코드를 입력해서 직접 뱃지를 획득할 수 있다. 코드 자체는 비밀번호처럼
+-- 다뤄야 하므로 badges와 달리 전체 공개 조회로 두지 않고 관리자만 볼 수 있게 하며,
+-- 학생은 SECURITY DEFINER 함수(redeem_badge_code)를 통해서만 접근한다 — 코드 목록을
+-- 직접 조회할 방법이 없다.
+alter table badges drop constraint if exists badges_award_type_check;
+alter table badges add constraint badges_award_type_check
+  check (award_type = any (array['auto', 'manual', 'date', 'action', 'secret_trigger', 'code_redeem']));
+
+create table if not exists badge_codes (
+  id uuid primary key default uuid_generate_v4(),
+  badge_id uuid not null references badges(id) on delete cascade,
+  code text not null unique,
+  -- false(기본)=1회용: 누구든 먼저 쓰는 한 명만 성공하고 그 뒤로는 전부 실패.
+  -- true=공용: 여러 학생이 각자 한 번씩(본인당 1회) 쓸 수 있다.
+  is_multi_use boolean not null default false,
+  is_active boolean not null default true,
+  expires_at timestamptz,
+  created_at timestamptz not null default now(),
+  created_by uuid references profiles(id)
+);
+alter table badge_codes enable row level security;
+create policy "badge_codes_admin_all" on badge_codes for all using (is_admin()) with check (is_admin());
+create policy "badge_codes_select_designer" on badge_codes for select using (is_designer());
+
+create table if not exists badge_code_redemptions (
+  id uuid primary key default uuid_generate_v4(),
+  badge_code_id uuid not null references badge_codes(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  redeemed_at timestamptz not null default now(),
+  unique (badge_code_id, user_id)
+);
+alter table badge_code_redemptions enable row level security;
+create policy "badge_code_redemptions_admin_select" on badge_code_redemptions for select using (is_admin());
+create policy "badge_code_redemptions_select_designer" on badge_code_redemptions for select using (is_designer());
+-- insert/update/delete 정책 없음 — 오직 redeem_badge_code(SECURITY DEFINER)만 기록한다.
+
+-- 코드 검증 + 지급을 한 번에 처리한다. claim_secret_trigger_badge와 동일한 정원 카운트/
+-- 자동 마감 패턴(role<>'superadmin'만 셈)을 재사용한다. 같은 코드에 대한 동시 요청을
+-- 직렬화하기 위해 코드 행을 for update로 잠근다 — 안 그러면 1회용 코드에 두 명이 정확히
+-- 동시에 요청했을 때 둘 다 "아직 안 쓰임"으로 읽어 둘 다 성공해버릴 수 있다.
+create or replace function redeem_badge_code(p_code text)
+returns json
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_code_row badge_codes%rowtype;
+  v_badge badges%rowtype;
+  v_holder_count int;
+begin
+  if auth.uid() is null then
+    raise exception '로그인이 필요합니다';
+  end if;
+
+  select * into v_code_row from badge_codes
+    where code = upper(trim(p_code)) and is_active = true
+    for update;
+  if v_code_row.id is null then
+    raise exception '유효하지 않은 코드예요';
+  end if;
+
+  if v_code_row.expires_at is not null and v_code_row.expires_at < now() then
+    raise exception '만료된 코드예요';
+  end if;
+
+  if exists (
+    select 1 from badge_code_redemptions
+    where badge_code_id = v_code_row.id and user_id = auth.uid()
+  ) then
+    raise exception '이미 사용된 코드예요';
+  end if;
+
+  if not v_code_row.is_multi_use and exists (
+    select 1 from badge_code_redemptions where badge_code_id = v_code_row.id
+  ) then
+    raise exception '이미 사용된 코드예요';
+  end if;
+
+  select * into v_badge from badges where id = v_code_row.badge_id and is_active = true;
+  if v_badge.id is null then
+    raise exception '지금은 획득할 수 없는 뱃지예요';
+  end if;
+
+  if v_badge.max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = v_badge.id and p.role <> 'superadmin';
+    if v_holder_count >= v_badge.max_holders then
+      raise exception '이 뱃지는 정원이 다 찼어요';
+    end if;
+  end if;
+
+  insert into badge_code_redemptions (badge_code_id, user_id) values (v_code_row.id, auth.uid());
+
+  insert into user_badges (user_id, badge_id) values (auth.uid(), v_badge.id)
+    on conflict (user_id, badge_id) do nothing;
+
+  if v_badge.max_holders is not null then
+    select count(*) into v_holder_count
+      from user_badges ub join profiles p on p.id = ub.user_id
+      where ub.badge_id = v_badge.id and p.role <> 'superadmin';
+    if v_holder_count >= v_badge.max_holders then
+      update badges set is_active = false where id = v_badge.id;
+    end if;
+  end if;
+
+  return json_build_object('badge_id', v_badge.id);
+end;
+$$;
+
+grant execute on function redeem_badge_code(text) to authenticated;

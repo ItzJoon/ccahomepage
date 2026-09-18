@@ -9,7 +9,7 @@ import { useHomeTheme } from "@/hooks/useHomeTheme";
 import AccountPicker from "@/components/admin/AccountPicker";
 import ImageUpload from "@/components/ImageUpload";
 import { adminDisplayName } from "@/lib/displayName";
-import type { BadgeDef, Profile, SecretTriggerType } from "@/lib/types";
+import type { BadgeCode, BadgeDef, Profile, SecretTriggerType } from "@/lib/types";
 
 interface BadgeHolder {
   id: string;
@@ -19,12 +19,21 @@ interface BadgeHolder {
   earned_at: string;
 }
 
+type AwardType = "auto" | "manual" | "date" | "action" | "secret_trigger" | "code_redeem";
+
+// 영문 대문자 + 숫자로 4자리씩 3그룹, 총 XXXX-XXXX-XXXX 형식의 코드를 만든다.
+function generateBadgeCode(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  const group = () => Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  return `${group()}-${group()}-${group()}`;
+}
+
 const empty = {
   code: "",
   label: "",
   description: "",
   icon: "🏅",
-  award_type: "auto" as "auto" | "manual" | "date" | "action" | "secret_trigger",
+  award_type: "auto" as AwardType,
   streak_threshold: 3,
   date_condition: "before" as "before" | "after" | "on" | "between",
   date_condition_value: "",
@@ -144,6 +153,68 @@ export default function AdminBadgesPage() {
   const [grantUserEarnedIds, setGrantUserEarnedIds] = useState<Set<string>>(new Set());
   const [grantBadgeId, setGrantBadgeId] = useState("");
   const [grantMsg, setGrantMsg] = useState<string | null>(null);
+
+  // "코드 입력" 방식 뱃지의 발급 코드 관리 — 편집 중인 뱃지가 바뀌거나 award_type이
+  // code_redeem이 아니게 되면 목록을 비운다(다른 뱃지 코드가 잠깐 섞여 보이는 것 방지).
+  const [codes, setCodes] = useState<BadgeCode[]>([]);
+  const [codeRedemptionCounts, setCodeRedemptionCounts] = useState<Map<string, number>>(new Map());
+  const [newCode, setNewCode] = useState("");
+  const [newCodeMultiUse, setNewCodeMultiUse] = useState(false);
+  const [newCodeExpiresAt, setNewCodeExpiresAt] = useState("");
+  const [codeMsg, setCodeMsg] = useState<string | null>(null);
+
+  const loadCodes = async (badgeId: string) => {
+    const { data: codeRows } = await supabase
+      .from("badge_codes")
+      .select("*")
+      .eq("badge_id", badgeId)
+      .order("created_at", { ascending: false });
+    setCodes((codeRows as BadgeCode[]) ?? []);
+    const ids = (codeRows ?? []).map((c) => c.id);
+    if (ids.length === 0) {
+      setCodeRedemptionCounts(new Map());
+      return;
+    }
+    const { data: redemptions } = await supabase.from("badge_code_redemptions").select("badge_code_id").in("badge_code_id", ids);
+    const counts = new Map<string, number>();
+    (redemptions ?? []).forEach((r) => counts.set(r.badge_code_id, (counts.get(r.badge_code_id) ?? 0) + 1));
+    setCodeRedemptionCounts(counts);
+  };
+
+  useEffect(() => {
+    if (editing && editing !== "new" && form.award_type === "code_redeem") {
+      loadCodes(editing);
+    } else {
+      setCodes([]);
+      setCodeRedemptionCounts(new Map());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing, form.award_type]);
+
+  const addCode = async () => {
+    if (!editing || editing === "new") return;
+    const code = newCode.trim().toUpperCase();
+    if (!code) return;
+    const { error } = await supabase.from("badge_codes").insert({
+      badge_id: editing,
+      code,
+      is_multi_use: newCodeMultiUse,
+      expires_at: newCodeExpiresAt || null,
+    });
+    setCodeMsg(error ? (error.code === "23505" ? "이미 존재하는 코드입니다." : "코드 추가에 실패했습니다.") : "코드를 추가했습니다.");
+    if (!error) {
+      setNewCode("");
+      setNewCodeMultiUse(false);
+      setNewCodeExpiresAt("");
+      loadCodes(editing);
+    }
+    setTimeout(() => setCodeMsg(null), 3000);
+  };
+
+  const toggleCodeActive = async (c: BadgeCode) => {
+    await supabase.from("badge_codes").update({ is_active: !c.is_active }).eq("id", c.id);
+    if (editing && editing !== "new") loadCodes(editing);
+  };
 
   useEffect(() => {
     setGrantBadgeId("");
@@ -343,13 +414,14 @@ export default function AdminBadgesPage() {
           <select
             className={t.adminInput}
             value={form.award_type}
-            onChange={(e) => setForm({ ...form, award_type: e.target.value as "auto" | "manual" | "date" | "action" | "secret_trigger" })}
+            onChange={(e) => setForm({ ...form, award_type: e.target.value as AwardType })}
           >
             <option value="auto">자동 (연속 접속일수 조건 도달 시)</option>
             <option value="date">날짜 조건 (특정 날짜 이전/이후/당일 로그인)</option>
             <option value="manual">수동 (자유 조건, 관리자가 확인 후 직접 부여)</option>
             <option value="action">특정 행동 (Q&A 첫 작성 등, 코드로 직접 연결됨)</option>
             <option value="secret_trigger">시크릿 트리거 (직접 찾거나 반응해야 하는 숨은 뱃지)</option>
+            <option value="code_redeem">코드 입력 (관리자가 발급한 코드로 학생이 직접 획득)</option>
           </select>
 
           <label className="text-xs font-bold text-muted mt-2">
@@ -559,6 +631,74 @@ export default function AdminBadgesPage() {
               )}
             </>
           )}
+          {form.award_type === "code_redeem" && (
+            <>
+              {editing === "new" ? (
+                <p className="text-muted text-xs">뱃지를 먼저 저장한 뒤 코드를 추가할 수 있습니다.</p>
+              ) : (
+                <div className="flex flex-col gap-2 mt-1">
+                  <p className="text-muted text-xs">
+                    학생이 마이페이지의 "코드 입력"에서 아래 코드를 입력하면 이 뱃지를 즉시 획득합니다.
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {codes.map((c) => (
+                      <div key={c.id} className="flex items-center justify-between gap-2 bg-[#F7F8FB] dark:bg-white/10 rounded-lg px-3 py-2">
+                        <div className="min-w-0">
+                          <div className="font-mono text-sm font-bold truncate">{c.code}</div>
+                          <div className="text-muted text-[11px]">
+                            {c.is_multi_use ? "공용" : "1회용"} · {codeRedemptionCounts.get(c.id) ?? 0}명 사용
+                            {c.expires_at && ` · ${new Date(c.expires_at).toLocaleDateString("ko-KR")}까지`}
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleCodeActive(c)}
+                          className={`text-xs font-bold shrink-0 ${c.is_active ? "text-teal" : "text-muted"}`}
+                        >
+                          {c.is_active ? "활성" : "비활성"}
+                        </button>
+                      </div>
+                    ))}
+                    {codes.length === 0 && <p className="text-muted text-xs">등록된 코드가 없습니다.</p>}
+                  </div>
+                  <div className="border-t border-border pt-2 mt-1 flex flex-col gap-1.5">
+                    <label className="text-xs font-bold text-muted">새 코드 추가</label>
+                    <div className="flex gap-1.5">
+                      <input
+                        className={`${t.adminInput} flex-1 font-mono`}
+                        placeholder="XXXX-XXXX-XXXX"
+                        value={newCode}
+                        onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                      />
+                      <button type="button" onClick={() => setNewCode(generateBadgeCode())} className={t.adminBtnSecondary}>
+                        랜덤 생성
+                      </button>
+                    </div>
+                    <label className="flex items-center gap-2 text-sm">
+                      <input type="checkbox" checked={newCodeMultiUse} onChange={(e) => setNewCodeMultiUse(e.target.checked)} />
+                      여러 명이 각자 한 번씩 쓸 수 있는 공용 코드 (기본은 1회용)
+                    </label>
+                    <label className="text-xs font-bold text-muted">만료일 (선택, 비워두면 무기한)</label>
+                    <input
+                      type="date"
+                      className={t.adminInput}
+                      value={newCodeExpiresAt}
+                      onChange={(e) => setNewCodeExpiresAt(e.target.value)}
+                    />
+                    <button
+                      type="button"
+                      onClick={addCode}
+                      disabled={!newCode.trim()}
+                      className={`${t.adminBtnPrimary} disabled:opacity-40 self-start`}
+                    >
+                      코드 추가
+                    </button>
+                    {codeMsg && <p className="text-teal text-xs font-bold">{codeMsg}</p>}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           <label className="flex items-center gap-2 text-sm mt-2">
             <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} />
@@ -667,6 +807,8 @@ export default function AdminBadgesPage() {
               ? b.trigger_type
                 ? TRIGGER_TYPE_LABEL[b.trigger_type]
                 : "시크릿 트리거"
+              : b.award_type === "code_redeem"
+              ? "코드 입력"
               : "수동 부여";
             return (
               <AdminCard
@@ -735,6 +877,8 @@ export default function AdminBadgesPage() {
                     ? b.trigger_type
                       ? TRIGGER_TYPE_LABEL[b.trigger_type]
                       : "시크릿 트리거"
+                    : b.award_type === "code_redeem"
+                    ? "코드 입력"
                     : "수동 부여"}
                 </td>
                 <td className={t.adminTableCell}>

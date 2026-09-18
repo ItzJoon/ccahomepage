@@ -9,6 +9,7 @@ import { safeStorageKey } from "@/lib/storageKey";
 import SectionTitle from "@/components/SectionTitle";
 import PushNotificationToggle from "@/components/PushNotificationToggle";
 import ListSkeleton from "@/components/ListSkeleton";
+import CodeRedeemModal from "@/components/CodeRedeemModal";
 import type { BadgeDef, Profile, UserWarning } from "@/lib/types";
 
 function fmt(d: string) {
@@ -29,7 +30,8 @@ export default function MyPage() {
   const [warnings, setWarnings] = useState<UserWarning[]>([]);
 
   const { streak, history, checkedToday, freezeCredits, maxStreak, loading } = useAttendance(userId ?? null);
-  const { badges, earnedIds } = useBadges(userId ?? null);
+  const { badges, earnedIds, reload: reloadBadges } = useBadges(userId ?? null);
+  const [showCodeModal, setShowCodeModal] = useState(false);
   // developer(=superadmin)는 실제로 획득하지 않아도 모든 뱃지를 항상 가진 것처럼
   // 보여준다(진짜 user_badges 행을 만들지는 않아서 한정 수량 뱃지의 획득 인원 수에는
   // 전혀 영향을 주지 않는다) — 비활성화된 뱃지(예: 정원이 찬 이스터에그)도 계속
@@ -221,7 +223,16 @@ export default function MyPage() {
 
       <div className="bg-surface border border-border rounded-2xl p-5 mb-4">
         <div className="text-xs font-bold tracking-widest text-gold uppercase mb-1">BADGES</div>
-        <h3 className="mb-3">획득한 뱃지</h3>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <h3 className="m-0">획득한 뱃지</h3>
+          <button
+            type="button"
+            onClick={() => setShowCodeModal(true)}
+            className="text-xs font-bold text-blue border border-blue rounded-lg px-3 py-1.5 shrink-0"
+          >
+            코드 입력
+          </button>
+        </div>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {visibleBadges.map((b) => {
             const earned = isDeveloper || earnedIds.has(b.id);
@@ -250,6 +261,8 @@ export default function MyPage() {
                           ? b.date_condition === "between"
                             ? `${b.date_condition_value}~${b.date_condition_value_end} 로그인`
                             : `${b.date_condition_value} ${b.date_condition === "before" ? "이전" : b.date_condition === "after" ? "이후" : "당일"} 로그인`
+                          : b.award_type === "code_redeem"
+                          ? "코드 입력으로 획득"
                           : b.code === "phantom_member"
                           ? "이스터에그 발견"
                           : "관리자 확인 후 지급"}
@@ -353,6 +366,9 @@ export default function MyPage() {
         </div>
       </div>
 
+      {showCodeModal && (
+        <CodeRedeemModal onClose={() => setShowCodeModal(false)} onRedeemed={reloadBadges} />
+      )}
     </div>
   );
 }
