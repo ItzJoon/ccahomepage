@@ -4,6 +4,7 @@ import AdminTable, { truncateCellProps, actionCellClass } from "./AdminTable";
 import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "./AdminCard";
 import AuthorCell from "./AuthorCell";
 import AccountPicker, { accountDisplayName } from "./AccountPicker";
+import AuthorPicker, { type AuthorSelection } from "./AuthorPicker";
 import RichTextEditor from "./RichTextEditor";
 import { noticeContentToSafeHtml } from "@/lib/sanitizeHtml";
 import { adminDisplayName } from "@/lib/displayName";
@@ -53,16 +54,22 @@ export default function PostManager({
   // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
   // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
   const { rows, reload } = useList<PostWithAttachments>("posts", {
-    select: "*, attachments(*), author:profiles(name, nickname, email)",
+    select: "*, attachments(*), author:profiles(name, nickname, email), author_name",
     filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
     orderBy: { column: "created_at", ascending: false },
   });
   // 카테고리 입력을 자유 텍스트 대신 이 목록에서 고르게 한다 — 지금까지 실제로 쓰인
   // 값들을 그대로 보여준다(별도 카테고리 관리 테이블은 없음).
   const existingCategories = Array.from(new Set(rows.map((r) => r.category).filter(Boolean))).sort();
-  // "작성자 변경"(admin 전용)에서 고를 대상 목록. AccountPicker가 이미 다른 관리 화면에서
-  // 이 패턴(useList<Profile> 전체 조회 + 검색)으로 쓰이고 있어 그대로 재사용한다.
+  // "작성자 변경"(admin 전용)에서 고를 대상 목록.
   const { rows: profiles } = useList<Profile>("profiles", { orderBy: { column: "created_at", ascending: false } });
+  // 아직 로그인 안 해서 profiles가 없는 학교 명단 구성원도 작성자로 고를 수 있게 한다
+  // (AuthorPicker 참고) — 이미 profiles가 있는 이메일은 그쪽 결과와 중복되지 않도록 뺀다.
+  const { rows: directoryMembersAll } = useList<DirectoryMember>("directory_members", {
+    orderBy: { column: "display_name" },
+  });
+  const registeredEmails = new Set(profiles.map((p) => p.email));
+  const unregisteredDirectoryMembers = directoryMembersAll.filter((m) => !registeredEmails.has(m.email));
 
   const [editing, setEditing] = useState<string | "new" | null>(null);
   const [form, setForm] = useState({ ...emptyForm });
@@ -473,16 +480,21 @@ export default function PostManager({
   // 작성자 변경은 admin 이상만 가능하다 — posts_update_editor RLS는 editor도 author_id를
   // 포함해 아무 컬럼이나 바꿀 수 있어서, 일반 update로는 이 제한을 걸 수 없다. 전용 RPC
   // (change_post_author)가 is_admin()을 서버에서 다시 확인하고 audit_logs에 남긴다.
-  const changeAuthor = async (p: Profile) => {
+  const changeAuthor = async (sel: AuthorSelection) => {
     if (!editing || editing === "new") return;
     setAuthorChangeMsg(null);
-    const { error } = await supabase.rpc("change_post_author", { p_post_id: editing, p_new_author_id: p.id });
+    const { error } = await supabase.rpc("change_post_author", {
+      p_post_id: editing,
+      p_new_author_id: sel.type === "profile" ? sel.profile.id : null,
+      p_manual_author_email: sel.type === "manual" ? sel.email : null,
+    });
     if (error) {
       setAuthorChangeMsg(`변경 실패: ${error.message}`);
       return;
     }
+    const name = sel.type === "profile" ? accountDisplayName(sel.profile) : sel.displayName;
     setChangingAuthor(false);
-    setAuthorChangeMsg(`작성자가 ${accountDisplayName(p)}(으)로 변경되었습니다.`);
+    setAuthorChangeMsg(`작성자가 ${name}(으)로 변경되었습니다.`);
     reload();
   };
 
@@ -596,16 +608,26 @@ export default function PostManager({
         <>
           <label className="text-xs font-bold text-muted mt-2">작성자</label>
           {changingAuthor ? (
-            <AccountPicker
+            <AuthorPicker
               profiles={profiles}
-              linkedProfile={null}
+              directoryMembers={unregisteredDirectoryMembers}
+              linked={null}
               onLink={changeAuthor}
               onUnlink={() => setChangingAuthor(false)}
             />
           ) : (
             <div className="flex items-center justify-between gap-2 border border-border rounded-lg px-2.5 py-2 text-sm">
-              <span className="truncate">
-                {adminDisplayName(rows.find((r) => r.id === editing)?.author, "알 수 없음")}
+              <span className="truncate flex items-center gap-1.5">
+                {(() => {
+                  const post = rows.find((r) => r.id === editing);
+                  // 실제 계정(author)이 있으면 관리자 화면 관례대로 "닉네임(실명)" 표기를
+                  // 그대로 유지하고, 미가입 명단으로 지정된 경우에만 author_name(서버 계산
+                  // 값)으로 대신한다.
+                  return post?.author ? adminDisplayName(post.author) : post?.author_name || "알 수 없음";
+                })()}
+                {rows.find((r) => r.id === editing)?.manual_author_email && (
+                  <span className="text-[10px] font-bold text-gold border border-gold rounded px-1 shrink-0">미가입</span>
+                )}
               </span>
               <button type="button" onClick={() => setChangingAuthor(true)} className="text-blue text-xs font-bold shrink-0">
                 변경
@@ -918,7 +940,7 @@ export default function PostManager({
                   )}
                 </AdminCardTitle>
                 <AdminCardMeta>
-                  <AuthorCell name={adminDisplayName(n.author)} />
+                  <AuthorCell name={n.author ? adminDisplayName(n.author) : n.author_name || "-"} />
                   <span>·</span>
                   <span>{n.publish_at}</span>
                 </AdminCardMeta>
@@ -993,7 +1015,7 @@ export default function PostManager({
                   </div>
                 </td>
                 <td className={`${t.adminTableCell} text-muted`}>
-                  <AuthorCell name={adminDisplayName(n.author)} />
+                  <AuthorCell name={n.author ? adminDisplayName(n.author) : n.author_name || "-"} />
                 </td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>

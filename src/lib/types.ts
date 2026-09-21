@@ -95,6 +95,9 @@ export interface Post {
   target_homeroom: number | null;
   is_hidden: boolean;
   image_url: string | null;
+  /** 아직 로그인한 적 없는(=profiles 행이 없는) 학교 명단 구성원을 작성자로 지정했을 때만
+   * 채워진다. author_id와 동시에 채워지지 않는다(둘 중 하나만). */
+  manual_author_email: string | null;
 }
 
 export interface StudentSubject {

@@ -5695,3 +5695,64 @@ alter table notifications add column if not exists audience_description text;
 
 comment on column notifications.audience_emails is
   '발송 시점에 계산한 최종 대상 이메일 목록. null이면 전체 공개(기존 동작과 동일). NotificationBanner/NotificationPopup이 이 컬럼으로 "나에게 보여줄지"를 판단한다.';
+
+-- 133. 공지사항/뉴스 작성자에 미가입 학교 명단 구성원도 지정 가능하게
+-- 지금까지 "작성자 변경"은 실제로 로그인해본(=profiles 행이 있는) 계정만 고를 수
+-- 있었다. 글쓴이로 귀속시키는 건 그 사람이 실제로 로그인할 수 있어야 하는 기능이
+-- 아니라 단순 표시(기록)라서, 아직 로그인 안 한 학교 명단(directory_members)
+-- 구성원도 지정할 수 있게 manual_author_email 경로를 추가한다. author_id와
+-- manual_author_email 중 하나만 쓰인다 — 실제로 로그인해서 계정이 생기면 관리자가
+-- 다시 그 계정으로 author_id를 바꿔줄 수 있다(자동 이관 로직 없음, 범위 밖).
+alter table posts add column if not exists manual_author_email text;
+
+create or replace function author_name(posts) returns text as $$
+  select case
+    when ($1).author_id is not null then (
+      select case
+        when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+          then p.nickname || '(' || p.name || ')'
+        else coalesce(p.nickname, p.name)
+      end
+      from profiles p where p.id = ($1).author_id
+    )
+    when ($1).manual_author_email is not null then (
+      select dm.display_name from directory_members dm where dm.email = ($1).manual_author_email
+    )
+    else null
+  end;
+$$ language sql stable security definer;
+
+-- change_post_author를 author_id 또는 manual_author_email 중 하나를 지정하는 형태로
+-- 넓힌다(기존 2-인자 시그니처는 새 3-인자 시그니처로 대체 — 호출부도 함께 수정).
+drop function if exists change_post_author(uuid, uuid);
+
+create or replace function change_post_author(p_post_id uuid, p_new_author_id uuid default null, p_manual_author_email text default null)
+returns void as $$
+declare
+  v_old_author_id uuid;
+  v_old_manual_email text;
+begin
+  if not is_admin() then
+    raise exception '작성자 변경은 admin 이상만 할 수 있습니다';
+  end if;
+  if p_new_author_id is not null and p_manual_author_email is not null then
+    raise exception '실제 계정과 미가입 명단 중 하나만 선택해주세요';
+  end if;
+
+  select author_id, manual_author_email into v_old_author_id, v_old_manual_email from posts where id = p_post_id;
+  if not found then
+    raise exception '글을 찾을 수 없습니다';
+  end if;
+
+  update posts set author_id = p_new_author_id, manual_author_email = p_manual_author_email where id = p_post_id;
+
+  insert into audit_logs (user_id, action, target_table, target_id, before_data, after_data)
+  values (
+    auth.uid(), 'change_post_author', 'posts', p_post_id::text,
+    jsonb_build_object('author_id', v_old_author_id, 'manual_author_email', v_old_manual_email),
+    jsonb_build_object('author_id', p_new_author_id, 'manual_author_email', p_manual_author_email)
+  );
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function change_post_author(uuid, uuid, text) to authenticated;

@@ -3,6 +3,9 @@ import type { Post, PostType } from "@/lib/types";
 export interface PostWithAttachments extends Post {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null; display_mode: "viewer" | "download" }[];
   author: { name: string | null; nickname: string | null; email: string } | null;
+  /** author_id(실제 계정) 또는 manual_author_email(미가입 명단) 중 있는 쪽을 자동으로
+   * 반영하는 서버 계산 값(supabase/schema.sql의 author_name(posts) 함수). */
+  author_name: string | null;
 }
 
 export interface TeacherInfo {
