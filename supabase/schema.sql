@@ -5756,3 +5756,8 @@ end;
 $$ language plpgsql security definer set search_path = public;
 
 grant execute on function change_post_author(uuid, uuid, text) to authenticated;
+
+-- 134. 기능 활성화 스위치에 랭킹/패치노트 메뉴 추가
+-- 이 둘은 나중에 추가된 메뉴라 feature_flags에 빠져 있었다(끌 수 없었음).
+insert into feature_flags (key) values ('rankings') on conflict (key) do nothing;
+insert into feature_flags (key) values ('patch_notes') on conflict (key) do nothing;

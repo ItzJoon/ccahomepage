@@ -15,6 +15,8 @@ const LABELS: Record<string, { label: string; description: string }> = {
   rules: { label: "생활규정", description: "학생 화면의 생활규정 메뉴 전체" },
   qna: { label: "Q&A", description: "학생 화면의 Q&A 메뉴(질문 등록/열람) 전체" },
   board: { label: "게시판", description: "학생 화면의 게시판 메뉴(글/댓글 작성 및 열람) 전체" },
+  rankings: { label: "랭킹", description: "학생 화면의 랭킹(연속 접속·뱃지 보유 순위) 메뉴 전체" },
+  patch_notes: { label: "패치노트", description: "학생 화면의 패치노트(사이트 업데이트 내역) 메뉴 전체" },
 };
 
 export default function AdminFeatureFlagsPage() {

@@ -212,6 +212,8 @@ export async function updateSession(request: NextRequest) {
     "/events": "calendar",
     "/news": "news",
     "/rules": "rules",
+    "/rankings": "rankings",
+    "/patch-notes": "patch_notes",
   };
   const gatedFeatureKey = Object.keys(FEATURE_GATED_PREFIXES).find(
     (p) => pathname === p || pathname.startsWith(`${p}/`)
