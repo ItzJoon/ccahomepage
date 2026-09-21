@@ -14,12 +14,9 @@ function fmt(d: string) {
   return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
 }
 
-type EventWithCreator = EventItem & { creator_name: string | null };
-
 export default function CalendarPage() {
   useTrackPageVisit("calendar"); // "탐험가" 뱃지용 방문 기록
-  const { rows: events } = useList<EventWithCreator>("events", {
-    selectFrom: "events_with_creator",
+  const { rows: events } = useList<EventItem>("events", {
     orderBy: { column: "start_at" },
   });
   const [mode, setMode] = useState<"month" | "list">("month");
@@ -35,7 +32,7 @@ export default function CalendarPage() {
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
 
   const eventsByDate = useMemo(() => {
-    const map: Record<string, EventWithCreator[]> = {};
+    const map: Record<string, EventItem[]> = {};
     events.forEach((e) => {
       map[e.start_at] = map[e.start_at] || [];
       map[e.start_at].push(e);
@@ -122,7 +119,6 @@ export default function CalendarPage() {
               <Link href={`/events/${e.id}`} className="flex items-center gap-2 hover:opacity-70">
                 <Badge color="navy">{e.category}</Badge>
                 <span className="flex-1 min-w-0 truncate text-sm" title={e.title}>{e.title}</span>
-                <span className="text-xs text-muted shrink-0 max-w-[100px] truncate">{e.creator_name || "등록자 정보 없음"}</span>
                 <span className="text-xs text-muted shrink-0">{fmt(e.start_at)}</span>
               </Link>
             </li>

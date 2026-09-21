@@ -5761,3 +5761,10 @@ grant execute on function change_post_author(uuid, uuid, text) to authenticated;
 -- 이 둘은 나중에 추가된 메뉴라 feature_flags에 빠져 있었다(끌 수 없었음).
 insert into feature_flags (key) values ('rankings') on conflict (key) do nothing;
 insert into feature_flags (key) values ('patch_notes') on conflict (key) do nothing;
+
+-- 135. 일정(events) "등록자" 표시 제거
+-- 공지사항과 달리 일정은 "누가 등록했는지"가 학생들에게 의미 있는 정보가 아니라서
+-- 관리자 화면과 공개 화면(달력 목록/상세) 모두에서 등록자 표시를 없앴다. created_by
+-- 컬럼 자체는 내부 기록용으로 계속 남겨두고(등록 시 계속 채워짐), 그 값을 공개
+-- 표시용으로 이름까지 붙여 보여주던 뷰만 정리한다 — 더 이상 어느 코드에서도 안 쓴다.
+drop view if exists events_with_creator;

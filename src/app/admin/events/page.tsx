@@ -7,12 +7,10 @@ import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import FileUpload, { AttachmentRef } from "@/components/admin/FileUpload";
-import { adminDisplayName } from "@/lib/displayName";
 import type { EventItem } from "@/lib/types";
 
 interface EventWithAttachments extends EventItem {
   attachments: { id: string; file_url: string; file_name: string; file_path: string | null; display_mode: "viewer" | "download" }[];
-  profiles: { name: string | null; nickname: string | null } | null;
 }
 
 const empty = { title: "", description: "", start_at: new Date().toISOString().slice(0, 10), end_at: "", location: "", category: "회의" };
@@ -22,7 +20,7 @@ export default function AdminEventsPage() {
   const { t } = useHomeTheme();
   const [myId, setMyId] = useState<string | null>(null);
   const { rows, reload } = useList<EventWithAttachments>("events", {
-    select: "*, attachments(*), profiles(name, nickname)",
+    select: "*, attachments(*)",
     orderBy: { column: "start_at" },
   });
 
@@ -154,8 +152,6 @@ export default function AdminEventsPage() {
               <AdminCardTitle>{e.title}</AdminCardTitle>
               <AdminCardMeta>
                 <span>{e.start_at}</span>
-                <span>·</span>
-                <span>{adminDisplayName(e.profiles, "등록자 정보 없음")}</span>
               </AdminCardMeta>
               <AdminCardFooter>
                 <div>{e.is_hidden && <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-[#EEF1F6] dark:bg-white/10 text-muted">숨김</span>}</div>
@@ -173,7 +169,6 @@ export default function AdminEventsPage() {
             <tr>
               <th className={t.adminTableHeaderCell}>제목</th>
               <th className={`${t.adminTableHeaderCell} w-28`}>날짜</th>
-              <th className={`${t.adminTableHeaderCell} w-28`}>등록자</th>
               <th className={`${t.adminTableHeaderCell} w-32`} />
             </tr>
           </thead>
@@ -189,9 +184,6 @@ export default function AdminEventsPage() {
                   </div>
                 </td>
                 <td className={t.adminTableCell}>{e.start_at}</td>
-                <td className={`${t.adminTableCell} text-muted`}>
-                  {adminDisplayName(e.profiles, "등록자 정보 없음")}
-                </td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
                     <button
@@ -205,7 +197,7 @@ export default function AdminEventsPage() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={4} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={3} className="text-muted text-center py-8 text-sm">등록된 일정이 없습니다.</td></tr>}
           </tbody>
         </AdminTable>
       </div>

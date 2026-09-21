@@ -11,7 +11,7 @@ import { truncateForMeta } from "@/lib/metaSummary";
 // React cache()로 감싸서 하나로 합친다.
 const getEvent = cache(async (id: string) => {
   const supabase = createClient();
-  const { data: event } = await supabase.from("events_with_creator").select("*").eq("id", id).maybeSingle();
+  const { data: event } = await supabase.from("events").select("*").eq("id", id).maybeSingle();
   return event;
 });
 
@@ -47,7 +47,6 @@ export default async function EventDetailPage({ params }: { params: { id: string
       </div>
       <div className="text-muted text-sm mb-[18px]">
         {fmt(event.start_at)} {event.end_at ? `~ ${fmt(event.end_at)}` : ""} · {event.location || "장소 미정"}
-        {" · "}등록자 {event.creator_name || "정보 없음"}
       </div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]">
         {event.description ? <Linkify text={event.description} /> : "상세 설명이 없습니다."}
