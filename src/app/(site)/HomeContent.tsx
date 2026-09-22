@@ -4,16 +4,33 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
-import { Pin } from "@/components/Badge";
+import Badge, { Pin } from "@/components/Badge";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
 import HeaderWeatherBackground from "@/components/HeaderWeatherBackground";
 import HeaderWeatherTemp from "@/components/HeaderWeatherTemp";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
-import { todayKST, nowKSTTime, nowKSTDayOfWeek } from "@/lib/date";
+import { todayKST, nowKSTTime, nowKSTDayOfWeek, timeAgo } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
 import type { Post, EventItem, MainBlock, MealPlan, SiteSettings } from "@/lib/types";
+
+type PostFeedPeriod = "today" | "week" | "month" | "all";
+interface PostFeedItem {
+  content_type: "board_post" | "question";
+  id: string;
+  title: string;
+  author_name: string;
+  created_at: string;
+  comment_count: number;
+  view_count: number;
+}
+const PERIOD_OPTIONS: { value: PostFeedPeriod; label: string }[] = [
+  { value: "today", label: "오늘" },
+  { value: "week", label: "일주일" },
+  { value: "month", label: "한달" },
+  { value: "all", label: "전체" },
+];
 
 type Theme = (typeof homeThemeStyles)[keyof typeof homeThemeStyles];
 
@@ -96,6 +113,10 @@ const ENABLE_HEADER_WEATHER_BG = process.env.NEXT_PUBLIC_ENABLE_HEADER_WEATHER_B
 export default function HomeContent({ initialThemeKey }: { initialThemeKey?: HomeThemeKey }) {
   const [userId, setUserId] = useState<string | null>(null);
   const { t } = useHomeTheme(initialThemeKey);
+  const [feedTab, setFeedTab] = useState<"recent" | "popular">("recent");
+  const [feedPeriod, setFeedPeriod] = useState<PostFeedPeriod>("all");
+  const [feedItems, setFeedItems] = useState<PostFeedItem[]>([]);
+  const [feedLoading, setFeedLoading] = useState(true);
   const { rows: blocks } = useList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
@@ -118,6 +139,27 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
     const supabase = createClient();
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
   }, []);
+
+  // 인기 탭에서만 기간이 의미가 있어서(최근 탭은 항상 전체 기간 최신순), 최근 탭에서는
+  // p_period를 "all"로 고정해 탭을 오갈 때 이전 기간 선택이 엉뚱하게 섞이지 않게 한다.
+  useEffect(() => {
+    let cancelled = false;
+    setFeedLoading(true);
+    createClient()
+      .rpc("get_home_post_feed", {
+        p_mode: feedTab,
+        p_period: feedTab === "popular" ? feedPeriod : "all",
+        p_limit: 6,
+      })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setFeedItems((data as PostFeedItem[] | null) ?? []);
+        setFeedLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [feedTab, feedPeriod]);
 
   // 석식 전환 시각을 지난 채로 화면을 계속 열어두고 있어도(새로고침 없이) 자동으로
   // 중식->석식이 바뀌도록, 사이트 제한(RestrictionGuardWatcher)과 같은 방식으로 현재
@@ -328,6 +370,86 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       <span>{label}</span>
                     </Link>
                   ))}
+                </div>
+              </div>
+            );
+          if (b.id === "posts_feed")
+            return (
+              <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
+                <BlockTitle
+                  t={t}
+                  eyebrow="POSTS"
+                  title={feedTab === "recent" ? "최근 게시글" : "인기 게시글"}
+                  action={
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="flex gap-1.5">
+                        <button
+                          type="button"
+                          onClick={() => setFeedTab("recent")}
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            feedTab === "recent" ? "bg-navy text-white" : "border border-border text-muted"
+                          }`}
+                        >
+                          최근
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFeedTab("popular")}
+                          className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                            feedTab === "popular" ? "bg-navy text-white" : "border border-border text-muted"
+                          }`}
+                        >
+                          인기
+                        </button>
+                      </div>
+                      {feedTab === "popular" && (
+                        <select
+                          value={feedPeriod}
+                          onChange={(e) => setFeedPeriod(e.target.value as PostFeedPeriod)}
+                          className="text-xs font-semibold border border-border rounded-full px-2.5 py-1 bg-transparent"
+                        >
+                          {PERIOD_OPTIONS.map((o) => (
+                            <option key={o.value} value={o.value}>
+                              {o.label}
+                            </option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  }
+                />
+                <div className="flex-1 flex flex-col justify-center">
+                  <ul className="list-none m-0 p-0">
+                    {feedItems.map((item) => (
+                      <li key={`${item.content_type}_${item.id}`} className="border-b border-border py-2.5">
+                        <Link
+                          href={item.content_type === "question" ? `/qna?q=${item.id}` : `/board/${item.id}`}
+                          className={`flex items-center gap-2 -mx-2 px-2 rounded ${t.noticeHover}`}
+                        >
+                          <Badge color={item.content_type === "question" ? "teal" : "navy"} className="shrink-0">
+                            {item.content_type === "question" ? "Q&A" : "게시판"}
+                          </Badge>
+                          <span className="flex-1 min-w-0 truncate text-sm" title={item.title}>
+                            {item.title}
+                          </span>
+                          <span className="text-xs text-muted shrink-0 hidden sm:inline">{item.author_name}</span>
+                          <span className="text-xs text-muted shrink-0">{timeAgo(item.created_at)}</span>
+                          <span className="text-xs text-muted shrink-0">💬 {item.comment_count}</span>
+                          <span className="text-xs text-muted shrink-0">👁 {item.view_count}</span>
+                        </Link>
+                      </li>
+                    ))}
+                    {!feedLoading && feedItems.length === 0 && (
+                      <li>
+                        <EmptyState
+                          icon="📝"
+                          title="등록된 게시글이 없습니다"
+                          desc="게시판과 Q&A에 새 글이 올라오면 이곳에 표시됩니다."
+                          t={t}
+                        />
+                      </li>
+                    )}
+                  </ul>
                 </div>
               </div>
             );

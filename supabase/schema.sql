@@ -5768,3 +5768,100 @@ insert into feature_flags (key) values ('patch_notes') on conflict (key) do noth
 -- 컬럼 자체는 내부 기록용으로 계속 남겨두고(등록 시 계속 채워짐), 그 값을 공개
 -- 표시용으로 이름까지 붙여 보여주던 뷰만 정리한다 — 더 이상 어느 코드에서도 안 쓴다.
 drop view if exists events_with_creator;
+
+-- 136. 홈 화면 "최근 게시글"/"인기 게시글" 섹션
+-- Q&A에는 지금까지 조회수 추적이 전혀 없었다(view_count 컬럼도 없고
+-- content_view_events에도 'question' 타입이 없었음) — 게시판과 동일한 기존 배치
+-- 집계 방식(5분마다 pg_cron이 content_view_events를 집계해 view_count에 반영)으로
+-- 확장해서, 홈 화면 인기글 랭킹에 Q&A도 같이 들어갈 수 있게 한다.
+alter table content_view_events drop constraint if exists content_view_events_content_type_check;
+alter table content_view_events add constraint content_view_events_content_type_check
+  check (content_type in ('notice', 'board_post', 'question'));
+
+alter table questions add column if not exists view_count int not null default 0;
+
+create or replace function aggregate_view_counts()
+returns void as $$
+begin
+  update posts p set view_count = sub.cnt
+  from (select content_id, count(*) as cnt from content_view_events where content_type = 'notice' group by content_id) sub
+  where p.id = sub.content_id and p.view_count is distinct from sub.cnt;
+
+  update board_posts bp set view_count = sub.cnt
+  from (select content_id, count(*) as cnt from content_view_events where content_type = 'board_post' group by content_id) sub
+  where bp.id = sub.content_id and bp.view_count is distinct from sub.cnt;
+
+  update questions q set view_count = sub.cnt
+  from (select content_id, count(*) as cnt from content_view_events where content_type = 'question' group by content_id) sub
+  where q.id = sub.content_id and q.view_count is distinct from sub.cnt;
+end;
+$$ language plpgsql security definer;
+
+-- "최근"(recent)은 게시판+Q&A를 작성일 최신순으로 합쳐 보여주고, "인기"(popular)는
+-- 기간별(오늘/일주일/한달/전체) 조회수 순으로 보여준다. 기간별 집계는 PostgREST로는
+-- (UNION + GROUP BY + 기간 필터)를 한 번에 못 해서 전용 RPC로 뺐다. RLS를 타지
+-- 않는 SECURITY DEFINER라서, 숨김/비공개 글 제외 조건을 board_posts_read/
+-- questions_read RLS 정책과 동일하게 함수 안에 그대로 다시 적어둔다.
+create or replace function get_home_post_feed(p_mode text, p_period text default 'all', p_limit int default 6)
+returns table (
+  content_type text, id uuid, title text, author_name text, created_at timestamptz,
+  comment_count bigint, view_count bigint
+)
+language plpgsql stable security definer set search_path = public
+as $$
+declare
+  v_period_start timestamptz;
+begin
+  v_period_start := case p_period
+    when 'today' then date_trunc('day', timezone('Asia/Seoul', now()))
+    when 'week' then now() - interval '7 days'
+    when 'month' then now() - interval '30 days'
+    else null
+  end;
+
+  if p_mode = 'recent' then
+    return query
+    (
+      select 'board_post'::text, bp.id, bp.title, author_name(bp.*), bp.created_at,
+        (select count(*) from board_comments c where c.post_id = bp.id)::bigint as comment_count,
+        bp.view_count::bigint as view_count
+      from board_posts bp where not bp.is_hidden
+      union all
+      select 'question'::text, q.id, q.title, coalesce(q.author_display_name, '익명'), q.created_at,
+        (select count(*) from answers a where a.question_id = q.id)::bigint,
+        q.view_count::bigint
+      from questions q where not q.is_hidden and not q.is_private
+    )
+    order by created_at desc limit p_limit;
+  else
+    return query
+    with counts as (
+      select cve.content_type as ct, cve.content_id as cid, count(*) as period_views
+      from content_view_events cve
+      where v_period_start is null or cve.created_at >= v_period_start
+      group by cve.content_type, cve.content_id
+    )
+    (
+      select 'board_post'::text, bp.id, bp.title, author_name(bp.*), bp.created_at,
+        (select count(*) from board_comments c where c.post_id = bp.id)::bigint as comment_count,
+        coalesce((select period_views from counts where ct = 'board_post' and cid = bp.id), 0)::bigint as view_count
+      from board_posts bp where not bp.is_hidden
+      union all
+      select 'question'::text, q.id, q.title, coalesce(q.author_display_name, '익명'), q.created_at,
+        (select count(*) from answers a where a.question_id = q.id)::bigint,
+        coalesce((select period_views from counts where ct = 'question' and cid = q.id), 0)::bigint
+      from questions q where not q.is_hidden and not q.is_private
+    )
+    order by view_count desc, created_at desc limit p_limit;
+  end if;
+end;
+$$;
+
+-- board_posts_read/questions_read RLS가 이미 비로그인 사용자에게 동일한 범위(숨김
+-- 아닌 글, 비공개 아닌 질문)를 공개하고 있어서, 이 함수를 anon에도 열어도 새로
+-- 노출되는 범위는 없다 — 로그인 없이도 홈 화면 게시글 피드를 볼 수 있게 하기 위함.
+grant execute on function get_home_post_feed(text, text, int) to anon, authenticated;
+
+insert into main_blocks (id, label, is_visible, order_index, col_span)
+values ('posts_feed', '최근·인기 게시글', true, 0, 6)
+on conflict (id) do nothing;

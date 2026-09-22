@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
@@ -12,6 +13,7 @@ import MultiImageUpload from "@/components/MultiImageUpload";
 import ImageGallery from "@/components/ImageGallery";
 import ListSkeleton from "@/components/ListSkeleton";
 import ReportableName from "@/components/ReportableName";
+import ViewCounter from "@/components/ViewCounter";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import type { PostGalleryImage } from "@/lib/types";
 
@@ -27,6 +29,7 @@ interface QuestionWithAnswer {
   author_display_name: string | null;
   status: "pending" | "answered";
   created_at: string;
+  view_count: number;
   answers: { id: string; content: string; image_url: string | null; created_at: string; post_gallery_images: PostGalleryImage[] }[];
 }
 
@@ -55,6 +58,22 @@ export default function QnaPage() {
     select: "*, answers(*, post_gallery_images(*))",
     orderBy: { column: "created_at", ascending: false },
   });
+
+  // 홈 화면 "최근·인기 게시글"처럼 Q&A는 별도 상세 페이지가 없어서(목록에서 펼치는
+  // 방식), 다른 화면에서 특정 질문으로 바로 오게 하려면 ?q=<id> 쿼리 파라미터로
+  // 열어줄 질문을 알려주는 방식을 쓴다. 목록이 로드된 뒤 한 번만 처리한다(같은
+  // id로 다시 안 열리게).
+  const searchParams = useSearchParams();
+  const highlightedId = searchParams.get("q");
+  const highlightHandledRef = useRef(false);
+  const highlightRef = useRef<HTMLLIElement | null>(null);
+  useEffect(() => {
+    if (!highlightedId || highlightHandledRef.current || loading) return;
+    if (!rows.some((q) => q.id === highlightedId)) return;
+    highlightHandledRef.current = true;
+    setOpenId(highlightedId);
+    setTimeout(() => highlightRef.current?.scrollIntoView({ behavior: "smooth", block: "center" }), 100);
+  }, [highlightedId, rows, loading]);
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -228,7 +247,12 @@ export default function QnaPage() {
               비공개 질문은 RLS로 애초에 내려오지도 않지만, admin이 이 화면을 볼 때는
               전체가 내려오므로 여기서도 걸러 다른 학생 것이 섞여 보이지 않게 한다). */}
           {rows.filter((q) => !q.is_private || q.user_id === userId).map((q) => (
-            <li key={q.id} className="border-b border-border py-2.5 cursor-pointer" onClick={() => setOpenId(openId === q.id ? null : q.id)}>
+            <li
+              key={q.id}
+              ref={q.id === highlightedId ? highlightRef : undefined}
+              className="border-b border-border py-2.5 cursor-pointer"
+              onClick={() => setOpenId(openId === q.id ? null : q.id)}
+            >
               <div className="flex items-center gap-2">
                 {q.is_private ? <Badge color="red">비공개</Badge> : <Badge color="teal">공개</Badge>}
                 <span className="flex-1 min-w-0 truncate text-sm" title={q.title}>{q.title}</span>
@@ -256,6 +280,9 @@ export default function QnaPage() {
               {openId === q.id && (
                 <div className="pt-2.5 text-sm">
                   {/* RLS가 이미 열람 가능한 질문만 내려주므로, 내려온 행은 그대로 표시합니다 */}
+                  <div className="text-xs text-muted mb-1.5">
+                    <ViewCounter postId={q.id} initialCount={q.view_count} contentType="question" />
+                  </div>
                   <p><Linkify text={q.content} /></p>
                   <ImageGallery
                     urls={galleryCache[q.id] && galleryCache[q.id].length > 0 ? galleryCache[q.id] : q.image_url ? [q.image_url] : []}

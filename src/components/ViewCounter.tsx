@@ -42,7 +42,7 @@ export default function ViewCounter({
 }: {
   postId: string;
   initialCount: number;
-  contentType: "notice" | "board_post";
+  contentType: "notice" | "board_post" | "question";
 }) {
   const [count, setCount] = useState(initialCount);
   const cookieKey = `${contentType}_${postId}`;
