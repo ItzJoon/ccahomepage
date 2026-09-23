@@ -114,7 +114,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   const [userId, setUserId] = useState<string | null>(null);
   const { t } = useHomeTheme(initialThemeKey);
   const [feedTab, setFeedTab] = useState<"recent" | "popular">("recent");
-  const [feedPeriod, setFeedPeriod] = useState<PostFeedPeriod>("all");
+  const [feedPeriod, setFeedPeriod] = useState<PostFeedPeriod>("today");
   const [feedItems, setFeedItems] = useState<PostFeedItem[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
   const { rows: blocks } = useList<MainBlock>("main_blocks", {
