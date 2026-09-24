@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { cache } from "react";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, getCurrentProfile } from "@/lib/supabase/server";
 import Badge, { Pin } from "@/components/Badge";
 import ViewCounter from "@/components/ViewCounter";
 import DetailBackLink from "@/components/DetailBackLink";
@@ -37,7 +37,7 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 
 export default async function NoticeDetailPage({ params }: { params: { id: string } }) {
   const supabase = createClient();
-  const post = await getNoticePost(params.id);
+  const [post, profile] = await Promise.all([getNoticePost(params.id), getCurrentProfile()]);
   if (!post) {
     return <div className="text-muted text-center py-10">게시글을 찾을 수 없습니다.</div>;
   }
@@ -47,6 +47,12 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
     supabase.from("post_gallery_images").select("image_url").eq("post_id", params.id).order("order_index"),
   ]);
   const galleryUrls = gallery && gallery.length > 0 ? gallery.map((g) => g.image_url) : post.image_url ? [post.image_url] : [];
+
+  // 관리자가 "누가, 몇 번 조회했는지" 확인할 수 있도록 로그인 사용자의 조회 기록을
+  // 누적한다(비로그인은 기록 안 함) — 기존 배치 집계 조회수(ViewCounter)와는 별개 테이블.
+  if (profile) {
+    await supabase.rpc("record_post_view", { p_post_id: post.id });
+  }
 
   return (
     <div className="bg-surface border border-border rounded-2xl p-7">

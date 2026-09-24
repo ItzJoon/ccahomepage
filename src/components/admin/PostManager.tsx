@@ -17,6 +17,7 @@ import FileUpload, { AttachmentRef } from "./FileUpload";
 import MultiImageUpload from "@/components/MultiImageUpload";
 import { removeStorageFile } from "@/lib/storageCleanup";
 import EmailAudienceSelector, { EmailMode } from "./EmailAudienceSelector";
+import PostViewersModal from "./PostViewersModal";
 import { saveDraft, loadDraft, clearDraft } from "@/lib/draft";
 import { safeStorageKey } from "@/lib/storageKey";
 import {
@@ -54,7 +55,11 @@ export default function PostManager({
   // 교과/학급 공지(teacher 전용)도 이 목록에 함께 나와야 관리할 수 있으므로, 공지사항
   // 화면(type==="notice")에서는 세 타입을 다 조회한다. 뉴스 화면은 기존과 동일.
   const { rows, reload } = useList<PostWithAttachments>("posts", {
-    select: "*, attachments(*), author:profiles(name, nickname, email), author_name",
+    // post_views(post_id, user_id 모두 FK)가 posts<->profiles 사이에 many-to-many 임베드
+    // 경로를 하나 더 만들어서, author_id FK를 명시하지 않으면 PostgREST가 어느 경로로
+    // profiles를 임베드할지 몰라 PGRST201(300) 에러를 낸다 — admin/board/page.tsx의
+    // author:profiles!board_posts_author_id_fkey(...)와 동일한 이유로 동일하게 고정한다.
+    select: "*, attachments(*), author:profiles!posts_author_id_fkey(name, nickname, email), author_name",
     filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
     orderBy: { column: "created_at", ascending: false },
   });
@@ -91,8 +96,12 @@ export default function PostManager({
   const [myId, setMyId] = useState<string | null>(null);
   const [roleLoaded, setRoleLoaded] = useState(false);
   const [iAmAdmin, setIAmAdmin] = useState(false);
+  const [isEditorOrAbove, setIsEditorOrAbove] = useState(false);
   const [canChangeAuthor, setCanChangeAuthor] = useState(false);
   const [isTeacher, setIsTeacher] = useState(false);
+  // 조회자 목록 모달 — 공지(notice)에 한해 editor 이상 또는 본인이 쓴 글의 teacher가
+  // 볼 수 있다(post_views RLS와 동일한 기준).
+  const [viewersFor, setViewersFor] = useState<PostWithAttachments | null>(null);
   const [teacherInfo, setTeacherInfo] = useState<TeacherInfo | null>(null);
   const [videoUploading, setVideoUploading] = useState(false);
   const [videoError, setVideoError] = useState<string | null>(null);
@@ -142,6 +151,7 @@ export default function PostManager({
       // 있다(RLS의 posts_delete_admin이 is_designer()를 허용) — 이 컴포넌트는 useMyRole
       // 대신 자체적으로 role을 조회하므로 여기서 판정 로직에 designer를 함께 넣는다.
       setIAmAdmin(!!me && ["admin", "superadmin", "designer"].includes(me.role));
+      setIsEditorOrAbove(!!me && ["editor", "admin", "superadmin", "designer"].includes(me.role));
       // 작성자 변경은 그보다 더 좁게 진짜 admin 이상(설계상 조회 전용인 designer, 삭제
       // 이력이 남는 것과 성격이 다름)만 — change_post_author RPC의 is_admin() 체크와
       // 정확히 같은 기준으로 버튼을 보여준다(못 쓰는 사람에게 항상 실패하는 버튼을 보여주지
@@ -962,6 +972,9 @@ export default function PostManager({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {n.type === "notice" && (isEditorOrAbove || (isTeacher && n.author_id === myId)) && (
+                      <AdminCardAction onClick={() => setViewersFor(n)}>조회자</AdminCardAction>
+                    )}
                     {!readOnlyForMe && (
                       <AdminCardAction onClick={() => toggleHidden(n.id, n.is_hidden)}>
                         {n.is_hidden ? "숨김 해제" : "숨김"}
@@ -1038,6 +1051,17 @@ export default function PostManager({
                 <td className={t.adminTableCell}>{n.publish_at}</td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
+                    {n.type === "notice" && (isEditorOrAbove || (isTeacher && n.author_id === myId)) && (
+                      <button
+                        className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setViewersFor(n);
+                        }}
+                      >
+                        조회자
+                      </button>
+                    )}
                     {!readOnlyForMe && (
                       <button
                         className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"
@@ -1084,6 +1108,9 @@ export default function PostManager({
         // 보이므로, 640px 미만에서는 여기 두 번째 사본을 숨긴다("새 글 작성"은 카드가
         // 없어 아코디언을 못 붙이므로 이 자리 그대로 보여준다).
         <div className={editing !== "new" ? "hidden sm:block" : ""}>{formPanel}</div>
+      )}
+      {viewersFor && (
+        <PostViewersModal postId={viewersFor.id} postTitle={viewersFor.title} onClose={() => setViewersFor(null)} />
       )}
     </div>
   );

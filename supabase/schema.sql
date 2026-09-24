@@ -5865,3 +5865,80 @@ grant execute on function get_home_post_feed(text, text, int) to anon, authentic
 insert into main_blocks (id, label, is_visible, order_index, col_span)
 values ('posts_feed', '최근·인기 게시글', true, 0, 6)
 on conflict (id) do nothing;
+
+-- 137. 공지사항 관리자용 조회자(누가/몇 번/언제) 추적
+-- 기존 content_view_events(익명 방문자 포함, 배치 집계) 조회수와는 목적이 달라
+-- 완전히 분리한다 — 이건 로그인 사용자 전용이고 조회할 때마다 (post_id, user_id)별로
+-- view_count를 누적한다. 관리자(editor 이상)와, 본인이 작성한 글에 한해 teacher가
+-- 열람할 수 있다.
+create table if not exists post_views (
+  post_id uuid not null references posts(id) on delete cascade,
+  user_id uuid not null references profiles(id) on delete cascade,
+  view_count int not null default 1,
+  first_viewed_at timestamptz not null default now(),
+  last_viewed_at timestamptz not null default now(),
+  primary key (post_id, user_id)
+);
+alter table post_views enable row level security;
+
+-- 쓰기는 record_post_view() SECURITY DEFINER 함수로만 (직접 insert/update 정책 없음).
+drop policy if exists "post_views_select_staff_or_own_post" on post_views;
+create policy "post_views_select_staff_or_own_post" on post_views for select
+  using (
+    is_editor_or_above()
+    or exists (
+      select 1 from posts p
+      join profiles me on me.id = auth.uid()
+      where p.id = post_views.post_id and me.role = 'teacher' and p.author_id = auth.uid()
+    )
+  );
+
+drop policy if exists "post_views_select_designer" on post_views;
+create policy "post_views_select_designer" on post_views for select using (is_designer());
+
+create or replace function record_post_view(p_post_id uuid)
+returns void
+language plpgsql security definer set search_path = public
+as $$
+begin
+  if auth.uid() is null then
+    return;
+  end if;
+  insert into post_views (post_id, user_id, view_count, first_viewed_at, last_viewed_at)
+  values (p_post_id, auth.uid(), 1, now(), now())
+  on conflict (post_id, user_id) do update
+    set view_count = post_views.view_count + 1,
+        last_viewed_at = now();
+end;
+$$;
+
+grant execute on function record_post_view(uuid) to authenticated;
+
+-- 조회자 목록 모달 상단 요약("142명 중 87명 조회, 총 조회 213회")용 집계 RPC.
+-- post_views RLS와 동일한 조건을 함수 안에서 재검증한다 — 숫자만 담고 있지만 권한
+-- 없는 사용자가 다른 사람이 작성한 글의 조회 통계를 알 수는 없게 한다.
+create or replace function get_post_view_summary(p_post_id uuid)
+returns table(viewer_count bigint, total_views bigint, audience_count bigint)
+language plpgsql stable security definer set search_path = public
+as $$
+begin
+  if not (
+    is_editor_or_above()
+    or exists (
+      select 1 from posts p
+      join profiles me on me.id = auth.uid()
+      where p.id = p_post_id and me.role = 'teacher' and p.author_id = auth.uid()
+    )
+  ) then
+    raise exception '조회 권한이 없습니다';
+  end if;
+
+  return query
+  select
+    (select count(*) from post_views where post_id = p_post_id),
+    (select coalesce(sum(view_count), 0) from post_views where post_id = p_post_id),
+    (select count(*) from profiles where role <> 'superadmin');
+end;
+$$;
+
+grant execute on function get_post_view_summary(uuid) to authenticated;
