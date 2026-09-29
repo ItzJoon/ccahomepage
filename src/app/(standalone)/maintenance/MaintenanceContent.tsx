@@ -11,6 +11,10 @@ export default function MaintenanceContent() {
   const router = useRouter();
   const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const [settings, setSettings] = useState<SiteSettings | null>(null);
+  // site_settings 조회가 끝나기 전까지는 "점검 중" 문구를 아예 그리지 않는다 — 실제로는
+  // 점검이 끝났는데도(row.maintenance_mode === false) 리다이렉트되기 직전 한 프레임 동안
+  // "사이트 점검 중" 문구가 잠깐 보였다 사라지는(깜빡임) 문제가 있었다.
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUserId(data.user?.id ?? null));
@@ -22,6 +26,7 @@ export default function MaintenanceContent() {
       .then(({ data }) => {
         const row = data as SiteSettings | null;
         setSettings(row);
+        setChecked(true);
         // /maintenance는 미들웨어가 URL은 그대로 두고 내용만 이 화면으로 바꿔치기(rewrite)
         // 해서 보여주는 것과 별개로, 이 주소를 직접 열어둔 상태에서 점검이 끝나면 미들웨어가
         // 더 이상 안 가로채도 이 페이지 자체는 그대로 남아있는다 — 여기서 직접 최신 상태를
@@ -31,6 +36,12 @@ export default function MaintenanceContent() {
         }
       });
   }, [supabase, router]);
+
+  // 조회 전이거나, 조회 결과 점검 중이 아니라면(곧 위에서 홈으로 리다이렉트됨) 화면에
+  // "점검 중" 문구를 아예 그리지 않는다.
+  if (!checked || !settings?.maintenance_mode) {
+    return <div className="min-h-[70vh]" />;
+  }
 
   const signOut = async () => {
     await supabase.auth.signOut();
