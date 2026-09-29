@@ -19,8 +19,18 @@ export default function MaintenanceContent() {
       .select("*")
       .eq("id", "default")
       .maybeSingle()
-      .then(({ data }) => setSettings(data as SiteSettings | null));
-  }, [supabase]);
+      .then(({ data }) => {
+        const row = data as SiteSettings | null;
+        setSettings(row);
+        // /maintenance는 미들웨어가 URL은 그대로 두고 내용만 이 화면으로 바꿔치기(rewrite)
+        // 해서 보여주는 것과 별개로, 이 주소를 직접 열어둔 상태에서 점검이 끝나면 미들웨어가
+        // 더 이상 안 가로채도 이 페이지 자체는 그대로 남아있는다 — 여기서 직접 최신 상태를
+        // 한 번 더 확인해서, 점검이 끝났으면 홈으로 돌려보낸다.
+        if (row && !row.maintenance_mode) {
+          router.replace("/");
+        }
+      });
+  }, [supabase, router]);
 
   const signOut = async () => {
     await supabase.auth.signOut();
