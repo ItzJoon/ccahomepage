@@ -30,7 +30,14 @@ interface QuestionWithAnswer {
   status: "pending" | "answered";
   created_at: string;
   view_count: number;
-  answers: { id: string; content: string; image_url: string | null; created_at: string; post_gallery_images: PostGalleryImage[] }[];
+  answers: {
+    id: string;
+    content: string;
+    image_url: string | null;
+    created_at: string;
+    post_gallery_images: PostGalleryImage[];
+    answered_by_name: string | null;
+  }[];
 }
 
 
@@ -55,7 +62,7 @@ export default function QnaPage() {
   const [galleryCache, setGalleryCache] = useState<Record<string, string[]>>({});
 
   const { rows, loading, reload } = useRealtimeList<QuestionWithAnswer>("questions", {
-    select: "*, answers(*, post_gallery_images(*))",
+    select: "*, answers(*, post_gallery_images(*), answered_by_name)",
     orderBy: { column: "created_at", ascending: false },
   });
 
@@ -294,7 +301,7 @@ export default function QnaPage() {
                   />
                   {q.answers && q.answers.length > 0 ? (
                     <div className="mt-2.5 bg-bg rounded-lg p-2.5">
-                      <strong>학생자치회 답변</strong>
+                      <strong>{q.answers[0].answered_by_name ? `${q.answers[0].answered_by_name}님의 답변` : "학생자치회 답변"}</strong>
                       <p className="m-0"><Linkify text={q.answers[0].content} /></p>
                       {(() => {
                         const gallery = q.answers[0].post_gallery_images ?? [];

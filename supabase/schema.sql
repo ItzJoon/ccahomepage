@@ -5955,3 +5955,18 @@ with ranked as (
 )
 update posts set order_index = ranked.rn
 from ranked where posts.id = ranked.id;
+
+-- 139. Q&A 답변에 답변자 이름 표시
+-- profiles를 answers에 직접 조인하면 RLS(본인 것만 조회 가능) 때문에 다른 사람이
+-- 답변한 경우 이름이 비어오므로, author_name(posts)와 동일한 방식(SECURITY DEFINER
+-- computed column)으로 우회한다.
+create or replace function answered_by_name(answers) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).answered_by;
+$$ language sql stable security definer;
+
+grant execute on function answered_by_name(answers) to anon, authenticated;
