@@ -23,7 +23,8 @@ export default function NewsPage() {
   const { rows, loading } = useList<Row>("posts", {
     select: "*, author_name",
     filter: (q) => q.eq("type", "news").eq("status", "published"),
-    orderBy: { column: "created_at", ascending: false },
+    // 관리자가 /admin/news에서 ▲▼로 직접 정한 순서(값이 작을수록 먼저 표시)를 그대로 반영.
+    orderBy: { column: "order_index", ascending: true },
   });
 
   return (

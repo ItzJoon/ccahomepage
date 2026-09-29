@@ -61,7 +61,9 @@ export default function PostManager({
     // author:profiles!board_posts_author_id_fkey(...)와 동일한 이유로 동일하게 고정한다.
     select: "*, attachments(*), author:profiles!posts_author_id_fkey(name, nickname, email), author_name",
     filter: (q) => (type === "notice" ? q.in("type", ["notice", "subject_notice", "homeroom_notice"]) : q.eq("type", type)),
-    orderBy: { column: "created_at", ascending: false },
+    // 뉴스는 관리자가 ▲▼로 직접 정한 순서(order_index 오름차순)를, 공지는 기존처럼
+    // 작성일 최신순을 쓴다.
+    orderBy: type === "news" ? { column: "order_index", ascending: true } : { column: "created_at", ascending: false },
   });
   // 카테고리 입력을 자유 텍스트 대신 이 목록에서 고르게 한다 — 지금까지 실제로 쓰인
   // 값들을 그대로 보여준다(별도 카테고리 관리 테이블은 없음).
@@ -403,11 +405,16 @@ export default function PostManager({
     // 대표 이미지(posts.image_url)는 갤러리 첫 장으로 그대로 채워서(하위호환) 목록
     // 미리보기·알림 등 기존에 이 컬럼 하나만 보는 코드가 계속 동작하게 한다.
     const formWithGallery = { ...form, image_url: galleryUrls[0] ?? null };
+    // 새 뉴스는 기존 작성일 최신순 화면과 같은 기대(제일 최근 글이 맨 위)를 그대로
+    // 유지하도록 order_index를 기존 최솟값보다 더 작게 줘서 맨 위에 오게 한다. 공지는
+    // order_index를 안 쓰므로 건드리지 않는다.
+    const orderPatch =
+      form.type === "news" ? { order_index: Math.min(0, ...rows.map((r) => r.order_index)) - 1 } : {};
     let savedPostId: string | null = null;
     if (editing === "new") {
       const { data, error } = await supabase
         .from("posts")
-        .insert({ ...formWithGallery, author_id: myId })
+        .insert({ ...formWithGallery, ...orderPatch, author_id: myId })
         .select()
         .single();
       if (error) {
@@ -528,6 +535,19 @@ export default function PostManager({
   // 삭제(admin 이상)와 달리 editor 이상이면 누구나 누를 수 있다.
   const toggleHidden = async (id: string, isHidden: boolean) => {
     await supabase.from("posts").update({ is_hidden: !isHidden }).eq("id", id);
+    reload();
+  };
+
+  // 뉴스 전용 수동 순서 조정 — main-editor의 블록 순서 조정과 동일한 인접 항목
+  // order_index 맞교환 방식. rows는 이미 order_index 오름차순으로 정렬돼 있다.
+  const moveNews = async (item: PostWithAttachments, dir: number) => {
+    const idx = rows.findIndex((r) => r.id === item.id);
+    const swap = rows[idx + dir];
+    if (!swap) return;
+    await Promise.all([
+      supabase.from("posts").update({ order_index: swap.order_index }).eq("id", item.id),
+      supabase.from("posts").update({ order_index: item.order_index }).eq("id", swap.id),
+    ]);
     reload();
   };
 
@@ -972,6 +992,28 @@ export default function PostManager({
                     )}
                   </div>
                   <div className="flex items-center gap-1.5">
+                    {type === "news" && (
+                      <div className="flex gap-1">
+                        <button
+                          className="text-blue text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveNews(n, -1);
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          className="text-blue text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveNews(n, 1);
+                          }}
+                        >
+                          ▼
+                        </button>
+                      </div>
+                    )}
                     {n.type === "notice" && (isEditorOrAbove || (isTeacher && n.author_id === myId)) && (
                       <AdminCardAction onClick={() => setViewersFor(n)}>조회자</AdminCardAction>
                     )}
@@ -1051,6 +1093,28 @@ export default function PostManager({
                 <td className={t.adminTableCell}>{n.publish_at}</td>
                 <td className={t.adminTableCell}>
                   <div className={actionCellClass}>
+                    {type === "news" && (
+                      <>
+                        <button
+                          className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveNews(n, -1);
+                          }}
+                        >
+                          ▲
+                        </button>
+                        <button
+                          className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            moveNews(n, 1);
+                          }}
+                        >
+                          ▼
+                        </button>
+                      </>
+                    )}
                     {n.type === "notice" && (isEditorOrAbove || (isTeacher && n.author_id === myId)) && (
                       <button
                         className="text-blue text-xs font-bold shrink-0 px-1.5 py-2 -mx-1.5 -my-2"

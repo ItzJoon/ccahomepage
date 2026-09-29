@@ -98,6 +98,9 @@ export interface Post {
   /** 아직 로그인한 적 없는(=profiles 행이 없는) 학교 명단 구성원을 작성자로 지정했을 때만
    * 채워진다. author_id와 동시에 채워지지 않는다(둘 중 하나만). */
   manual_author_email: string | null;
+  /** 뉴스 화면에서만 쓰는 수동 정렬 순서(값이 작을수록 먼저 표시). 공지는 항상 작성일
+   * 최신순이라 이 값을 쓰지 않는다. */
+  order_index: number;
 }
 
 export interface StudentSubject {

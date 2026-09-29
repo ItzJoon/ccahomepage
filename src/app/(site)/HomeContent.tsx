@@ -129,7 +129,8 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   });
   const { rows: news } = useList<Post>("posts", {
     filter: (q) => q.eq("type", "news").eq("status", "published"),
-    orderBy: { column: "created_at", ascending: false },
+    // /news와 동일하게 관리자가 /admin/news에서 정한 순서를 그대로 반영.
+    orderBy: { column: "order_index", ascending: true },
   });
   const { rows: mealPlans } = useList<MealPlan>("meal_plans");
   const { rows: settingsRows } = useList<SiteSettings>("site_settings");

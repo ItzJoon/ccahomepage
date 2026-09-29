@@ -5942,3 +5942,16 @@ end;
 $$;
 
 grant execute on function get_post_view_summary(uuid) to authenticated;
+
+-- 138. 뉴스 정렬 순서를 관리자가 수동으로 지정
+-- 공지는 기존처럼 작성일 최신순을 그대로 쓰고, 이 컬럼은 뉴스 화면에서만 쓴다.
+-- 값이 작을수록 먼저 표시(main_blocks.order_index와 동일한 관례).
+alter table posts add column if not exists order_index int not null default 0;
+
+-- 기존 뉴스는 지금 화면에 보이는 순서(작성일 최신순)를 그대로 유지하도록 초기화한다.
+with ranked as (
+  select id, row_number() over (order by created_at desc) - 1 as rn
+  from posts where type = 'news'
+)
+update posts set order_index = ranked.rn
+from ranked where posts.id = ranked.id;
