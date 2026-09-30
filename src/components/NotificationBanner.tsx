@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { playAttachedSound } from "@/lib/notificationSound";
 import { notificationTargetsMe } from "@/lib/notificationAudience";
+import { scheduleSafeTimeout } from "@/lib/safeTimeout";
 import type { NotificationItem } from "@/lib/types";
 
 /** display_until이 없으면 계속 표시(무기한), 있으면 그 시각이 지나면 만료 처리 */
@@ -77,12 +78,7 @@ export default function NotificationBanner({
   useEffect(() => {
     if (!latest || !latest.display_until) return;
     const remaining = new Date(latest.display_until).getTime() - Date.now();
-    if (remaining <= 0) {
-      setLatest(null);
-      return;
-    }
-    const timer = setTimeout(() => setLatest(null), remaining);
-    return () => clearTimeout(timer);
+    return scheduleSafeTimeout(() => setLatest(null), remaining);
   }, [latest]);
 
   if (!latest || dismissed.includes(latest.id)) return null;

@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { todayKST } from "@/lib/date";
 import { playAttachedSound } from "@/lib/notificationSound";
 import { notificationTargetsMe } from "@/lib/notificationAudience";
+import { scheduleSafeTimeout } from "@/lib/safeTimeout";
 import type { NotificationItem } from "@/lib/types";
 
 // "오늘 하루 안 보기"는 계정이 아니라 이 브라우저(localStorage)에 저장되는데, developer
@@ -138,12 +139,7 @@ export default function NotificationPopup({
   useEffect(() => {
     if (!current || !current.display_until) return;
     const remaining = new Date(current.display_until).getTime() - Date.now();
-    if (remaining <= 0) {
-      dismiss();
-      return;
-    }
-    const timer = setTimeout(dismiss, remaining);
-    return () => clearTimeout(timer);
+    return scheduleSafeTimeout(dismiss, remaining);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [current]);
 
