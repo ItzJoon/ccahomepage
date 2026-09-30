@@ -85,6 +85,16 @@ export default function NotificationPopup({
 
   useEffect(() => {
     const supabase = createClient();
+    // 구독 직후(수 초 이내) 들어오는 UPDATE/DELETE 이벤트는 무시한다. 채널을 새로 열 때
+    // Supabase Realtime이 그 직전에 있었던 이벤트를 지연 전달하는 경우가 실제로 관찰됐는데
+    // (예: 다른 곳에서 방금 껐다 켠 팝업의 "꺼짐" 이벤트가 뒤늦게 도착), 그 상태로는 서버가
+    // 이미 내려준 초기 목록(initial)이 도착 직후 곧바로(수십 ms 안에) 사라져버리는 문제가
+    // 있었다. 실제 관리자가 화면을 보고 있는 도중에 알림을 수정하는 경우는 절대 이렇게
+    // 빠르게 일어나지 않으므로, 이 짧은 유예 기간만 걸러도 정상 사용에는 영향이 없다.
+    const subscribedAt = Date.now();
+    const GRACE_MS = 3000;
+    const isStaleEvent = () => Date.now() - subscribedAt < GRACE_MS;
+
     const channel = supabase
       .channel("public:notifications:popup")
       .on(
@@ -101,6 +111,7 @@ export default function NotificationPopup({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications" },
         (payload) => {
+          if (isStaleEvent()) return;
           const n = payload.new as NotificationItem;
           setQueue((q) => (!n.popup_active || isExpired(n) ? q.filter((x) => x.id !== n.id) : q.map((x) => (x.id === n.id ? n : x))));
         }
@@ -109,6 +120,7 @@ export default function NotificationPopup({
         "postgres_changes",
         { event: "DELETE", schema: "public", table: "notifications" },
         (payload) => {
+          if (isStaleEvent()) return;
           const old = payload.old as { id: string };
           setQueue((q) => q.filter((x) => x.id !== old.id));
         }

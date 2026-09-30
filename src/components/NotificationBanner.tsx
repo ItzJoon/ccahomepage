@@ -40,6 +40,11 @@ export default function NotificationBanner({
 
   useEffect(() => {
     const supabase = createClient();
+    // 구독 직후 수 초 이내 도착하는 UPDATE는 무시한다 — NotificationPopup.tsx와 동일한
+    // 이유(채널을 새로 열 때 지연된 과거 이벤트가 뒤늦게 도착하는 경우가 관찰됨).
+    const subscribedAt = Date.now();
+    const isStaleEvent = () => Date.now() - subscribedAt < 3000;
+
     const channel = supabase
       .channel("public:notifications")
       .on(
@@ -54,6 +59,7 @@ export default function NotificationBanner({
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "notifications" },
         (payload) => {
+          if (isStaleEvent()) return;
           const n = payload.new as NotificationItem;
           setLatest((cur) => (cur?.id === n.id && isExpired(n) ? null : cur));
         }
