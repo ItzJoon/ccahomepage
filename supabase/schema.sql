@@ -6142,3 +6142,191 @@ create policy "judiciary_records_insert" on judiciary_records for insert
 drop policy if exists "org_records_insert_editor" on org_records;
 create policy "org_records_insert_editor" on org_records for insert
   with check (is_editor_or_above() and not is_currently_suspended_self());
+
+-- 141. 공지사항 댓글 + 작성자/소속 강조 표시
+-- 공지사항 댓글은 게시판 댓글(board_comments)과 로직은 동일하되, 게시판/공지사항
+-- 화면·데이터가 섞이지 않도록 완전히 별개 테이블로 둔다. 이미지 첨부·좋아요는 이번
+-- 범위 밖(작성/삭제/신고/도배방지/닉네임표시/대댓글만 구현).
+create table if not exists notice_comments (
+  id uuid primary key default uuid_generate_v4(),
+  post_id uuid not null references posts(id) on delete cascade,
+  parent_id uuid references notice_comments(id) on delete cascade,
+  author_id uuid references profiles(id) on delete set null,
+  content text not null,
+  created_at timestamptz not null default now(),
+  is_hidden boolean not null default false
+);
+create index if not exists notice_comments_post_id_idx on notice_comments(post_id);
+
+alter table notice_comments enable row level security;
+
+-- 공지는 수업시간 제한(is_student_restricted_now) 대상이 아니므로(board/qna와 달리
+-- 항상 열람 가능한 메뉴) board_comments와 달리 그 체크를 넣지 않는다.
+drop policy if exists "notice_comments_read" on notice_comments;
+create policy "notice_comments_read" on notice_comments for select
+  using (
+    exists (
+      select 1 from posts p
+      where p.id = notice_comments.post_id
+        and (not p.is_hidden or is_editor_or_above() or auth.uid() = p.author_id)
+    )
+    and (not is_hidden or is_editor_or_above() or auth.uid() = author_id)
+  );
+
+drop policy if exists "notice_comments_select_designer" on notice_comments;
+create policy "notice_comments_select_designer" on notice_comments for select using (is_designer());
+
+drop policy if exists "notice_comments_insert_own" on notice_comments;
+create policy "notice_comments_insert_own" on notice_comments for insert
+  with check (auth.uid() = author_id and not is_currently_suspended_self());
+
+drop policy if exists "notice_comments_update_staff" on notice_comments;
+create policy "notice_comments_update_staff" on notice_comments for update
+  using (is_editor_or_above() or is_designer())
+  with check (is_editor_or_above() or is_designer());
+
+drop policy if exists "notice_comments_delete_own_or_admin" on notice_comments;
+create policy "notice_comments_delete_own_or_admin" on notice_comments for delete
+  using (auth.uid() = author_id or is_admin() or is_designer());
+
+-- 도배 방지: board_comments와 동일한 범용 트리거 재사용(함수 수정 없이 트리거만 추가).
+drop trigger if exists rate_limit_notice_comments on notice_comments;
+create trigger rate_limit_notice_comments before insert on notice_comments
+  for each row execute function enforce_rate_limit(5, 30, 'author_id');
+
+alter publication supabase_realtime add table notice_comments;
+
+create or replace function author_name(notice_comments) returns text as $$
+  select case
+    when p.role in ('admin', 'superadmin') and p.nickname is not null and p.name is not null and p.nickname <> p.name
+      then p.nickname || '(' || p.name || ')'
+    else coalesce(p.nickname, p.name)
+  end
+  from profiles p where p.id = ($1).author_id;
+$$ language sql stable security definer;
+
+grant execute on function author_name(notice_comments) to anon, authenticated;
+
+-- 게시판: 댓글 작성자가 그 글의 원 작성자 본인이면 "작성자" 표시.
+create or replace function highlight_label(board_comments) returns text as $$
+  select case when bp.author_id = ($1).author_id then '작성자' else null end
+  from board_posts bp where bp.id = ($1).post_id;
+$$ language sql stable security definer;
+
+grant execute on function highlight_label(board_comments) to anon, authenticated;
+
+-- 공지사항: 공지 작성자가 임원회/사법위원회 소속이면 같은 소속 구성원의 댓글도 함께
+-- 강조한다(소속 없으면 게시판과 동일하게 작성자 본인만). 여러 단체 동시 소속이면
+-- 겹치는 단체를 전부 라벨로 보여준다. 작성자 본인이면 소속 여부와 무관하게 "작성자"
+-- 표시를 우선한다.
+create or replace function highlight_label(notice_comments) returns text as $$
+declare
+  v_post_author_id uuid;
+  v_author_council boolean;
+  v_author_judiciary boolean;
+  v_commenter_council boolean;
+  v_commenter_judiciary boolean;
+  v_labels text[] := '{}';
+begin
+  select author_id into v_post_author_id from posts where id = ($1).post_id;
+  if v_post_author_id is null then
+    return null;
+  end if;
+  if v_post_author_id = ($1).author_id then
+    return '작성자';
+  end if;
+
+  select is_council, is_judiciary into v_author_council, v_author_judiciary
+  from profiles where id = v_post_author_id;
+
+  if not coalesce(v_author_council, false) and not coalesce(v_author_judiciary, false) then
+    return null;
+  end if;
+
+  select is_council, is_judiciary into v_commenter_council, v_commenter_judiciary
+  from profiles where id = ($1).author_id;
+
+  if v_author_council and coalesce(v_commenter_council, false) then
+    v_labels := array_append(v_labels, '임원회');
+  end if;
+  if v_author_judiciary and coalesce(v_commenter_judiciary, false) then
+    v_labels := array_append(v_labels, '사법위원회');
+  end if;
+
+  if array_length(v_labels, 1) is null then
+    return null;
+  end if;
+  return array_to_string(v_labels, '·');
+end;
+$$ language plpgsql stable security definer set search_path = public;
+
+grant execute on function highlight_label(notice_comments) to anon, authenticated;
+
+-- 새 댓글이 달리면 그 공지 원 작성자(및 대댓글이면 부모 댓글 작성자)에게 알림 센터
+-- 알림을 보낸다 — board_comments의 notify_board_comment()와 동일한 패턴.
+create or replace function notify_notice_comment()
+returns trigger as $$
+declare
+  v_post_author uuid;
+  v_post_title text;
+  v_parent_author uuid;
+begin
+  select author_id, title into v_post_author, v_post_title from posts where id = new.post_id;
+  if v_post_author is not null and v_post_author != new.author_id then
+    insert into user_notifications (user_id, type, target_type, target_id, message)
+    values (v_post_author, 'notice_comment', 'notice', new.post_id, '내 공지 "' || coalesce(v_post_title, '') || '"에 댓글이 달렸습니다.');
+  end if;
+
+  if new.parent_id is not null then
+    select author_id into v_parent_author from notice_comments where id = new.parent_id;
+    if v_parent_author is not null and v_parent_author != new.author_id and v_parent_author is distinct from v_post_author then
+      insert into user_notifications (user_id, type, target_type, target_id, message)
+      values (v_parent_author, 'notice_comment', 'notice', new.post_id, '내 댓글에 답글이 달렸습니다.');
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer;
+
+drop trigger if exists notify_on_notice_comment on notice_comments;
+create trigger notify_on_notice_comment after insert on notice_comments
+  for each row execute function notify_notice_comment();
+
+alter table user_notifications drop constraint if exists user_notifications_type_check;
+alter table user_notifications add constraint user_notifications_type_check
+  check (type in ('board_comment', 'qna_answered', 'patch_note', 'notice_comment'));
+
+alter table reports drop constraint if exists reports_target_type_check;
+alter table reports add constraint reports_target_type_check
+  check (target_type in ('profile', 'board_post', 'board_comment', 'notice_comment'));
+
+-- reports.target_author_id 자동 계산 트리거에도 notice_comment 케이스를 추가한다.
+create or replace function resolve_report_target_author()
+returns trigger as $$
+begin
+  if new.target_type = 'profile' then
+    new.target_author_id := new.target_id;
+  elsif new.target_type = 'board_post' then
+    select author_id into new.target_author_id from board_posts where id = new.target_id;
+  elsif new.target_type = 'board_comment' then
+    select author_id into new.target_author_id from board_comments where id = new.target_id;
+  elsif new.target_type = 'notice_comment' then
+    select author_id into new.target_author_id from notice_comments where id = new.target_id;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- /api/notify-comment-email는 댓글 작성자(대부분 일반 학생) 세션으로 호출되는데,
+-- profiles RLS(self-or-admin/editor 이상만 조회 가능)가 막혀서 공지 작성자의
+-- email/email_notifications를 직접 조회할 수 없었다. 이메일 주소는 이미
+-- directory_members가 로그인한 누구에게나 공개하는 수준의 민감도라(민감 정보 아님),
+-- 이 두 필드만 좁게 노출하는 RPC로 우회한다.
+create or replace function get_email_pref_for_user(p_user_id uuid)
+returns table(email text, email_notifications boolean)
+language sql stable security definer set search_path = public
+as $$
+  select email, email_notifications from profiles where id = p_user_id;
+$$;
+
+grant execute on function get_email_pref_for_user(uuid) to authenticated;

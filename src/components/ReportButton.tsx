@@ -16,7 +16,7 @@ export default function ReportButton({
   myId,
   context,
 }: {
-  targetType: "board_post" | "board_comment";
+  targetType: "board_post" | "board_comment" | "notice_comment";
   targetId: string;
   authorId: string | null;
   myId: string | null;

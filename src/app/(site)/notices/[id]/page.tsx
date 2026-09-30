@@ -7,6 +7,7 @@ import DetailBackLink from "@/components/DetailBackLink";
 import { noticeContentToSafeHtml, noticeContentToPlainSummary } from "@/lib/sanitizeHtml";
 import ImageGallery from "@/components/ImageGallery";
 import AttachmentList from "@/components/AttachmentList";
+import NoticeComments from "@/components/NoticeComments";
 
 function fmt(d: string) {
   const dt = new Date(d);
@@ -83,6 +84,7 @@ export default async function NoticeDetailPage({ params }: { params: { id: strin
         className={galleryUrls.length === 1 ? "max-w-full rounded-lg border border-border mt-4 object-contain" : "mt-4"}
       />
       <AttachmentList attachments={attachments ?? []} />
+      <NoticeComments postId={post.id} userId={profile?.id ?? null} />
     </div>
   );
 }

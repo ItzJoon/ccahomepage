@@ -3,25 +3,17 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
-import { removeStorageFile } from "@/lib/storageCleanup";
 import Linkify from "@/components/Linkify";
 import ReportableName from "@/components/ReportableName";
 import ReportButton from "@/components/ReportButton";
-import LikeButton from "@/components/LikeButton";
-import MultiImageUpload from "@/components/MultiImageUpload";
-import ImageGallery from "@/components/ImageGallery";
 import Badge from "@/components/Badge";
-import type { BoardComment, PostGalleryImage } from "@/lib/types";
+import type { NoticeComment } from "@/lib/types";
 
-const COMMENT_IMAGE_BUCKET = "attachments";
-const COMMENT_IMAGE_MAX = 3;
-
-interface Row extends BoardComment {
+interface Row extends NoticeComment {
   author_name: string | null;
-  author_avatar: string | null;
-  post_gallery_images: PostGalleryImage[];
-  /** 이 글의 원 작성자 본인이 남긴 댓글이면 "작성자"(supabase/schema.sql
-   * highlight_label(board_comments) 참고), 아니면 null. */
+  /** 공지 작성자 본인이면 "작성자", 작성자가 임원회/사법위원회 소속이면 같은 소속
+   * 구성원의 댓글도 그 단체명으로 강조(supabase/schema.sql highlight_label(notice_comments)
+   * 참고), 해당 없으면 null. */
   highlight_label: string | null;
 }
 
@@ -32,9 +24,7 @@ function fmtDateTime(iso: string) {
   ).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
-// parent_id 기준으로 부모→자식 목록을 미리 묶어둬서, 렌더링할 때마다 매번 전체를
-// 훑지 않고 바로 자식 배열을 꺼내 쓸 수 있게 한다(대댓글은 한 단계만 지원 — parent_id가
-// 있는 댓글에 다시 답글을 달면 같은 parent_id의 형제로 붙는다, 무한 중첩 방지).
+// board_comments와 동일한 방식(대댓글은 한 단계만, parent_id 기준 그룹핑) — BoardComments.tsx 참고.
 function groupByParent(rows: Row[]) {
   const map = new Map<string | null, Row[]>();
   for (const r of rows) {
@@ -45,21 +35,24 @@ function groupByParent(rows: Row[]) {
   return map;
 }
 
-export default function BoardComments({ postId, userId }: { postId: string; userId: string | null }) {
+/**
+ * 공지사항 댓글 — 게시판 댓글(BoardComments)과 작성/삭제/신고/도배방지/닉네임 표시
+ * 로직은 동일하되, 완전히 별개 테이블(notice_comments)을 쓴다(게시판과 화면·데이터가
+ * 섞이지 않아야 한다는 요구사항). 이미지 첨부·좋아요는 범위 밖이라 뺐다. 새 댓글이
+ * 등록되면 DB 트리거(notify_notice_comment)가 알림 센터 알림을 자동으로 만들어주고,
+ * 여기서는 그와 별개로 이메일 알림 API를 한 번 호출한다(이메일 발송은 트리거로 할 수
+ * 없어서 — supabase/schema.sql 141번 주석 참고).
+ */
+export default function NoticeComments({ postId, userId }: { postId: string; userId: string | null }) {
   const supabase = createClient();
-  // profiles를 그대로 조인하면 다른 사람 이름/사진은 RLS에 막혀 비어오므로(본인 또는
-  // editor 이상만 조회 가능), 안전하게 이름/사진만 반환하는 computed column을 대신 쓴다
-  // (supabase/schema.sql 51번 참고).
-  const { rows, reload } = useRealtimeList<Row>("board_comments", {
-    select: "*, author_name, author_avatar, post_gallery_images(*), highlight_label",
+  const { rows, reload } = useRealtimeList<Row>("notice_comments", {
+    select: "*, author_name, highlight_label",
     filter: (q) => q.eq("post_id", postId),
     orderBy: { column: "created_at", ascending: true },
   });
   const [content, setContent] = useState("");
-  const [images, setImages] = useState<string[]>([]);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState("");
-  const [replyImages, setReplyImages] = useState<string[]>([]);
   const [iAmEditorUp, setIAmEditorUp] = useState(false);
   const [iAmAdmin, setIAmAdmin] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -75,67 +68,56 @@ export default function BoardComments({ postId, userId }: { postId: string; user
   const byParent = groupByParent(rows);
   const roots = byParent.get(null) ?? [];
 
-  const submitComment = async (parentId: string | null, text: string, imgs: string[], onDone: () => void) => {
-    if (!userId || (!text.trim() && imgs.length === 0)) return;
+  const submitComment = async (parentId: string | null, text: string, onDone: () => void) => {
+    if (!userId || !text.trim()) return;
     setFormError(null);
     const { data, error } = await supabase
-      .from("board_comments")
+      .from("notice_comments")
       .insert({ post_id: postId, parent_id: parentId, author_id: userId, content: text })
       .select("id")
       .single();
     if (error || !data) {
-      // 도배 방지 트리거(enforce_rate_limit)가 던지는 예외 등을 화면에 그대로
-      // 보여준다 — 예전엔 조용히 무시돼서 왜 댓글이 안 달리는지 알 수 없었다.
       setFormError(error?.message || "댓글을 등록하지 못했습니다.");
       return;
     }
-    if (imgs.length > 0) {
-      await supabase
-        .from("post_gallery_images")
-        .insert(imgs.map((url, i) => ({ board_comment_id: data.id, image_url: url, order_index: i })));
-    }
+    // 알림 센터 알림은 DB 트리거가 이미 처리했다 — 이메일만 별도로 요청한다(실패해도
+    // 댓글 자체는 이미 등록됐으니 막지 않는다, 관리자 알림 발송의 웹 푸시와 동일한 방침).
+    fetch("/api/notify-comment-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ commentId: data.id }),
+    }).catch(() => {});
     onDone();
     reload();
   };
 
-  // 댓글을 지울 때 첨부 이미지 행은 FK(on delete cascade)로 자동 정리되지만, 실제
-  // 스토리지에 올라간 파일 자체는 DB cascade로는 안 지워지므로 먼저 직접 지운다.
-  const removeComment = async (id: string, galleryImages: PostGalleryImage[]) => {
+  const removeComment = async (id: string) => {
     if (!confirm("이 댓글을 삭제하시겠습니까?")) return;
-    await Promise.all(galleryImages.map((img) => removeStorageFile(supabase, COMMENT_IMAGE_BUCKET, img.image_url)));
-    await supabase.from("board_comments").delete().eq("id", id);
+    await supabase.from("notice_comments").delete().eq("id", id);
     reload();
   };
 
   const toggleHidden = async (id: string, isHidden: boolean) => {
-    await supabase.from("board_comments").update({ is_hidden: !isHidden }).eq("id", id);
+    await supabase.from("notice_comments").update({ is_hidden: !isHidden }).eq("id", id);
     reload();
   };
 
   const renderNode = (node: Row, depth: number) => {
-    // 대댓글에 또 답글을 달면 같은 parent_id(최상위 댓글)로 묶어서, 2단계까지만
-    // 시각적으로 들여쓰기한다(무한 중첩 대신 카카오톡/네이버 카페식 평평한 대댓글).
     const children = depth === 0 ? byParent.get(node.id) ?? [] : [];
-    // 대댓글(depth 1)에 다시 답글을 눌러도 새 댓글은 이 노드가 아니라 최상위 댓글에
-    // 붙여서(rootId), 들여쓰기가 더 깊어지지 않고 같은 줄에 나란히 쌓이게 한다.
     const rootId = depth === 0 ? node.id : node.parent_id!;
     const authorLabel = node.author_name || "탈퇴한 사용자";
     return (
       <div key={node.id} className={depth > 0 ? "ml-6 mt-2.5 border-l-2 border-border pl-3" : "mt-3.5 pt-3.5 border-t border-border first:border-t-0 first:pt-0"}>
         <div className="flex items-center gap-1.5 text-sm min-w-0">
-          {node.author_avatar ? (
-            <img src={node.author_avatar} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" />
-          ) : (
-            <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
-              {authorLabel[0]}
-            </span>
-          )}
+          <span className="w-5 h-5 rounded-full bg-navy text-white flex items-center justify-center text-[9px] font-bold shrink-0">
+            {authorLabel[0]}
+          </span>
           {node.author_id ? (
             <ReportableName
               targetUserId={node.author_id}
               name={authorLabel}
               myId={userId}
-              context="게시판 댓글"
+              context="공지 댓글"
               className="font-bold"
               canEditProfile={iAmAdmin}
             />
@@ -153,14 +135,7 @@ export default function BoardComments({ postId, userId }: { postId: string; user
         <p className="text-sm mt-1 mb-1 whitespace-pre-wrap">
           <Linkify text={node.content} />
         </p>
-        {node.post_gallery_images.length > 0 && (
-          <ImageGallery
-            className="max-w-[280px]"
-            urls={[...node.post_gallery_images].sort((a, b) => a.order_index - b.order_index).map((g) => g.image_url)}
-          />
-        )}
         <div className="flex items-center gap-2.5 text-xs whitespace-nowrap">
-          <LikeButton targetType="board_comment" targetId={node.id} likeCount={node.like_count ?? 0} userId={userId} />
           {userId && (
             <button onClick={() => setReplyTo(replyTo === node.id ? null : node.id)} className="text-blue font-bold shrink-0">
               답글
@@ -172,42 +147,38 @@ export default function BoardComments({ postId, userId }: { postId: string; user
             </button>
           )}
           {(userId === node.author_id || iAmAdmin) && (
-            <button onClick={() => removeComment(node.id, node.post_gallery_images)} className="text-red font-bold shrink-0">
+            <button onClick={() => removeComment(node.id)} className="text-red font-bold shrink-0">
               삭제
             </button>
           )}
           <ReportButton
-            targetType="board_comment"
+            targetType="notice_comment"
             targetId={node.id}
             authorId={node.author_id}
             myId={userId}
-            context="게시판 댓글"
+            context="공지 댓글"
           />
         </div>
         {replyTo === node.id && userId && (
-          <div className="flex flex-col gap-1.5 mt-1.5">
-            <div className="flex gap-2">
-              <textarea
-                rows={2}
-                className="flex-1 border border-border rounded-lg px-2.5 py-1.5 text-sm resize-none"
-                value={replyContent}
-                onChange={(e) => setReplyContent(e.target.value)}
-                placeholder="답글을 입력하세요"
-              />
-              <button
-                onClick={() =>
-                  submitComment(rootId, replyContent, replyImages, () => {
-                    setReplyContent("");
-                    setReplyImages([]);
-                    setReplyTo(null);
-                  })
-                }
-                className="bg-navy text-white text-xs font-bold rounded-lg px-3"
-              >
-                등록
-              </button>
-            </div>
-            <MultiImageUpload userId={userId} value={replyImages} onChange={setReplyImages} bucket={COMMENT_IMAGE_BUCKET} max={COMMENT_IMAGE_MAX} />
+          <div className="flex gap-2 mt-1.5">
+            <textarea
+              rows={2}
+              className="flex-1 border border-border rounded-lg px-2.5 py-1.5 text-sm resize-none"
+              value={replyContent}
+              onChange={(e) => setReplyContent(e.target.value)}
+              placeholder="답글을 입력하세요"
+            />
+            <button
+              onClick={() =>
+                submitComment(rootId, replyContent, () => {
+                  setReplyContent("");
+                  setReplyTo(null);
+                })
+              }
+              className="bg-navy text-white text-xs font-bold rounded-lg px-3"
+            >
+              등록
+            </button>
           </div>
         )}
         {children.map((c) => renderNode(c, depth + 1))}
@@ -229,13 +200,12 @@ export default function BoardComments({ postId, userId }: { postId: string; user
               placeholder="댓글을 입력하세요"
             />
             <button
-              onClick={() => submitComment(null, content, images, () => { setContent(""); setImages([]); })}
+              onClick={() => submitComment(null, content, () => setContent(""))}
               className="bg-gold text-white font-bold text-sm rounded-lg px-4"
             >
               등록
             </button>
           </div>
-          <MultiImageUpload userId={userId} value={images} onChange={setImages} bucket={COMMENT_IMAGE_BUCKET} max={COMMENT_IMAGE_MAX} />
           {formError && <p className="text-red text-xs m-0">{formError}</p>}
         </div>
       ) : (

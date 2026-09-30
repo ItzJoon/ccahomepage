@@ -18,7 +18,12 @@ import { removeStorageFile } from "@/lib/storageCleanup";
 import type { Report, ReportStatus, SiteSettings } from "@/lib/types";
 
 const STATUS_LABEL: Record<ReportStatus, string> = { pending: "대기 중", reviewed: "확인함", dismissed: "기각" };
-const TARGET_TYPE_LABEL: Record<string, string> = { profile: "사용자", board_post: "게시글", board_comment: "댓글" };
+const TARGET_TYPE_LABEL: Record<string, string> = {
+  profile: "사용자",
+  board_post: "게시글",
+  board_comment: "댓글",
+  notice_comment: "공지 댓글",
+};
 
 function fmtDateTime(iso: string) {
   return new Date(iso).toLocaleString("ko-KR");
@@ -94,6 +99,7 @@ export default function AdminReportsPage() {
   useEffect(() => {
     const postIds = rows.filter((r) => r.target_type === "board_post").map((r) => r.target_id);
     const commentIds = rows.filter((r) => r.target_type === "board_comment").map((r) => r.target_id);
+    const noticeCommentIds = rows.filter((r) => r.target_type === "notice_comment").map((r) => r.target_id);
     (async () => {
       const next: Record<string, TargetContent> = {};
       if (postIds.length > 0) {
@@ -112,6 +118,15 @@ export default function AdminReportsPage() {
             .sort((a: any, b: any) => a.order_index - b.order_index)
             .map((g: any) => g.image_url);
           next[`board_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden, post_id: c.post_id, images };
+        });
+      }
+      if (noticeCommentIds.length > 0) {
+        const { data } = await supabase
+          .from("notice_comments")
+          .select("id, content, is_hidden, post_id")
+          .in("id", noticeCommentIds);
+        (data ?? []).forEach((c: any) => {
+          next[`notice_comment:${c.id}`] = { content: c.content, is_hidden: c.is_hidden, post_id: c.post_id };
         });
       }
       setContentByKey(next);
@@ -157,12 +172,14 @@ export default function AdminReportsPage() {
   const postLinkId =
     current?.target_type === "board_post"
       ? current.target_id
-      : current?.target_type === "board_comment"
+      : current?.target_type === "board_comment" || current?.target_type === "notice_comment"
         ? currentContent?.post_id ?? null
         : null;
+  const contentTable = (targetType: string) =>
+    targetType === "board_post" ? "board_posts" : targetType === "notice_comment" ? "notice_comments" : "board_comments";
   const toggleHiddenContent = async () => {
     if (!current || !currentContent) return;
-    const table = current.target_type === "board_post" ? "board_posts" : "board_comments";
+    const table = contentTable(current.target_type);
     await supabase.from(table).update({ is_hidden: !currentContent.is_hidden }).eq("id", current.target_id);
     await markReviewed(current.id);
     setActionMsg(currentContent.is_hidden ? "숨김을 해제했습니다." : "숨김 처리했습니다.");
@@ -172,7 +189,7 @@ export default function AdminReportsPage() {
   const removeContent = async () => {
     if (!current) return;
     if (!confirm("이 게시물을 삭제하시겠습니까? 되돌릴 수 없습니다.")) return;
-    const table = current.target_type === "board_post" ? "board_posts" : "board_comments";
+    const table = contentTable(current.target_type);
     // 댓글에 첨부된 이미지는 행 삭제(cascade)로는 스토리지 파일까지 안 지워지므로 먼저 지운다.
     const images = currentContent?.images ?? [];
     await Promise.all(images.map((url) => removeStorageFile(supabase, "attachments", url)));
@@ -201,8 +218,14 @@ export default function AdminReportsPage() {
       {current.context && <p className="text-sm m-0"><span className="font-bold">비고:</span> {current.context}</p>}
 
       {postLinkId && (
-        <Link href={`/board/${postLinkId}`} target="_blank" className="text-blue text-xs font-bold w-fit">
-          {current.target_type === "board_comment" ? "댓글이 달린 게시물 보기 ↗" : "신고된 게시물 보기 ↗"}
+        <Link
+          href={current.target_type === "notice_comment" ? `/notices/${postLinkId}` : `/board/${postLinkId}`}
+          target="_blank"
+          className="text-blue text-xs font-bold w-fit"
+        >
+          {current.target_type === "board_comment" || current.target_type === "notice_comment"
+            ? "댓글이 달린 게시물 보기 ↗"
+            : "신고된 게시물 보기 ↗"}
         </Link>
       )}
 

@@ -514,6 +514,18 @@ export interface BoardComment {
   created_at: string;
 }
 
+/** 공지사항 댓글 — board_comments와 로직은 동일하되 완전히 별개 테이블
+ * (이미지 첨부·좋아요는 없음). */
+export interface NoticeComment {
+  id: string;
+  post_id: string;
+  parent_id: string | null;
+  author_id: string | null;
+  content: string;
+  is_hidden: boolean;
+  created_at: string;
+}
+
 // 게시글/댓글/답변에 붙는 여러 장 사진 갤러리 한 장(post_gallery_images) — 어느 글
 // 종류에 붙었는지는 post_id/board_post_id/question_id/board_comment_id/answer_id 중
 // 하나만 채워지는 것으로 구분한다(supabase/schema.sql 122·124번).
@@ -524,7 +536,7 @@ export interface PostGalleryImage {
   order_index: number;
 }
 
-export type ReportTargetType = "profile" | "board_post" | "board_comment";
+export type ReportTargetType = "profile" | "board_post" | "board_comment" | "notice_comment";
 export type ReportStatus = "pending" | "reviewed" | "dismissed";
 
 export interface UserWarning {
@@ -550,7 +562,7 @@ export interface Report {
   created_at: string;
 }
 
-export type NotificationType = "board_comment" | "qna_answered" | "patch_note";
+export type NotificationType = "board_comment" | "qna_answered" | "patch_note" | "notice_comment";
 
 export interface UserNotification {
   id: string;
