@@ -20,7 +20,7 @@ function nowHM(): string {
 /**
  * 사이트 제한(수업시간 등) 시간대에 학생 계정이 Q&A/게시판에 접속하면 middleware.ts가
  * 여기로 돌려보낸다. 다른 메뉴(공지/뉴스/일정 등)는 이 시간에도 그대로 열람 가능해서
- * /suspended·/access-restricted처럼 사이트 전체를 막는 화면이 아니라, 홈으로 돌아가는
+ * /access-restricted처럼 사이트 전체를 막는 화면이 아니라, 홈으로 돌아가는
  * 링크만 안내한다.
  *
  * middleware는 /qna, /board로 향하는 요청에서만 다시 실행되므로, 이 페이지에 그대로

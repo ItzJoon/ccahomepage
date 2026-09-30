@@ -12,6 +12,7 @@ interface TargetInfo {
   name: string | null;
   nickname: string | null;
   warning_count: number;
+  is_suspended: boolean;
   suspended_until: string | null;
   suspended_reason: string | null;
 }
@@ -53,7 +54,7 @@ export default function ModerationPanel({
   const refresh = async () => {
     const { data } = await supabase
       .from("profiles")
-      .select("id, email, name, nickname, warning_count, suspended_until, suspended_reason")
+      .select("id, email, name, nickname, warning_count, is_suspended, suspended_until, suspended_reason")
       .eq("id", targetUserId)
       .maybeSingle();
     if (data) {
@@ -131,14 +132,17 @@ export default function ModerationPanel({
     }
   };
 
-  const suspend = async () => {
-    if (!confirm(`${displayName}님을 ${suspendDays}일간 정지시킵니다. 계속하시겠습니까?`)) return;
+  const suspend = async (permanent: boolean) => {
+    const confirmMsg = permanent
+      ? `${displayName}님을 영구 정지시킵니다(관리자가 직접 해제하기 전까지 글쓰기가 계속 제한됩니다). 계속하시겠습니까?`
+      : `${displayName}님을 ${suspendDays}일간 정지시킵니다(그 기간에는 글쓰기만 제한, 열람은 가능). 계속하시겠습니까?`;
+    if (!confirm(confirmMsg)) return;
     const { error } = await runRpc("suspend_user", {
       target_user_id: targetUserId,
-      days: suspendDays,
-      p_reason: warningReason.trim() || "관리자 직접 정지",
+      days: permanent ? null : suspendDays,
+      p_reason: warningReason.trim() || (permanent ? "관리자 직접 영구 정지" : "관리자 직접 정지"),
     });
-    flash(error ? `정지 처리에 실패했습니다: ${error.message}` : `✅ ${suspendDays}일간 정지시켰습니다.`);
+    flash(error ? `정지 처리에 실패했습니다: ${error.message}` : permanent ? "✅ 영구 정지시켰습니다." : `✅ ${suspendDays}일간 정지시켰습니다.`);
     if (!error) {
       await refresh();
       onAfterAction?.();
@@ -179,14 +183,19 @@ export default function ModerationPanel({
   };
 
   if (!target) return null;
-  const isSuspended = !!target.suspended_until && new Date(target.suspended_until).getTime() > Date.now();
+  const isSuspended = target.is_suspended && (!target.suspended_until || new Date(target.suspended_until).getTime() > Date.now());
+  const isPermanentSuspend = isSuspended && !target.suspended_until;
 
   return (
     <div className="flex flex-col gap-2">
       <div className="text-sm font-bold">
         경고 {target.warning_count}회
-        {isSuspended && <span className="text-red ml-1">· {fmtDateTime(target.suspended_until!)}까지 정지 중</span>}
-        {isBanned && <span className="text-red ml-1">· 영구 차단됨</span>}
+        {isSuspended && (
+          <span className="text-red ml-1">
+            · {isPermanentSuspend ? "영구 정지 중" : `${fmtDateTime(target.suspended_until!)}까지 일시 정지 중`}
+          </span>
+        )}
+        {isBanned && <span className="text-red ml-1">· 영구 차단됨(접속 불가)</span>}
       </div>
       {isSuspended && target.suspended_reason && (
         <p className="text-xs bg-bg rounded-lg px-2.5 py-1.5 m-0">
@@ -233,33 +242,44 @@ export default function ModerationPanel({
       )}
 
       {isSuspended ? (
-        <button onClick={unsuspend} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50`}>
-          정지 해제
+        <button onClick={unsuspend} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50 text-left`}>
+          ⏸️ 정지 해제 (글쓰기 다시 허용)
         </button>
       ) : (
-        <div className="flex items-center gap-2 mt-1">
-          <input
-            type="number"
-            min={1}
-            value={suspendDays}
-            onChange={(e) => setSuspendDays(Number(e.target.value))}
-            className={`${t.adminInput} w-20`}
-          />
-          <span className="text-xs text-muted">일간</span>
-          <button onClick={suspend} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50`}>
-            일시 정지
+        <div className="flex flex-col gap-1.5 mt-1">
+          <div className="text-xs font-bold text-muted">
+            정지 — 열람은 그대로 가능, 글쓰기(공지·게시판·Q&A·안건·투표 등)만 제한
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={1}
+              value={suspendDays}
+              onChange={(e) => setSuspendDays(Number(e.target.value))}
+              className={`${t.adminInput} w-20`}
+            />
+            <span className="text-xs text-muted">일간</span>
+            <button onClick={() => suspend(false)} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50`}>
+              ⏸️ 일시 정지
+            </button>
+          </div>
+          <button onClick={() => suspend(true)} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50 text-left`}>
+            ⏸️ 영구 정지 (관리자가 해제할 때까지)
           </button>
         </div>
       )}
 
       {isBanned ? (
         <button onClick={unban} disabled={busy} className={`${t.adminBtnSecondary} disabled:opacity-50 text-left`}>
-          🔓 영구 차단 해제
+          🔓 차단 해제 (접속 다시 허용)
         </button>
       ) : (
-        <button onClick={ban} disabled={busy} className={`${t.adminBtnDanger} disabled:opacity-50 text-left`}>
-          🚫 영구 차단
-        </button>
+        <div className="flex flex-col gap-1.5 mt-1">
+          <div className="text-xs font-bold text-muted">차단 — 로그인해도 사이트 접속 자체 불가(일시 차단 없음, 항상 영구)</div>
+          <button onClick={ban} disabled={busy} className={`${t.adminBtnDanger} disabled:opacity-50 text-left`}>
+            🚫 영구 차단
+          </button>
+        </div>
       )}
 
       {actionMsg && (

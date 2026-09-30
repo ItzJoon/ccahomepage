@@ -14,19 +14,17 @@ function fmtDateTime(iso: string) {
 }
 
 /**
- * 일시정지 중인 계정(profiles.suspended_until이 미래)과 차단된 계정(directory_members.
- * is_allowed=false)을 한 화면에서 한눈에 볼 수 있게 모은 목록. 개별 계정의 상세 조치
- * (경고 이력, 정지 기간 조정 등)는 여전히 구성원 프로필의 ModerationPanel에서 하고,
- * 여기서는 "지금 누가 막혀 있는지"를 빠르게 확인하고 그 자리에서 바로 해제만 할 수 있다.
+ * 정지(글쓰기만 제한, is_suspended)와 차단(사이트 접속 자체 불가, directory_members.
+ * is_allowed=false)은 완전히 다른 제재라 헷갈리지 않도록 "일시 정지 / 영구 정지 / 영구
+ * 차단" 세 섹션으로 나눠서 보여준다. 개별 계정의 상세 조치(경고 이력 등)는 여전히
+ * 구성원 프로필의 ModerationPanel에서 하고, 여기서는 "지금 누가 막혀 있는지"를 한눈에
+ * 확인하고 그 자리에서 바로 해제만 할 수 있다.
  */
 export default function AdminModerationPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
   const { isAdmin: iAmAdmin, role, loading: roleLoading } = useMyRole();
   const canView = iAmAdmin || role === "designer";
-  // 정지 해제(unsuspend_user RPC)는 designer도 쓸 수 있게 확장돼 있지만(다른 admin 전용
-  // 화면과 동일한 write parity), 차단 해제(directory_members 직접 update)는 여전히
-  // is_admin() 전용이라 designer는 그 버튼은 못 쓴다 — RLS 범위와 정확히 맞춘다.
   const canModerate = iAmAdmin || role === "designer";
 
   const { rows: profiles, reload: reloadProfiles } = useList<Profile>("profiles", {
@@ -34,9 +32,15 @@ export default function AdminModerationPage() {
   });
   const { rows: directory, reload: reloadDirectory } = useList<DirectoryMember>("directory_members");
 
-  const suspended = profiles
-    .filter((p) => p.suspended_until && new Date(p.suspended_until).getTime() > Date.now())
+  // is_currently_suspended()와 동일한 기준(플래그 + 아직 안 지난 시각)으로 걸러서, 일시
+  // 정지가 자동으로 풀린 것처럼 보이도록 한다(배치 작업 없이 매 렌더링 시점 기준).
+  const currentlySuspended = profiles.filter(
+    (p) => p.is_suspended && (!p.suspended_until || new Date(p.suspended_until).getTime() > Date.now())
+  );
+  const temporarilySuspended = currentlySuspended
+    .filter((p) => p.suspended_until)
     .sort((a, b) => new Date(a.suspended_until!).getTime() - new Date(b.suspended_until!).getTime());
+  const permanentlySuspended = currentlySuspended.filter((p) => !p.suspended_until);
 
   // 학교 명단(학생/교사)만 대상으로 한다 — directory_members에는 "외부 계정 관리"에서
   // 별도로 다루는 외부 계정(member_type='other')도 섞여 있어서, 그쪽은 제외한다.
@@ -48,24 +52,32 @@ export default function AdminModerationPage() {
     if (!error) reloadProfiles();
   };
 
-  const unban = async (id: string) => {
-    await supabase.from("directory_members").update({ is_allowed: true }).eq("id", id);
-    reloadDirectory();
+  // directory_members를 직접 update하면 ban_reason이 안 지워지고 audit_logs도 안 남는다
+  // (예전 버그) — RPC로 통일해서 항상 같은 방식으로 해제되게 한다. 계정이 이미 있으면
+  // uid 기준 RPC를, 아직 가입 전(profiles 행 없음)이면 이메일 기준 RPC를 쓴다.
+  const unban = async (email: string, profileId: string | undefined) => {
+    const { error } = profileId
+      ? await supabase.rpc("unban_user_permanently", { target_user_id: profileId })
+      : await supabase.rpc("unban_by_email", { target_email: email });
+    if (!error) {
+      reloadDirectory();
+      reloadProfiles();
+    }
   };
 
   return (
     <div>
       <h2 className="text-[22px] mb-2">정지 · 차단 계정</h2>
       <p className="text-muted mb-4">
-        현재 일시정지 중이거나 명단에서 차단된 계정을 한 곳에서 확인하고 바로 해제할 수 있습니다.
-        경고 이력이나 정지 기간 조정 등 상세 조치는 구성원 프로필에서 할 수 있습니다.
+        <strong>정지</strong>는 글쓰기(공지·게시판·Q&A·안건·투표 등)만 막고 열람은 그대로 됩니다. <strong>차단</strong>은 로그인해도
+        사이트 접속 자체가 안 됩니다. 경고 이력이나 세부 조치는 구성원 프로필에서 할 수 있습니다.
       </p>
 
       {!roleLoading && !canView && (
         <div className="bg-[#FFF3DC] dark:bg-white/10 text-gold text-sm rounded-lg p-3 mb-4">이 화면은 admin 이상만 열람할 수 있습니다.</div>
       )}
 
-      <h3 className="text-base font-bold mb-2">일시정지 중 ({suspended.length})</h3>
+      <h3 className="text-base font-bold mb-2">일시 정지 중 ({temporarilySuspended.length})</h3>
       <AdminTable>
         <thead>
           <tr>
@@ -73,12 +85,12 @@ export default function AdminModerationPage() {
             <th className={t.adminTableHeaderCell}>이메일</th>
             <th className={`${t.adminTableHeaderCell} w-24`}>경고 횟수</th>
             <th className={t.adminTableHeaderCell}>사유</th>
-            <th className={`${t.adminTableHeaderCell} w-48`}>정지 해제 시각</th>
+            <th className={`${t.adminTableHeaderCell} w-48`}>자동 해제 시각</th>
             <th className={`${t.adminTableHeaderCell} w-24`} />
           </tr>
         </thead>
         <tbody>
-          {suspended.map((p) => (
+          {temporarilySuspended.map((p) => (
             <tr key={p.id}>
               <td className={t.adminTableCell}>
                 <Link href={`/members/${p.id}`} className="text-blue font-bold">
@@ -98,13 +110,50 @@ export default function AdminModerationPage() {
               </td>
             </tr>
           ))}
-          {suspended.length === 0 && (
-            <tr><td colSpan={6} className="text-muted text-center py-6 text-sm">현재 일시정지 중인 계정이 없습니다.</td></tr>
+          {temporarilySuspended.length === 0 && (
+            <tr><td colSpan={6} className="text-muted text-center py-6 text-sm">현재 일시 정지 중인 계정이 없습니다.</td></tr>
           )}
         </tbody>
       </AdminTable>
 
-      <h3 className="text-base font-bold mb-2 mt-6">차단된 계정 ({banned.length})</h3>
+      <h3 className="text-base font-bold mb-2 mt-6">영구 정지 중 ({permanentlySuspended.length})</h3>
+      <AdminTable>
+        <thead>
+          <tr>
+            <th className={t.adminTableHeaderCell}>이름</th>
+            <th className={t.adminTableHeaderCell}>이메일</th>
+            <th className={`${t.adminTableHeaderCell} w-24`}>경고 횟수</th>
+            <th className={t.adminTableHeaderCell}>사유</th>
+            <th className={`${t.adminTableHeaderCell} w-24`} />
+          </tr>
+        </thead>
+        <tbody>
+          {permanentlySuspended.map((p) => (
+            <tr key={p.id}>
+              <td className={t.adminTableCell}>
+                <Link href={`/members/${p.id}`} className="text-blue font-bold">
+                  {adminDisplayName(p, "이름 없음")}
+                </Link>
+              </td>
+              <td className={t.adminTableCell}>{p.email}</td>
+              <td className={t.adminTableCell}>{p.warning_count}</td>
+              <td className={`${t.adminTableCell} text-muted`}>{p.suspended_reason || "-"}</td>
+              <td className={t.adminTableCell}>
+                {canModerate && (
+                  <button onClick={() => unsuspend(p.id)} className={t.adminBtnSecondary}>
+                    정지 해제
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+          {permanentlySuspended.length === 0 && (
+            <tr><td colSpan={5} className="text-muted text-center py-6 text-sm">현재 영구 정지 중인 계정이 없습니다.</td></tr>
+          )}
+        </tbody>
+      </AdminTable>
+
+      <h3 className="text-base font-bold mb-2 mt-6">영구 차단된 계정 ({banned.length})</h3>
       <AdminTable>
         <thead>
           <tr>
@@ -135,7 +184,7 @@ export default function AdminModerationPage() {
                 <td className={`${t.adminTableCell} text-muted`}>{d.ban_reason || "-"}</td>
                 <td className={t.adminTableCell}>
                   {iAmAdmin && (
-                    <button onClick={() => unban(d.id)} className={t.adminBtnSecondary}>
+                    <button onClick={() => unban(d.email, linkedProfile?.id)} className={t.adminBtnSecondary}>
                       차단 해제
                     </button>
                   )}

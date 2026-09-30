@@ -2,6 +2,7 @@
 
 import AdminTable from "@/components/admin/AdminTable";
 import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta } from "@/components/admin/AdminCard";
+import ModerationPanel from "@/components/admin/ModerationPanel";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
@@ -21,6 +22,9 @@ export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const [gradeFilter, setGradeFilter] = useState("전체");
   const [myId, setMyId] = useState<string | null>(null);
+  // 정지/차단(제재)은 신고 내역 화면과 동일한 ModerationPanel을 여기서도 모달로 띄워서
+  // 쓴다 — 신고 문맥 없이도 회원 목록에서 바로 제재할 수 있어야 하기 때문.
+  const [moderatingId, setModeratingId] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setMyId(data.user?.id ?? null));
@@ -43,6 +47,9 @@ export default function AdminUsersPage() {
   // 부여할 수 없다(요건: admin에게는 안 보임). superadmin(developer)은 ASSIGNABLE_ROLES에서
   // 이미 빠져 있어 누구에게도(자기 자신 포함) 새로 부여할 수 없다.
   const selectableRoles = iAmSuperadmin ? ASSIGNABLE_ROLES : ASSIGNABLE_ROLES.filter((r) => r !== "admin" && r !== "designer");
+  // suspend_user/ban_user_permanently RPC의 권한 조건(is_admin() or is_designer())과 정확히
+  // 맞춘다 — 못 쓰는 사람에게 항상 실패하는 버튼을 보여주지 않기 위함.
+  const canModerate = iAmAdmin || iAmDesigner;
 
   const changeRole = async (id: string, role: string) => {
     await supabase.from("profiles").update({ role }).eq("id", id);
@@ -135,6 +142,14 @@ export default function AdminUsersPage() {
                   </label>
                 </div>
               </div>
+              {canModerate && (
+                <button
+                  onClick={() => setModeratingId(p.id)}
+                  className="text-red text-xs font-bold mt-2 min-h-[36px]"
+                >
+                  정지 · 차단 관리
+                </button>
+              )}
             </AdminCard>
           );
         })}
@@ -153,6 +168,7 @@ export default function AdminUsersPage() {
             <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 사법위원회 구성원으로 등록하면 자동으로 켜집니다.">
               사법위원회
             </th>
+            <th className={`${t.adminTableHeaderCell} w-24`} />
           </tr>
         </thead>
         <tbody>
@@ -205,12 +221,36 @@ export default function AdminUsersPage() {
                 <td className={`${t.adminTableCell} text-center`}>
                   <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
                 </td>
+                <td className={t.adminTableCell}>
+                  {canModerate && (
+                    <button onClick={() => setModeratingId(p.id)} className="text-red text-xs font-bold">
+                      정지 · 차단
+                    </button>
+                  )}
+                </td>
               </tr>
             );
           })}
-          {list.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
+          {list.length === 0 && <tr><td colSpan={7} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
       </AdminTable>
+
+      {moderatingId && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={() => setModeratingId(null)}>
+          <div
+            className="bg-surface rounded-2xl border border-border w-full max-w-md max-h-[85vh] overflow-y-auto p-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start gap-3 mb-3">
+              <h3 className="text-lg font-bold m-0">정지 · 차단 관리</h3>
+              <button onClick={() => setModeratingId(null)} className="text-muted text-2xl leading-none shrink-0" aria-label="닫기">
+                ×
+              </button>
+            </div>
+            <ModerationPanel targetUserId={moderatingId} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

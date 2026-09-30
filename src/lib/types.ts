@@ -16,6 +16,10 @@ export interface Profile {
   badge_sound_enabled: boolean;
   notification_sound_enabled: boolean;
   warning_count: number;
+  /** 글쓰기(게시)만 막는 정지 상태 — suspended_until이 null이면 영구 정지, 값이 있으면
+   * 그 시각까지만 일시 정지(지나면 자동 해제된 것처럼 취급). 사이트 접속 자체를 막는
+   * 차단은 이것과 별개로 directory_members.is_allowed/ban_reason(이메일 기준)로 관리된다. */
+  is_suspended: boolean;
   suspended_until: string | null;
   suspended_reason: string | null;
   created_at: string;

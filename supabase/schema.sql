@@ -5970,3 +5970,175 @@ create or replace function answered_by_name(answers) returns text as $$
 $$ language sql stable security definer;
 
 grant execute on function answered_by_name(answers) to anon, authenticated;
+
+-- 140. 정지(글쓰기만 제한)와 차단(사이트 접속 자체 불가)을 명확히 분리
+-- 지금까지는 정지(suspended_until)도 미들웨어가 사이트 전체를 막아서 차단과 사실상
+-- 동일하게 동작했다. 이제 정지는 글쓰기(공지/게시판/Q&A/안건/투표 등)만 막고 열람은
+-- 그대로 허용한다. 차단은 기존 그대로 directory_members.is_allowed/ban_reason(이메일
+-- 기준, 영구만 존재)를 유지한다 — 이미 스펙과 일치하고, 가입 전 이메일도 미리 차단할
+-- 수 있는 기존 기능을 잃지 않기 위해 그대로 둔다.
+--
+-- 정지는 지금까지 suspended_until(항상 미래 시각)만 있어서 "영구 정지"를 표현할 방법이
+-- 없었다 — is_suspended 플래그를 추가해서 suspended_until이 null이어도 "영구 정지 중"을
+-- 구분할 수 있게 한다(정지 아님과 영구 정지 둘 다 suspended_until=null이라 이 플래그
+-- 없이는 구분 불가능했음).
+alter table profiles add column if not exists is_suspended boolean not null default false;
+
+-- 기존에 실제로 정지 중이던 계정(일시 정지, 아직 안 풀림)을 새 플래그로 백필한다.
+update profiles set is_suspended = true
+where suspended_until is not null and suspended_until > now();
+
+-- "지금 이 순간 실제로 정지 중인지"를 매번 다시 계산한다(배치 작업 없이 시각 비교만으로
+-- 일시 정지가 자동으로 풀린 것처럼 동작하게 하기 위함 — is_suspended 플래그 자체는
+-- 건드리지 않고 계산에서만 반영한다).
+create or replace function is_currently_suspended(p_user_id uuid)
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce(
+    (
+      select p.is_suspended and (p.suspended_until is null or p.suspended_until > now())
+      from profiles p where p.id = p_user_id
+    ), false
+  );
+$$;
+
+create or replace function is_currently_suspended_self()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select is_currently_suspended(auth.uid());
+$$;
+
+grant execute on function is_currently_suspended(uuid) to authenticated;
+grant execute on function is_currently_suspended_self() to authenticated;
+
+-- 자기 프로필 수정 차단 로직(93번)도 새 정지 정의(영구 정지 포함)를 반영하도록 갱신한다.
+create or replace function is_self_suspended_or_banned()
+returns boolean
+language sql stable security definer set search_path = public
+as $$
+  select coalesce(
+    (
+      select is_currently_suspended(p.id)
+        or exists (
+          select 1 from directory_members dm where dm.email = p.email and dm.is_allowed = false
+        )
+      from profiles p where p.id = auth.uid()
+    ), false
+  );
+$$;
+
+-- suspend_user: p_days를 생략(null)하면 영구 정지, 지정하면 그 일수만큼 일시 정지.
+create or replace function suspend_user(target_user_id uuid, days int, p_reason text)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 계정을 정지할 수 있습니다';
+  end if;
+  update profiles set
+    is_suspended = true,
+    suspended_until = case when days is null then null else now() + (days || ' days')::interval end,
+    suspended_reason = p_reason
+  where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'suspend', 'profiles', target_user_id::text, jsonb_build_object('days', days, 'reason', p_reason));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace function unsuspend_user(target_user_id uuid)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 정지를 해제할 수 있습니다';
+  end if;
+  update profiles set is_suspended = false, suspended_until = null, suspended_reason = null where id = target_user_id;
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unsuspend', 'profiles', target_user_id::text, jsonb_build_object('reason', '관리자가 직접 정지 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+-- 이메일 기준 차단 해제 — unban_user_permanently(uid 기준)는 profiles 행이 있어야만
+-- 동작하는데, 차단은 가입 전 이메일도 걸 수 있어서(internal_ban_user_by_email 참고)
+-- 계정이 아직 없는 이메일은 그 RPC로 해제할 수 없었다. 이메일 기준으로 동일하게
+-- (사유 초기화, 감사 로그, login_access_requests 갱신) 해제하는 RPC를 별도로 둔다.
+create or replace function unban_by_email(target_email text)
+returns void as $$
+begin
+  if not (is_admin() or is_designer()) then
+    raise exception 'admin 이상만 차단을 해제할 수 있습니다';
+  end if;
+
+  update directory_members set is_allowed = true, ban_reason = null where email = target_email;
+
+  if exists (select 1 from login_access_requests where email = target_email) then
+    update login_access_requests
+      set status = 'approved', decided_by = auth.uid(), decided_at = now()
+      where email = target_email;
+  end if;
+
+  insert into audit_logs (user_id, action, target_table, target_id, after_data)
+  values (auth.uid(), 'unban', 'directory_members', target_email, jsonb_build_object('reason', '관리자가 직접 차단 해제'));
+end;
+$$ language plpgsql security definer set search_path = public;
+
+grant execute on function unban_by_email(text) to authenticated;
+
+-- 글쓰기(공지/뉴스, Q&A 질문/답변, 게시판 글/댓글, 안건/투표, 부서·사법위원회 활동기록)만
+-- 막고 열람은 그대로 허용한다 — 지금까지는 미들웨어가 정지 중인 사용자를 사이트 전체에서
+-- 막았는데(열람까지 불가), 이제 그 전체 차단은 제거하고(middleware.ts) 여기 RLS write
+-- check로만 막는다. 기존 조건은 그대로 두고 정지 체크만 덧붙인다.
+drop policy if exists "posts_insert_editor" on posts;
+create policy "posts_insert_editor" on posts for insert
+  with check (type in ('notice','news') and is_editor_or_above() and not is_currently_suspended_self());
+
+drop policy if exists "posts_insert_teacher_notice" on posts;
+create policy "posts_insert_teacher_notice" on posts for insert
+  with check (
+    author_id = auth.uid()
+    and (
+      (type = 'subject_notice' and teacher_owns_subject(auth.uid(), target_subject))
+      or (type = 'homeroom_notice' and teacher_owns_homeroom(auth.uid(), target_homeroom))
+    )
+    and not is_currently_suspended_self()
+  );
+
+drop policy if exists "answers_write_admin" on answers;
+create policy "answers_write_admin" on answers for insert
+  with check (is_editor_or_above() and not is_currently_suspended_self());
+
+drop policy if exists "questions_insert_own" on questions;
+create policy "questions_insert_own" on questions for insert
+  with check (auth.uid() = user_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "board_posts_insert_own" on board_posts;
+create policy "board_posts_insert_own" on board_posts for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "board_comments_insert_own" on board_comments;
+create policy "board_comments_insert_own" on board_comments for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "proposals_insert_own" on proposals;
+create policy "proposals_insert_own" on proposals for insert
+  with check (auth.uid() = author_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "proposal_votes_insert_own" on proposal_votes;
+create policy "proposal_votes_insert_own" on proposal_votes for insert
+  with check (auth.uid() = user_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "judiciary_proposals_insert" on judiciary_proposals;
+create policy "judiciary_proposals_insert" on judiciary_proposals for insert
+  with check (is_judiciary_manager() and auth.uid() = author_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "judiciary_proposal_votes_insert" on judiciary_proposal_votes;
+create policy "judiciary_proposal_votes_insert" on judiciary_proposal_votes for insert
+  with check (is_judiciary_manager() and auth.uid() = user_id and not is_student_restricted_now() and not is_currently_suspended_self());
+
+drop policy if exists "judiciary_records_insert" on judiciary_records;
+create policy "judiciary_records_insert" on judiciary_records for insert
+  with check (is_judiciary_manager() and not is_currently_suspended_self());
+
+drop policy if exists "org_records_insert_editor" on org_records;
+create policy "org_records_insert_editor" on org_records for insert
+  with check (is_editor_or_above() and not is_currently_suspended_self());
