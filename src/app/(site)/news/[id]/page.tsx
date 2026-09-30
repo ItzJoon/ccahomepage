@@ -27,11 +27,6 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
   };
 }
 
-function fmt(d: string) {
-  const dt = new Date(d);
-  return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
-}
-
 /** 구글 드라이브 공유 링크(.../file/d/FILE_ID/view...)를 임베드 가능한 preview 링크로 바꾼다. */
 function toDriveEmbedUrl(url: string) {
   const match = url.match(/\/file\/d\/([^/]+)/);
@@ -57,7 +52,7 @@ export default async function NewsDetailPage({ params }: { params: { id: string 
         <Badge color="teal" className="shrink-0">{post.category}</Badge>
         <h1 className="text-2xl m-0 min-w-0">{post.title}</h1>
       </div>
-      <div className="text-muted text-sm mb-[18px]">{post.author_name || "-"} · {fmt(post.created_at)}</div>
+      <div className="text-muted text-sm mb-[18px]">{post.author_name || "-"}</div>
       <div className="leading-8 whitespace-pre-wrap text-[15px]"><Linkify text={post.content} /></div>
       {post.video_source === "drive" && post.video_url && (
         <div className="mt-5 aspect-video">

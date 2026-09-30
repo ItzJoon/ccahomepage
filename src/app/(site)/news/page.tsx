@@ -11,11 +11,6 @@ interface Row extends Post {
   author_name: string | null;
 }
 
-function fmt(d: string) {
-  const dt = new Date(d);
-  return `${dt.getFullYear()}.${String(dt.getMonth() + 1).padStart(2, "0")}.${String(dt.getDate()).padStart(2, "0")}`;
-}
-
 export default function NewsPage() {
   useTrackPageVisit("news"); // "탐험가" 뱃지용 방문 기록
   // author_name은 profiles를 그대로 조인하면 다른 사람 이름이 RLS에 막혀 비어오므로,
@@ -39,7 +34,7 @@ export default function NewsPage() {
               <div className="text-teal font-bold text-xs mb-1.5">{n.category}</div>
               <div className="font-bold mb-2">{n.title}</div>
               <p className="text-sm text-muted line-clamp-3 m-0">{n.content}</p>
-              <div className="mt-2.5 text-xs text-muted">{n.author_name || "-"} · {fmt(n.created_at)}</div>
+              <div className="mt-2.5 text-xs text-muted">{n.author_name || "-"}</div>
             </Link>
           ))}
           {rows.length === 0 && <div className="text-muted text-center py-8 text-sm col-span-3">등록된 뉴스가 없습니다.</div>}
