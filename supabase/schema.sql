@@ -6341,3 +6341,22 @@ grant execute on function get_email_pref_for_user(uuid) to authenticated;
 -- 이름만 THEME_LABELS.apple.label = "기본"으로 바꿨다. 컬럼 기본값도 더 이상 존재하지
 -- 않는 'classic'을 가리키고 있던 걸 'apple'로 맞춘다.
 alter table site_theme alter column theme set default 'apple';
+
+-- ------------------------------------------------------------
+-- 143. 활동 로그: 게시판 글 "관리자 열람(reviewed_at)"도 조회수처럼 "수정"으로
+-- 잘못 기록되던 버그 수정
+-- ------------------------------------------------------------
+-- 39번("조회수 갱신을 수정으로 잘못 기록하던 버그 수정")에서 view_count만 바뀐 update는
+-- 제외했지만, board_posts.reviewed_at(90번: 관리자가 /admin/board에서 글을 열어보면
+-- 자동으로 찍히는 "안 읽음" 해제용 타임스탬프 — 조회수와 마찬가지로 실제 내용 수정이
+-- 아니라 관리자 화면을 열람만 해도 생기는 부수 효과)은 그때 빠뜨려서, 글쓴이 본인이
+-- editor 이상 권한으로 자기 글을 /admin/board에서 열어보기만 해도 실제로는 아무것도
+-- 안 바뀌었는데 활동 로그에 "수정"으로 기록되고 있었다. view_count와 함께 비교 대상에서
+-- 제외한다.
+drop trigger if exists audit_board_posts_update on board_posts;
+create trigger audit_board_posts_update after update on board_posts
+  for each row
+  when (
+    (to_jsonb(OLD) - 'view_count' - 'reviewed_at') is distinct from (to_jsonb(NEW) - 'view_count' - 'reviewed_at')
+  )
+  execute function log_audit_event();
