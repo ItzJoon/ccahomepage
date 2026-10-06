@@ -13,7 +13,6 @@ export interface HomeThemeStyle {
   navIdle: string;
   navText: string;
   authBtn: string;
-  adminLogoutBtn: string;
   iconBtnHover: string;
   mobileBorder: string;
   profileTrigger: string;

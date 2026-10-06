@@ -8,12 +8,13 @@ export const appleTheme: HomeThemeStyle = {
   headerText: "text-appleInk",
   headerBorder: "border-b border-appleBorder",
   logoFont: "",
-  navShape: "px-3 py-2 rounded-full text-[15px]",
+  // min-h-[44px] + inline-flex items-center: 텍스트 줄높이에 기대지 않고 터치 탭 영역을
+  // 44px 이상으로 보장한다(이 테마는 sm: 이상에서 노출되는 데스크톱/태블릿 내비라 터치도 가능).
+  navShape: "min-h-[44px] inline-flex items-center px-3 py-2 rounded-full text-[15px]",
   navActive: "text-appleInk font-bold",
   navIdle: "text-appleMuted hover:text-appleInk",
   navText: "text-appleMuted hover:text-appleInk",
   authBtn: "rounded-full border border-appleBorder bg-surface hover:bg-appleBg",
-  adminLogoutBtn: "rounded-lg border border-[#d9d9d9] bg-[#f2f2f2] text-[#4d4d4d] hover:bg-appleBg dark:bg-appleBg dark:border-appleBorder dark:text-appleInk",
   iconBtnHover: "hover:bg-appleBg",
   mobileBorder: "border-t border-appleBorder",
   profileTrigger: "rounded-full border border-appleBorder bg-surface hover:bg-appleBg",
@@ -82,8 +83,11 @@ export const appleTheme: HomeThemeStyle = {
   dashActionSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-full px-5 py-3 bg-surface",
   dashActivityCard: "bg-surface border border-appleBorder rounded-3xl p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
   dashActivityTagNotice: "bg-appleBlue/[0.07] text-appleBlue",
-  dashActivityTagNews: "bg-[#ecfdf5] dark:bg-white/10 text-appleGreen",
-  dashActivityViewAllBtn: "border border-appleBlue text-appleInk text-sm font-bold rounded-full px-3 py-1.5 bg-[#f9fafb] dark:bg-white/10",
+  // 기존 text-appleGreen(#10b981)은 이 라이트 배경 위에서 대비 ~2.6:1로 WCAG AA(4.5:1)
+  // 미달이었다. 다크모드 쪽(appleGreen dark 값 #34d399)은 이미 충분히 밝은 배경 대비라
+  // 그대로 두고, 라이트 모드 텍스트만 AA를 통과하는 진한 녹색으로 고정한다(~6.2:1).
+  dashActivityTagNews: "bg-[#ecfdf5] dark:bg-white/10 text-[#047857] dark:text-appleGreen",
+  dashActivityViewAllBtn: "border border-appleBlue text-appleInk text-sm font-bold rounded-full px-3 py-1.5 bg-appleBg",
 
   adminBtnPrimary: "bg-appleBlue text-white font-bold text-sm rounded-lg px-4 py-2 hover:opacity-90",
   adminBtnSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-lg px-4 py-2 bg-surface hover:bg-appleBg",
