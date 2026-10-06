@@ -16,10 +16,14 @@ export default function AdminPersonMenu({
   userId,
   name,
   maxWidthClass = "max-w-[140px]",
+  extraAction,
 }: {
   userId: string;
   name: string;
   maxWidthClass?: string;
+  /** "닉네임 수정"/"제재 조치" 위에 추가로 넣을 메뉴 항목(예: Q&A 관리의 "이 학생 질문만
+   * 보기"). 화면마다 다른 동작이라 컴포넌트 안에 하드코딩하지 않고 호출부에서 주입받는다. */
+  extraAction?: { label: string; onClick: () => void };
 }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -56,6 +60,18 @@ export default function AdminPersonMenu({
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 w-36 py-1.5 z-30 bg-surface border border-border rounded-lg shadow-md">
+          {extraAction && (
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                extraAction.onClick();
+              }}
+              className="block w-full text-left px-3 py-1.5 text-xs hover:bg-bg"
+            >
+              {extraAction.label}
+            </button>
+          )}
           <button type="button" onClick={startEdit} className="block w-full text-left px-3 py-1.5 text-xs hover:bg-bg">
             닉네임·소개 수정
           </button>

@@ -2,7 +2,7 @@
 
 import AdminTable, { truncateCellProps, actionCellClass } from "@/components/admin/AdminTable";
 import { AdminCardList, AdminCard, AdminCardTitle, AdminCardMeta, AdminCardFooter, AdminCardAction } from "@/components/admin/AdminCard";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
@@ -42,6 +42,13 @@ export default function AdminQnaPage() {
   });
   const [openId, setOpenId] = useState<string | null>(null);
   const [answerText, setAnswerText] = useState("");
+  const [search, setSearch] = useState("");
+  // 이름 클릭으로 특정 학생 질문만 모아볼 때는 이름이 같은 다른 학생과 섞이지 않도록
+  // 텍스트 검색이 아니라 user_id로 정확히 거른다(검색창과는 별개 상태로 두고 둘 중
+  // 하나만 켜져 있게 한다).
+  const [personFilter, setPersonFilter] = useState<{ id: string; name: string } | null>(null);
+  const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "answered">("all");
+  const [unreadOnly, setUnreadOnly] = useState(false);
   // 답변 이미지는 최대 3장까지 갤러리(post_gallery_images.answer_id)로 저장하고,
   // answers.image_url은 첫 장을 그대로 담아 대표 이미지로 유지한다(122번 규칙과 동일).
   const [answerImages, setAnswerImages] = useState<string[]>([]);
@@ -50,6 +57,22 @@ export default function AdminQnaPage() {
   // is_designer()를 허용).
   const canDelete = iAmAdmin || role === "designer";
   const { t } = useHomeTheme();
+
+  const filteredRows = useMemo(() => {
+    return rows.filter((q) => {
+      if (personFilter) {
+        if (q.user_id !== personFilter.id) return false;
+      } else if (search.trim()) {
+        const needle = search.trim().toLowerCase();
+        const name = adminDisplayName(q.asker).toLowerCase();
+        const email = (q.asker?.email ?? "").toLowerCase();
+        if (!name.includes(needle) && !email.includes(needle)) return false;
+      }
+      if (statusFilter !== "all" && q.status !== statusFilter) return false;
+      if (unreadOnly && q.reviewed_at) return false;
+      return true;
+    });
+  }, [rows, search, personFilter, statusFilter, unreadOnly]);
 
   const openQ = (q: QuestionWithAnswer) => {
     setOpenId(q.id);
@@ -125,13 +148,23 @@ export default function AdminQnaPage() {
 
   const current = rows.find((q) => q.id === openId);
 
+  const filterByPerson = (q: QuestionWithAnswer) => {
+    if (!q.user_id) return;
+    setSearch("");
+    setPersonFilter({ id: q.user_id, name: adminDisplayName(q.asker) });
+  };
+
   const formPanel = current && (
     <div className={`${t.adminEditPanel} sm:sticky sm:top-20`}>
       <h3>{current.title}</h3>
       <p className="text-xs text-muted mb-1 flex items-center gap-1 flex-wrap">
         질문자:
         {current.user_id ? (
-          <AdminPersonMenu userId={current.user_id} name={adminDisplayName(current.asker, "알 수 없음")} />
+          <AdminPersonMenu
+            userId={current.user_id}
+            name={adminDisplayName(current.asker, "알 수 없음")}
+            extraAction={{ label: "이 학생 질문만 보기", onClick: () => filterByPerson(current) }}
+          />
         ) : (
           <span>{adminDisplayName(current.asker, "알 수 없음")}</span>
         )}
@@ -163,8 +196,40 @@ export default function AdminQnaPage() {
     <div className={`grid grid-cols-1 gap-[18px] items-start ${current ? "lg:grid-cols-[1fr_360px]" : ""}`}>
       <div className="min-w-0">
         <h2 className="text-[22px] mb-4">Q&amp;A 관리</h2>
+
+        <div className="flex gap-2 mb-4 flex-wrap items-center">
+          {personFilter ? (
+            <div className="flex items-center gap-1.5 bg-bg rounded-lg px-3 py-1.5 text-sm">
+              질문자: <strong>{personFilter.name}</strong>
+              <button type="button" onClick={() => setPersonFilter(null)} className="text-muted font-bold ml-1">
+                ✕
+              </button>
+            </div>
+          ) : (
+            <input
+              className={`${t.adminInput} flex-1 min-w-[160px]`}
+              placeholder="질문자 이름 또는 이메일 검색"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          )}
+          <select
+            className={t.adminInput}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as "all" | "pending" | "answered")}
+          >
+            <option value="all">전체 상태</option>
+            <option value="pending">답변 대기</option>
+            <option value="answered">답변 완료</option>
+          </select>
+          <label className="flex items-center gap-1.5 text-sm shrink-0">
+            <input type="checkbox" checked={unreadOnly} onChange={(e) => setUnreadOnly(e.target.checked)} />
+            미확인만
+          </label>
+        </div>
+
         <AdminCardList>
-          {rows.map((q) => (
+          {filteredRows.map((q) => (
             <AdminCard
               key={q.id}
               onClick={() => (openId === q.id ? setOpenId(null) : openQ(q))}
@@ -179,7 +244,11 @@ export default function AdminQnaPage() {
               <AdminCardMeta>
                 <span onClick={(e) => q.user_id && e.stopPropagation()}>
                   {q.user_id ? (
-                    <AdminPersonMenu userId={q.user_id} name={adminDisplayName(q.asker)} />
+                    <AdminPersonMenu
+                      userId={q.user_id}
+                      name={adminDisplayName(q.asker)}
+                      extraAction={{ label: "이 학생 질문만 보기", onClick: () => filterByPerson(q) }}
+                    />
                   ) : (
                     <AuthorCell name={adminDisplayName(q.asker)} />
                   )}
@@ -204,7 +273,11 @@ export default function AdminQnaPage() {
               </AdminCardFooter>
             </AdminCard>
           ))}
-          {rows.length === 0 && <div className="text-muted text-center py-8 text-sm">질문이 없습니다.</div>}
+          {filteredRows.length === 0 && (
+            <div className="text-muted text-center py-8 text-sm">
+              {rows.length === 0 ? "질문이 없습니다." : "조건에 맞는 질문이 없습니다."}
+            </div>
+          )}
         </AdminCardList>
         <AdminTable hasCardFallback>
           <thead>
@@ -217,7 +290,7 @@ export default function AdminQnaPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((q) => (
+            {filteredRows.map((q) => (
               <tr key={q.id} onClick={() => openQ(q)} className={`cursor-pointer ${t.adminTableRowHover} ${openId === q.id ? t.adminTableRowActive : ""}`}>
                 <td className={t.adminTableCell}>
                   <div className="flex items-center gap-1.5 min-w-0">
@@ -231,7 +304,11 @@ export default function AdminQnaPage() {
                 </td>
                 <td className={`${t.adminTableCell} text-muted`} onClick={(e) => q.user_id && e.stopPropagation()}>
                   {q.user_id ? (
-                    <AdminPersonMenu userId={q.user_id} name={adminDisplayName(q.asker)} />
+                    <AdminPersonMenu
+                      userId={q.user_id}
+                      name={adminDisplayName(q.asker)}
+                      extraAction={{ label: "이 학생 질문만 보기", onClick: () => filterByPerson(q) }}
+                    />
                   ) : (
                     <AuthorCell name={adminDisplayName(q.asker)} />
                   )}
@@ -275,7 +352,13 @@ export default function AdminQnaPage() {
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && <tr><td colSpan={5} className="text-muted text-center py-8 text-sm">질문이 없습니다.</td></tr>}
+            {filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-muted text-center py-8 text-sm">
+                  {rows.length === 0 ? "질문이 없습니다." : "조건에 맞는 질문이 없습니다."}
+                </td>
+              </tr>
+            )}
           </tbody>
         </AdminTable>
       </div>
