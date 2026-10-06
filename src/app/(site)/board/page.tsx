@@ -276,7 +276,7 @@ export default function BoardPage() {
               <td className="p-2.5 border-b border-border text-sm">{p.view_count}</td>
               <td className="p-2.5 border-b border-border text-sm">
                 <span className="inline-flex items-center gap-1 text-muted">
-                  <Heart size={14} /> {p.like_count}
+                  <Heart size={14} className="fill-current" /> {p.like_count}
                 </span>
               </td>
               {iAmAdmin && (
