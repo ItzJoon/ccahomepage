@@ -1055,7 +1055,7 @@ create policy "user_badges_select_public_directory" on user_badges for select
 -- 합쳐지므로 컬럼 단위로 쓰기 권한을 나눌 수 없음).
 create table if not exists site_theme (
   id text primary key default 'default',
-  theme text not null default 'classic',
+  theme text not null default 'apple',
   updated_at timestamptz not null default now(),
   updated_by uuid references profiles(id)
 );
@@ -6330,3 +6330,14 @@ as $$
 $$;
 
 grant execute on function get_email_pref_for_user(uuid) to authenticated;
+
+-- ------------------------------------------------------------
+-- 142. classic/green 홈 화면 테마 삭제 + apple 테마를 "기본"으로 개명
+-- ------------------------------------------------------------
+-- classic/green은 실제로 운영에 쓰인 적이 없고(계속 apple만 켜져 있었음), 코드에서도
+-- 삭제했다(src/lib/homeThemes/classic.ts, green.ts 제거, homeTheme.ts의
+-- homeThemeStyles/THEME_LABELS에서 두 키 모두 제거). 내부 키는 "apple" 그대로 두되
+-- (site_theme.theme 값도 이미 'apple'이라 바꿀 이유가 없음), 관리자 화면에 보이는
+-- 이름만 THEME_LABELS.apple.label = "기본"으로 바꿨다. 컬럼 기본값도 더 이상 존재하지
+-- 않는 'classic'을 가리키고 있던 걸 'apple'로 맞춘다.
+alter table site_theme alter column theme set default 'apple';

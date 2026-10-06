@@ -36,3 +36,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Impeccable(디자인 스킬) 로컬 전용 파일 — 세션 캐시/머신 경로가 들어있어 커밋 대상 아님.
+# .impeccable/config.json(공유 detector ignore 설정)은 그대로 커밋한다.
+.impeccable/config.local.json
+.impeccable/hook.cache.json
+.impeccable/live/

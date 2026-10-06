@@ -694,28 +694,32 @@ superadmin 전용 화면 몇 개는 열람만 가능 — 아래 별도 설명).
 있는 테마 시스템입니다. 그 외 개별 페이지(공지사항 목록, Q&A 등)의 내부 스타일은 이
 시스템의 영향을 받지 않습니다.
 
-- **현재 테마 3종**: `classic`(원래 navy/blue/gold 톤), `green`(검정+초록 브루탈리즘),
-  `apple`(Figma "CCA-Hompage" 디자인을 최대한 그대로 재현한 화이트+블루 톤, Caveat
-  손글씨 히어로 제목). 각 테마의 정확한 값은 `src/lib/homeTheme.ts` 참고.
+- **현재 테마**: `apple`(관리자 화면엔 "기본"으로 표시 — Figma "CCA-Hompage" 디자인을
+  최대한 그대로 재현한 화이트+블루 톤, Caveat 손글씨 히어로 제목) 하나뿐입니다.
+  `classic`/`green` 테마는 실제로 운영에 쓰인 적이 없어 2026-10에 코드에서 삭제했습니다
+  (내부 키는 DB 값과의 일관성을 위해 `apple`을 그대로 유지하고 표시 이름만 바꿨습니다).
+  각 테마의 정확한 값은 `src/lib/homeThemes/`(테마별 파일) 참고.
 - **헤더의 프로필 메뉴**: "이름 ▾" 버튼을 누르면 마이페이지 / 닉네임·소개 수정(바로 뜨는
   모달, `ProfileQuickEditModal.tsx`) / 로그아웃이 담긴 드롭다운이 뜹니다. 이 구조는
   테마와 무관하게 모든 테마에 공통 적용됩니다(관리자 링크는 별도 버튼으로 유지).
 
-- **구조**: `src/lib/homeTheme.ts`의 `homeThemeStyles` 객체가 테마별 className 값(카드
-  테두리, 히어로 배경, 버튼 스타일 등)을 담고 있습니다. `Header.tsx`/`Footer.tsx`/
-  `StreakBar.tsx`/홈 `page.tsx`는 로고·내비 배열·인증 처리·데이터 페칭 같은 **로직은
-  그대로 두고**, `useHomeTheme()` 훅(`src/hooks/useHomeTheme.ts`)으로 현재 테마의 스타일
-  값만 가져와 className에 꽂아 씁니다. 그래서 이 컴포넌트들에 어떤 기능이 추가되더라도
-  테마 전환 자체는 항상 안전합니다.
-- **현재 적용 중인 테마**는 DB(`site_theme.theme`, 기본값 `'green'`)에 저장되고
+- **구조**: 테마별 className 값(카드 테두리, 히어로 배경, 버튼 스타일 등)은
+  `src/lib/homeThemes/<테마명>.ts`에 파일별로 분리돼 있고(공용 타입은
+  `homeThemes/types.ts`), `src/lib/homeTheme.ts`가 이들을 모아 `homeThemeStyles`
+  객체로 합칩니다. `Header.tsx`/`Footer.tsx`/`StreakBar.tsx`/홈 `page.tsx`는
+  로고·내비 배열·인증 처리·데이터 페칭 같은 **로직은 그대로 두고**, `useHomeTheme()`
+  훅(`src/hooks/useHomeTheme.ts`)으로 현재 테마의 스타일 값만 가져와 className에
+  꽂아 씁니다. 그래서 이 컴포넌트들에 어떤 기능이 추가되더라도 테마 전환 자체는
+  항상 안전합니다.
+- **현재 적용 중인 테마**는 DB(`site_theme.theme`, 기본값 `'apple'`)에 저장되고
   Realtime으로 구독되므로, 관리자가 바꾸면 접속 중인 모든 화면에 새로고침 없이 반영됩니다.
 - **관리자 화면(`/admin/theme`, superadmin 전용)**: 테마 카드를 클릭하면 즉시 적용됩니다.
   이 메뉴는 `AdminNav`에서 `role === "superadmin"`일 때만 보이고, DB 쪽에서도
   `site_theme_update_superadmin` 정책이 `is_superadmin()`만 통과시키므로 admin이 API를
   직접 호출해도 바꿀 수 없습니다(`site_settings`와 별도 테이블로 둔 이유는 스키마 주석 참고).
-- **테마 추가하는 법**: `homeThemeStyles`와 `THEME_LABELS`(둘 다 `src/lib/homeTheme.ts`)에
-  새 키를 하나 추가하면 `/admin/theme`의 선택지도 자동으로 늘어납니다. 컴포넌트 쪽 로직은
-  건드릴 필요가 없습니다.
+- **테마 추가하는 법**: `src/lib/homeThemes/`에 새 테마 파일을 추가하고, `homeTheme.ts`의
+  `homeThemeStyles`와 `THEME_LABELS`에 새 키를 더하면 `/admin/theme`의 선택지도
+  자동으로 늘어납니다. 컴포넌트 쪽 로직은 건드릴 필요가 없습니다.
 - 기존 DB에 반영하려면 `supabase/schema.sql` 하단의 "29. 홈 화면/헤더/푸터 디자인 테마"
   블록을 실행하세요.
 

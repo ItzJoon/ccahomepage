@@ -2,25 +2,27 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { useList } from "@/hooks/useList";
 import { useMyRole } from "@/hooks/useMyRole";
-import { homeThemeStyles, THEME_LABELS, DEFAULT_HOME_THEME, isHomeThemeKey } from "@/lib/homeTheme";
-import type { SiteTheme } from "@/lib/types";
+import { useHomeTheme } from "@/hooks/useHomeTheme";
+import { homeThemeStyles, THEME_LABELS } from "@/lib/homeTheme";
 
 const THEME_KEYS = Object.keys(homeThemeStyles) as (keyof typeof homeThemeStyles)[];
 
 // 카드 미리보기용 색상 견본(테마 객체 값에서 그대로 뽑을 수 없는 값들이 많아 직접 정의)
 const SWATCHES: Record<string, string[]> = {
-  classic: ["#16233F", "#2C4A7C", "#B8790F"],
-  green: ["#111111", "#1D6F42", "#4ABA78"],
   apple: ["#2563eb", "#f2f2f7", "#111827"],
 };
 
 export default function AdminThemePage() {
   const supabase = createClient();
-  const { rows, reload } = useList<SiteTheme>("site_theme");
-  const current = rows.find((r) => r.id === "default");
-  const currentKey = current && isHomeThemeKey(current.theme) ? current.theme : DEFAULT_HOME_THEME;
+  // 이 화면 전용으로 site_theme을 따로(비실시간) 조회하면, 그 구독이 아직 로딩 중인
+  // 짧은 순간 DEFAULT_HOME_THEME로 잘못 폴백해 "엉뚱한 테마가 현재 적용중"으로 잠깐
+  // 보였다가 실제 값으로 바뀌는 깜빡임이 생긴다(실제로 classic/green을 지우기 전엔 이
+  // 화면을 열 때마다 "클래식 적용중"이 잠깐 떴다). admin 레이아웃이 이미 realtime으로
+  // 구독해 AdminThemeContext에 올려둔 "살아있는" 값을 그대로 재사용하면(다른 모든 관리자
+  // 화면과 동일한 패턴), 첫 렌더부터 정확한 값으로 그려지고 테마를 바꾼 즉시(realtime)
+  // 반영되어 수동 reload()도 필요 없다.
+  const { themeKey: currentKey } = useHomeTheme();
 
   const { myId, isSuperadmin, role, loading: roleLoading } = useMyRole();
   // designer(조회 전용)는 superadmin 전용 화면도 볼 수 있어야 하므로 경고 배너에서는
@@ -36,7 +38,6 @@ export default function AdminThemePage() {
       .update({ theme: key, updated_at: new Date().toISOString(), updated_by: myId })
       .eq("id", "default");
     setSaving(null);
-    reload(); // realtime이 아니므로 "현재 적용중" 표시를 직접 갱신
   };
 
   return (
