@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
@@ -273,7 +274,11 @@ export default function BoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
               <td className="p-2.5 border-b border-border text-sm">{p.view_count}</td>
-              <td className="p-2.5 border-b border-border text-sm">❤️ {p.like_count}</td>
+              <td className="p-2.5 border-b border-border text-sm">
+                <span className="inline-flex items-center gap-1 text-muted">
+                  <Heart size={14} /> {p.like_count}
+                </span>
+              </td>
               {iAmAdmin && (
                 <td className="p-2.5 border-b border-border text-sm">
                   <button onClick={() => removePost(p.id)} className="text-red text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2">

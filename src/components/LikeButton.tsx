@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 /**
@@ -78,7 +79,7 @@ export default function LikeButton({
       disabled={!userId || busy}
       className={`inline-flex items-center gap-1 text-xs font-bold shrink-0 disabled:opacity-50 ${liked ? "text-red" : "text-muted"}`}
     >
-      {liked ? "❤️" : "🤍"} {count}
+      <Heart size={14} className={liked ? "fill-current" : ""} /> {count}
     </button>
   );
 }
