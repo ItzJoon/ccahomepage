@@ -225,13 +225,14 @@ export default function BoardPage() {
         <ListSkeleton />
       ) : (
       <div className="overflow-x-auto">
-      <table className="w-full min-w-[560px] border-collapse bg-surface">
+      <table className="w-full min-w-[620px] border-collapse bg-surface">
         <thead>
           <tr>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2">제목</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-32">작성자</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-24">날짜</th>
             <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">조회</th>
+            <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16">좋아요</th>
             {iAmAdmin && <th className="text-left text-xs text-muted border-b-2 border-border p-2 w-16" />}
           </tr>
         </thead>
@@ -272,6 +273,7 @@ export default function BoardPage() {
               </td>
               <td className="p-2.5 border-b border-border text-sm">{fmt(p.created_at)}</td>
               <td className="p-2.5 border-b border-border text-sm">{p.view_count}</td>
+              <td className="p-2.5 border-b border-border text-sm">❤️ {p.like_count}</td>
               {iAmAdmin && (
                 <td className="p-2.5 border-b border-border text-sm">
                   <button onClick={() => removePost(p.id)} className="text-red text-xs font-bold px-1.5 py-2 -mx-1.5 -my-2">
@@ -282,7 +284,7 @@ export default function BoardPage() {
             </tr>
           ))}
           {rows.length === 0 && (
-            <tr><td colSpan={iAmAdmin ? 5 : 4} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
+            <tr><td colSpan={iAmAdmin ? 6 : 5} className="text-muted text-center py-8 text-sm">등록된 글이 없습니다.</td></tr>
           )}
         </tbody>
       </table>
