@@ -28,9 +28,11 @@ export default function MyPage() {
   const [uploading, setUploading] = useState(false);
   const [photoError, setPhotoError] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<UserWarning[]>([]);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [warningsLoading, setWarningsLoading] = useState(true);
 
   const { streak, history, checkedToday, freezeCredits, maxStreak, loading } = useAttendance(userId ?? null);
-  const { badges, earnedIds, reload: reloadBadges } = useBadges(userId ?? null);
+  const { badges, earnedIds, loading: badgesLoading, reload: reloadBadges } = useBadges(userId ?? null);
   const [showCodeModal, setShowCodeModal] = useState(false);
   // developer(=superadmin)는 실제로 획득하지 않아도 모든 뱃지를 항상 가진 것처럼
   // 보여준다(진짜 user_badges 행을 만들지는 않아서 한정 수량 뱃지의 획득 인원 수에는
@@ -39,17 +41,33 @@ export default function MyPage() {
   // 뱃지 목록을 따로 불러온다.
   const isDeveloper = profile?.role === "superadmin";
   const [allBadgesForDeveloper, setAllBadgesForDeveloper] = useState<BadgeDef[]>([]);
+  // profile이 아직 안 왔을 때는 isDeveloper가 일단 false로 보이므로(profile?.role이
+  // undefined), 그 틈에 "개발자 아님"으로 단정해서 devBadgesLoading을 섣불리 꺼버리면
+  // 정작 개발자 계정에서 뱃지 섹션만 뒤늦게 튀어나오는 팝인이 생긴다 — profileLoading이
+  // 끝나기 전까지는 이 판단 자체를 보류한다.
+  const [devBadgesLoading, setDevBadgesLoading] = useState(true);
   useEffect(() => {
-    if (!isDeveloper) return;
+    if (profileLoading) return;
+    if (!isDeveloper) {
+      setDevBadgesLoading(false);
+      return;
+    }
     supabase
       .from("badges")
       .select("*")
       .order("secret_tier", { ascending: true })
       .order("order_index")
-      .then(({ data }) => setAllBadgesForDeveloper((data as BadgeDef[]) ?? []));
+      .then(({ data }) => {
+        setAllBadgesForDeveloper((data as BadgeDef[]) ?? []);
+        setDevBadgesLoading(false);
+      });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isDeveloper]);
+  }, [isDeveloper, profileLoading]);
   const displayBadges = isDeveloper ? allBadgesForDeveloper : badges;
+  // 출석/뱃지/프로필/경고/개발자 전체뱃지 5개 섹션이 각자 따로 로딩을 끝내는 대로
+  // 하나씩 튀어나오던 걸 막기 위해, 전부 끝날 때까지는 아래에서 이 값으로 전체를
+  // ListSkeleton으로 가린다.
+  const mypageLoading = loading || badgesLoading || profileLoading || warningsLoading || devBadgesLoading;
   // 슈퍼시크릿은 획득 전까지 목록에서 존재 자체를 숨긴다(기존 is_secret=true와 동일 동작).
   // 시크릿은 목록엔 보이되(실루엣) 이름/조건만 획득 전까지 가린다 — 아래 렌더링에서 처리.
   // "기간 한정"(limited)은 아직 못 받은 것만 본인 마이페이지에서 숨긴다(이미 끝난 이벤트
@@ -86,6 +104,7 @@ export default function MyPage() {
       setNickname(data.nickname ?? "");
       setBio(data.bio ?? "");
     }
+    setProfileLoading(false);
   }, [userId, supabase]);
 
   useEffect(() => {
@@ -100,7 +119,10 @@ export default function MyPage() {
       .eq("user_id", userId)
       .is("revoked_at", null)
       .order("created_at", { ascending: false })
-      .then(({ data }) => setWarnings((data as UserWarning[]) ?? []));
+      .then(({ data }) => {
+        setWarnings((data as UserWarning[]) ?? []);
+        setWarningsLoading(false);
+      });
   }, [userId, supabase]);
 
   const isProfileDirty = nickname !== (profile?.nickname ?? "") || bio !== (profile?.bio ?? "");
@@ -180,6 +202,10 @@ export default function MyPage() {
     <div>
       <SectionTitle eyebrow="MY PAGE" title="마이페이지" />
 
+      {mypageLoading ? (
+        <ListSkeleton rows={6} />
+      ) : (
+      <>
       {profile && profile.warning_count > 0 && (
         <div className="bg-[#FFF3DC] rounded-xl px-4 py-3 mb-4">
           <div className="text-gold text-sm font-bold mb-2">
@@ -368,6 +394,8 @@ export default function MyPage() {
 
       {showCodeModal && (
         <CodeRedeemModal onClose={() => setShowCodeModal(false)} onRedeemed={reloadBadges} />
+      )}
+      </>
       )}
     </div>
   );

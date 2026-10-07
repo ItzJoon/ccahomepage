@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import Badge, { Pin } from "@/components/Badge";
+import ListSkeleton from "@/components/ListSkeleton";
 import StreakBar from "@/components/StreakBar";
 import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
@@ -118,24 +119,28 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
   const [feedPeriod, setFeedPeriod] = useState<PostFeedPeriod>("today");
   const [feedItems, setFeedItems] = useState<PostFeedItem[]>([]);
   const [feedLoading, setFeedLoading] = useState(true);
-  const { rows: blocks } = useList<MainBlock>("main_blocks", {
+  const { rows: blocks, loading: blocksLoading } = useList<MainBlock>("main_blocks", {
     orderBy: { column: "order_index" },
   });
-  const { rows: notices } = useList<Post>("posts", {
+  const { rows: notices, loading: noticesLoading } = useList<Post>("posts", {
     filter: (q) => q.eq("type", "notice").eq("status", "published"),
     orderBy: { column: "created_at", ascending: false },
   });
-  const { rows: events } = useList<EventItem>("events", {
+  const { rows: events, loading: eventsLoading } = useList<EventItem>("events", {
     orderBy: { column: "start_at" },
   });
-  const { rows: news } = useList<Post>("posts", {
+  const { rows: news, loading: newsLoading } = useList<Post>("posts", {
     filter: (q) => q.eq("type", "news").eq("status", "published"),
     // /news와 동일하게 관리자가 /admin/news에서 정한 순서를 그대로 반영.
     orderBy: { column: "order_index", ascending: true },
   });
-  const { rows: mealPlans } = useList<MealPlan>("meal_plans");
-  const { rows: settingsRows } = useList<SiteSettings>("site_settings");
+  const { rows: mealPlans, loading: mealLoading } = useList<MealPlan>("meal_plans");
+  const { rows: settingsRows, loading: settingsLoading } = useList<SiteSettings>("site_settings");
   const settings = settingsRows.find((s) => s.id === "default");
+  // 블록 하나하나가 각자 로딩을 끝내는 대로 따로 튀어나오는("팝인") 걸 막기 위해, 이
+  // 데이터 소스들이 전부 끝날 때까지는(블록 배치를 결정하는 main_blocks 포함) 각 카드
+  // 내부를 ListSkeleton으로 채워두고, 전부 끝나면 한 번에 실제 내용으로 바꿔 보여준다.
+  const homeLoading = blocksLoading || noticesLoading || eventsLoading || newsLoading || mealLoading || settingsLoading || feedLoading;
 
   useEffect(() => {
     const supabase = createClient();
@@ -224,7 +229,24 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
       <StreakBar userId={userId} initialThemeKey={initialThemeKey} />
 
       <div className="grid grid-cols-1 md:grid-cols-6 gap-[18px]">
-        {visibleBlocks.map((b) => {
+        {blocksLoading ? (
+          // main_blocks 자체가 아직 안 와서 어떤 블록을 어떤 배치로 보여줄지 모르는
+          // 아주 짧은 순간(대개 수십~백여 ms) — 빈 화면 대신 임시로 자리만 잡아둔다.
+          // 실제 배치를 알게 되는 즉시 아래 visibleBlocks.map 쪽(각 카드 내부가 homeLoading
+          // 동안 ListSkeleton으로 채워진 진짜 레이아웃)으로 바로 교체된다.
+          <>
+            <div className={`${t.cardShape} p-5 md:col-span-3`}>
+              <ListSkeleton rows={4} />
+            </div>
+            <div className={`${t.cardShape} p-5 md:col-span-3`}>
+              <ListSkeleton rows={4} />
+            </div>
+            <div className={`${t.cardShape} p-5 md:col-span-6`}>
+              <ListSkeleton rows={3} />
+            </div>
+          </>
+        ) : (
+        visibleBlocks.map((b) => {
           const spanClass = COL_SPAN_CLASS[b.col_span] ?? COL_SPAN_CLASS[6];
           const heightStyle = b.height_px ? { minHeight: `${b.height_px}px` } : undefined;
           if (b.id === "notice")
@@ -232,6 +254,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <div className="flex-1 flex flex-col justify-center">
+                  {homeLoading ? (
+                    <ListSkeleton rows={4} />
+                  ) : (
                   <ul className="list-none m-0 p-0">
                     {sortedNotices.slice(0, 5).map((n) => (
                       <li key={n.id} className="border-b border-border py-2.5">
@@ -248,6 +273,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       </li>
                     )}
                   </ul>
+                  )}
                 </div>
               </div>
             );
@@ -256,6 +282,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
                 <div className="flex-1 flex flex-col justify-center">
+                  {homeLoading ? (
+                    <ListSkeleton rows={3} />
+                  ) : (
                   <div className="flex flex-col gap-2.5">
                     {upcoming.map((e) => (
                       <Link
@@ -276,6 +305,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       <EmptyState icon="📅" title="다가오는 예정된 일정이 없습니다" desc="학사 일정 및 자치회 행사 정보가 등록되면 업데이트됩니다." t={t} />
                     )}
                   </div>
+                  )}
                 </div>
               </div>
             );
@@ -284,6 +314,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
               <div key={b.id} className={`${t.cardShape} p-5 ${spanClass} flex flex-col`} style={heightStyle}>
                 <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
                 <div className="flex-1 flex flex-col justify-center">
+                  {homeLoading ? (
+                    <ListSkeleton rows={3} />
+                  ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {news.slice(0, 3).map((n) => (
                       <Link
@@ -302,6 +335,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       </div>
                     )}
                   </div>
+                  )}
                 </div>
               </div>
             );
@@ -336,7 +370,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                     </div>
                   }
                 />
-                {thisMonth ? (
+                {homeLoading ? (
+                  <ListSkeleton rows={2} />
+                ) : thisMonth ? (
                   // 높이가 지정돼 있으면 이미지가 그 안에서 스크롤되게 해서(그 값이 없을 땐
                   // 기존처럼 이미지 원본 크기만큼 카드가 늘어남), 세로로 긴 급식표 이미지가
                   // 옆 카드까지 억지로 늘리지 않게 한다.
@@ -422,6 +458,9 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                   }
                 />
                 <div className="flex-1 flex flex-col justify-center">
+                  {homeLoading ? (
+                    <ListSkeleton rows={5} />
+                  ) : (
                   <ul className="list-none m-0 p-0">
                     {feedItems.map((item) => (
                       <li key={`${item.content_type}_${item.id}`} className="border-b border-border py-2.5">
@@ -442,7 +481,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                         </Link>
                       </li>
                     ))}
-                    {!feedLoading && feedItems.length === 0 && (
+                    {feedItems.length === 0 && (
                       <li>
                         <EmptyState
                           icon="📝"
@@ -453,11 +492,13 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                       </li>
                     )}
                   </ul>
+                  )}
                 </div>
               </div>
             );
           return null;
-        })}
+        })
+        )}
       </div>
     </div>
   );

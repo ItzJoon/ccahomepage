@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useList } from "@/hooks/useList";
 import { useRealtimeList } from "@/hooks/useRealtimeList";
+import ListSkeleton from "@/components/ListSkeleton";
 import { todayKST } from "@/lib/date";
 import type { SpecialEvent, UniformCheck, DirectoryMember } from "@/lib/types";
 
@@ -30,12 +31,15 @@ export default function EventSpecialDetailClient({
   const [checkDate, setCheckDate] = useState(() => clampDate(today, event.start_date, event.end_date));
   const [saving, setSaving] = useState(false);
 
-  const { rows: directory } = useList<DirectoryMember>("directory_members");
+  const { rows: directory, loading: directoryLoading } = useList<DirectoryMember>("directory_members");
   // 이벤트 전체 체크 기록을 실시간 구독 — 대의원이 체크하는 즉시 오늘 현황판/랭킹이
   // 모든 열람자 화면에서 새로고침 없이 갱신된다(이미 realtime publication에 추가함).
-  const { rows: checks } = useRealtimeList<UniformCheck>("uniform_checks", {
+  const { rows: checks, loading: checksLoading } = useRealtimeList<UniformCheck>("uniform_checks", {
     filter: (q) => q.eq("event_id", event.id),
   });
+  // directory가 늦게 도착하면서 "반 정보가 없습니다"였다가 뒤늦게 채워지는 팝인을
+  // 막기 위해, 둘 다 끝날 때까지는 ListSkeleton으로 가린다.
+  const boardLoading = directoryLoading || checksLoading;
 
   const classes = useMemo(() => {
     const set = new Map<string, { grade: string; homeroom: number }>();
@@ -74,6 +78,9 @@ export default function EventSpecialDetailClient({
       {event.event_type === "uniform_check" && (
         <div className="bg-surface border border-border rounded-2xl p-4">
           <h2 className="text-lg font-bold mb-3">오늘 반별 현황</h2>
+          {boardLoading ? (
+            <ListSkeleton rows={3} />
+          ) : (
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {classes.map((c) => {
               const check = todayChecks.find((x) => x.grade === c.grade && x.homeroom === c.homeroom);
@@ -93,6 +100,7 @@ export default function EventSpecialDetailClient({
             })}
             {classes.length === 0 && <div className="text-muted text-sm col-span-full">반 정보가 없습니다.</div>}
           </div>
+          )}
         </div>
       )}
 
@@ -104,7 +112,12 @@ export default function EventSpecialDetailClient({
 
       {event.event_type === "uniform_check" && (
         <>
-          {myClass && (
+          {myClass && boardLoading && (
+            <div className="bg-surface border border-border rounded-2xl p-4">
+              <ListSkeleton rows={2} />
+            </div>
+          )}
+          {myClass && !boardLoading && (
             <div className="bg-surface border border-border rounded-2xl p-4">
               <h2 className="text-lg font-bold mb-1">우리 반({classLabel(myClass.grade, myClass.homeroom)}) 체크</h2>
               <p className="text-muted text-xs mb-3">대의원만 체크할 수 있습니다. 지난 날짜를 골라 소급 입력·정정도 가능합니다.</p>

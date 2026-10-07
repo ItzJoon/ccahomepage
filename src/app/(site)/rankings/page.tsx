@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import SectionTitle from "@/components/SectionTitle";
 import AdminTable from "@/components/admin/AdminTable";
+import ListSkeleton from "@/components/ListSkeleton";
 import type { RankingRow } from "@/lib/types";
 
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
@@ -86,6 +87,10 @@ export default function RankingsPage() {
         </button>
       </div>
 
+      {loading ? (
+        <ListSkeleton rows={6} />
+      ) : (
+      <>
       <AdminTable>
         <thead>
           <tr>
@@ -115,7 +120,7 @@ export default function RankingsPage() {
               </tr>
             );
           })}
-          {!loading && top.length === 0 && (
+          {top.length === 0 && (
             <tr>
               <td colSpan={4} className="text-muted text-center py-8 text-sm">
                 표시할 순위가 없습니다.
@@ -130,6 +135,8 @@ export default function RankingsPage() {
           내 순위: <span className="text-navy dark:text-white font-bold">{mine.rank}위</span> ({mine.value}
           {valueLabel})
         </div>
+      )}
+      </>
       )}
     </div>
   );

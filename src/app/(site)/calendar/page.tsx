@@ -6,6 +6,7 @@ import { useList } from "@/hooks/useList";
 import { useTrackPageVisit } from "@/hooks/useTrackPageVisit";
 import SectionTitle from "@/components/SectionTitle";
 import Badge from "@/components/Badge";
+import ListSkeleton from "@/components/ListSkeleton";
 import { todayKST } from "@/lib/date";
 import type { EventItem } from "@/lib/types";
 
@@ -16,7 +17,7 @@ function fmt(d: string) {
 
 export default function CalendarPage() {
   useTrackPageVisit("calendar"); // "탐험가" 뱃지용 방문 기록
-  const { rows: events } = useList<EventItem>("events", {
+  const { rows: events, loading } = useList<EventItem>("events", {
     orderBy: { column: "start_at" },
   });
   const [mode, setMode] = useState<"month" | "list">("month");
@@ -62,7 +63,9 @@ export default function CalendarPage() {
           </div>
         }
       />
-      {mode === "month" ? (
+      {loading ? (
+        <ListSkeleton rows={5} />
+      ) : mode === "month" ? (
         <div className="bg-surface border border-border rounded-2xl p-[18px]">
           <div className="flex justify-center items-center gap-4 mb-3">
             <button
