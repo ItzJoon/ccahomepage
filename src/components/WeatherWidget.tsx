@@ -43,7 +43,7 @@ export default function WeatherWidget() {
             <span>🌧️</span>
             <span className="absolute inset-x-0 -bottom-0.5 flex justify-center gap-1 pointer-events-none">
               {[0, 0.3, 0.6].map((delay) => (
-                <span key={delay} className="w-[2px] h-[6px] bg-blue-400 rounded-full animate-weather-drop" style={{ animationDelay: `${delay}s` }} />
+                <span key={delay} className="w-[2px] h-[6px] bg-[#60a5fa] rounded-full animate-weather-drop" style={{ animationDelay: `${delay}s` }} />
               ))}
             </span>
           </>
