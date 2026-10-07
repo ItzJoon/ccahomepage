@@ -15,6 +15,9 @@ const EVENT_TYPE_LABEL: Record<SpecialEvent["event_type"], string> = {
   uniform_check: "출석 체크형(교복 챌린지 등)",
 };
 
+const HOMEROOM_NAME: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
+const classLabel = (grade: string, homeroom: number) => `${grade}${HOMEROOM_NAME[homeroom] ?? `${homeroom}반`}`;
+
 const todayStr = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Seoul" });
 
 const empty = {
@@ -190,7 +193,7 @@ export default function AdminEventsSpecialPage() {
                 return (
                   <li key={`${c.grade}-${c.homeroom}`} className="flex items-center justify-between gap-2 text-xs border border-border rounded-lg px-2.5 py-2">
                     <div>
-                      <div className="font-bold">{c.grade}학년 {c.homeroom}반</div>
+                      <div className="font-bold">{classLabel(c.grade, c.homeroom)}</div>
                       {check ? (
                         <div className="text-muted">
                           {checkerNames[check.checked_by ?? ""] ?? "-"} · {new Date(check.checked_at).toLocaleString("ko-KR")}
