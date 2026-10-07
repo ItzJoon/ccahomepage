@@ -34,7 +34,7 @@ export default function EventBanner() {
   return (
     <Link
       href={`/events-special/${event.id}`}
-      className="flex items-center gap-3 bg-gradient-to-r from-appleBlue to-blue-400 text-white rounded-2xl p-3.5 mb-4 hover:opacity-95 transition-opacity"
+      className="flex items-center gap-3 bg-gradient-to-r from-appleBlue to-[#1e40af] text-white rounded-2xl p-3.5 mb-4 hover:opacity-95 transition-opacity"
     >
       {event.poster_image_url && (
         <img src={event.poster_image_url} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
