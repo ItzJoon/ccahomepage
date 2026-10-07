@@ -34,16 +34,16 @@ export default function EventBanner() {
   return (
     <Link
       href={`/events-special/${event.id}`}
-      className="flex items-center gap-3 bg-surface border border-border rounded-2xl p-3.5 mb-4 hover:border-gold/60 transition-colors"
+      className="flex items-center gap-3 bg-gradient-to-r from-appleBlue to-blue-400 text-white rounded-2xl p-3.5 mb-4 hover:opacity-95 transition-opacity"
     >
       {event.poster_image_url && (
         <img src={event.poster_image_url} alt="" className="w-12 h-12 rounded-xl object-cover shrink-0" />
       )}
       <div className="min-w-0 flex-1">
-        <div className="text-[11px] font-bold uppercase tracking-wide text-gold">진행중인 이벤트</div>
+        <div className="text-[11px] font-bold uppercase tracking-wide text-white/80">진행중인 이벤트</div>
         <div className="font-bold truncate">{event.title}</div>
       </div>
-      <span className="text-sm font-bold text-navy shrink-0">자세히 보기 →</span>
+      <span className="text-sm font-bold shrink-0">자세히 보기 →</span>
     </Link>
   );
 }
