@@ -23,6 +23,7 @@ const NAV = [
   { href: "/members", label: "구성원", flagKey: "members" },
   { href: "/rankings", label: "랭킹", flagKey: "rankings" },
   { href: "/calendar", label: "일정", flagKey: "calendar" },
+  { href: "/events-special", label: "이벤트", flagKey: "special_events" },
   { href: "/news", label: "뉴스", flagKey: "news" },
   { href: "/rules", label: "생활규정", flagKey: "rules" },
   { href: "/qna", label: "Q&A", flagKey: "qna" },

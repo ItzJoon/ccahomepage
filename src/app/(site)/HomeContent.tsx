@@ -10,6 +10,7 @@ import ImageLightbox from "@/components/ImageLightbox";
 import WeatherWidget from "@/components/WeatherWidget";
 import HeaderWeatherBackground from "@/components/HeaderWeatherBackground";
 import HeaderWeatherTemp from "@/components/HeaderWeatherTemp";
+import EventBanner from "@/components/EventBanner";
 import { useHomeTheme } from "@/hooks/useHomeTheme";
 import { todayKST, nowKSTTime, nowKSTDayOfWeek, timeAgo } from "@/lib/date";
 import type { homeThemeStyles, HomeThemeKey } from "@/lib/homeTheme";
@@ -199,6 +200,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
 
   return (
     <div>
+      <EventBanner />
       <div className={`${t.heroCard} relative overflow-hidden`}>
         {ENABLE_HEADER_WEATHER_BG && <HeaderWeatherBackground />}
         <div className="relative z-10 flex items-start justify-between gap-3">

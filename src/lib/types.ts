@@ -12,6 +12,9 @@ export interface Profile {
   max_streak: number;
   is_council: boolean;
   is_judiciary: boolean;
+  /** 대의원 — 본인 담당 반(directory_members의 학년+반)은 본인 레코드로 자동 결정되고,
+   * 별도 매핑 테이블 없음. /admin/users에서 admin 이상이 수동 토글. */
+  is_representative: boolean;
   email_notifications: boolean;
   badge_sound_enabled: boolean;
   notification_sound_enabled: boolean;
@@ -487,6 +490,34 @@ export interface FeatureFlag {
   enabled: boolean;
   updated_at: string;
   updated_by: string | null;
+}
+
+/** 학사일정(events 테이블)과 완전히 별개인 "캠페인형 이벤트" — 포스터+기간을 가진 공지성
+ * 이벤트. uniform_check 유형은 반별 출석부형 체크(uniform_checks)와 짝을 이룬다. */
+export interface SpecialEvent {
+  id: string;
+  title: string;
+  description: string | null;
+  poster_image_url: string | null;
+  event_type: "uniform_check";
+  start_date: string;
+  end_date: string;
+  is_hidden: boolean;
+  created_by: string | null;
+  created_at: string;
+}
+
+/** "교복 챌린지" 하루치 반 단위 체크 — 학생 개인별이 아니라 (이벤트,학년,반,날짜)당 1행이고
+ * all_wearing 하나로 그날 그 반 전체의 "전원 착용 여부"만 담는다. */
+export interface UniformCheck {
+  id: string;
+  event_id: string;
+  grade: "10" | "11" | "12";
+  homeroom: 1 | 2 | 3;
+  check_date: string;
+  all_wearing: boolean;
+  checked_by: string | null;
+  checked_at: string;
 }
 
 export interface BoardPost {

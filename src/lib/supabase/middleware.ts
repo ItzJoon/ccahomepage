@@ -194,6 +194,7 @@ export async function updateSession(request: NextRequest) {
     "/members": "members",
     "/calendar": "calendar",
     "/events": "calendar",
+    "/events-special": "special_events",
     "/news": "news",
     "/rules": "rules",
     "/rankings": "rankings",

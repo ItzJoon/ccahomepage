@@ -6360,3 +6360,105 @@ create trigger audit_board_posts_update after update on board_posts
     (to_jsonb(OLD) - 'view_count' - 'reviewed_at') is distinct from (to_jsonb(NEW) - 'view_count' - 'reviewed_at')
   )
   execute function log_audit_event();
+
+-- ------------------------------------------------------------
+-- 144. 이벤트 탭 + 대의원 역할 + "교복 챌린지"(출석부형 체크) (이슈 #178)
+-- ------------------------------------------------------------
+-- 대의원 플래그(is_council/is_judiciary와 같은 사상, 담당 반은 본인 directory_members로
+-- 자동 결정 — 별도 매핑 테이블 없음). is_council/is_judiciary와 달리 "조직 가입"이 아니라
+-- "담임 학급"이 기준이라 자동 계산할 소스가 없으므로 /admin/users에서 수동 토글한다.
+alter table profiles add column if not exists is_representative boolean not null default false;
+
+-- 학년+반 단위로 "이 사람이 그 반 대의원인지" 판정. 기존 teacher_owns_homeroom()은 grade를
+-- 비교하지 않아(10/11/12학년의 "n반"을 전부 같은 것으로 취급하는 버그) 이번엔 grade까지
+-- 반드시 함께 비교한다. member_type='student'도 명시해 교사/학생 이메일이 겹치는 예외
+-- 상황에서도 엉뚱한 반과 매칭되지 않게 한다.
+create or replace function is_representative_for(p_user_id uuid, p_grade text, p_homeroom int)
+returns boolean language sql stable security definer set search_path = public as $$
+  select exists (
+    select 1 from profiles p
+    join directory_members dm on dm.email = p.email
+    where p.id = p_user_id and p.is_representative = true
+      and dm.member_type = 'student'
+      and dm.grade = p_grade and dm.homeroom = p_homeroom
+  );
+$$;
+
+create table if not exists special_events (
+  id uuid primary key default uuid_generate_v4(),
+  title text not null,
+  description text,
+  poster_image_url text,
+  event_type text not null check (event_type in ('uniform_check')),
+  start_date date not null,
+  end_date date not null,
+  is_hidden boolean not null default false,
+  created_by uuid references profiles(id),
+  created_at timestamptz not null default now()
+);
+alter table special_events enable row level security;
+create policy "special_events_read" on special_events for select
+  using (not is_hidden or is_editor_or_above());
+create policy "special_events_write_editor" on special_events for all
+  using (is_editor_or_above()) with check (is_editor_or_above());
+
+create table if not exists uniform_checks (
+  id uuid primary key default uuid_generate_v4(),
+  event_id uuid not null references special_events(id) on delete cascade,
+  grade text not null check (grade in ('10','11','12')),
+  homeroom int not null check (homeroom in (1,2,3)),
+  check_date date not null,
+  all_wearing boolean not null,
+  checked_by uuid references profiles(id),
+  checked_at timestamptz not null default now(),
+  unique (event_id, grade, homeroom, check_date)
+);
+alter table uniform_checks enable row level security;
+-- 반별 집계라 개인 식별 정보는 없지만, 사이트 전반이 로그인 기반인 것과 일관되게
+-- 로그인 사용자로 제한한다(완전 공개 anon 열람은 불필요).
+create policy "uniform_checks_read_authenticated" on uniform_checks for select
+  using (auth.uid() is not null);
+create policy "uniform_checks_write_representative" on uniform_checks for insert
+  with check (is_representative_for(auth.uid(), grade, homeroom) or is_editor_or_above());
+create policy "uniform_checks_update_representative" on uniform_checks for update
+  using (is_representative_for(auth.uid(), grade, homeroom) or is_editor_or_above())
+  with check (is_representative_for(auth.uid(), grade, homeroom) or is_editor_or_above());
+
+-- checked_by 스푸핑 방지: 클라이언트가 보낸 checked_by를 신뢰하지 않고 INSERT 시점에
+-- 서버가 항상 실제 로그인한 사람(auth.uid())으로 덮어쓴다. UPDATE(= editor 정정)는 이
+-- 트리거가 안 걸리므로 checked_by가 "최초 체크한 대의원"으로 그대로 보존되고, "누가
+-- 정정했는지"는 audit_logs의 user_id(정정한 editor의 auth.uid())로 별도 기록된다.
+create or replace function stamp_uniform_check_author()
+returns trigger as $$
+begin
+  new.checked_by := auth.uid();
+  new.checked_at := now();
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create or replace trigger stamp_uniform_checks_insert before insert on uniform_checks
+  for each row execute function stamp_uniform_check_author();
+
+-- 감사 로그: 누가 언제 어떤 값으로 바꿨는지 자동 기록(대의원의 최초 체크 포함, editor의
+-- 정정도 동일하게 — 별도 이력 테이블 불필요).
+create or replace trigger audit_uniform_checks after insert or update on uniform_checks
+  for each row execute function log_audit_event();
+
+insert into feature_flags (key) values ('special_events') on conflict (key) do nothing;
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'special_events'
+  ) then
+    alter publication supabase_realtime add table public.special_events;
+  end if;
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'uniform_checks'
+  ) then
+    alter publication supabase_realtime add table public.uniform_checks;
+  end if;
+end $$;

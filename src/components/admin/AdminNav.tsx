@@ -14,6 +14,7 @@ const NAV = [
   { href: "/admin/notices", label: "공지사항" },
   { href: "/admin/news", label: "뉴스" },
   { href: "/admin/events", label: "일정" },
+  { href: "/admin/events-special", label: "이벤트" },
   // 부서 구성원 관리(옛 "/admin/members")는 별도 메뉴로 두지 않고 이 화면 안에 탭으로
   // 통합했다 — 메인 헤더의 "구성원"(학교 전체 명단, /members)과 이름이 겹쳐 헷갈리기 쉬웠음.
   { href: "/admin/organizations", label: "부서 관리" },

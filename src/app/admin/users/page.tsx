@@ -56,6 +56,14 @@ export default function AdminUsersPage() {
     reload();
   };
 
+  // 대의원은 is_council/is_judiciary와 달리 자동 계산할 소스(부서 가입 같은)가 없다 —
+  // "담임 학급"이 기준이라 admin 이상이 여기서 직접 켜고 끈다.
+  const toggleRepresentative = async (id: string, current: boolean) => {
+    if (!iAmAdmin) return;
+    await supabase.from("profiles").update({ is_representative: !current }).eq("id", id);
+    reload();
+  };
+
   const list = rows
     // 이 화면은 학교 명단(directory_members) 계정만 다룬다 — 명단에 없거나 승인된
     // 외부 계정(member_type='other')은 "외부 계정 관리" 화면에서 별도로 관리한다.
@@ -140,6 +148,18 @@ export default function AdminUsersPage() {
                     <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
                     사법위원회
                   </label>
+                  {dm?.member_type === "student" && (
+                    <label className="flex items-center gap-1">
+                      <input
+                        type="checkbox"
+                        disabled={!iAmAdmin}
+                        checked={p.is_representative}
+                        onChange={() => toggleRepresentative(p.id, p.is_representative)}
+                        title="본인 학급(학년+반)의 교복 챌린지 등 체크를 할 수 있습니다."
+                      />
+                      대의원
+                    </label>
+                  )}
                 </div>
               </div>
               {canModerate && (
@@ -167,6 +187,9 @@ export default function AdminUsersPage() {
             </th>
             <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 사법위원회 구성원으로 등록하면 자동으로 켜집니다.">
               사법위원회
+            </th>
+            <th className={`${t.adminTableHeaderCell} w-20`} title="본인 학급(학년+반)의 교복 챌린지 등 체크를 할 수 있습니다.">
+              대의원
             </th>
             <th className={`${t.adminTableHeaderCell} w-24`} />
           </tr>
@@ -221,6 +244,17 @@ export default function AdminUsersPage() {
                 <td className={`${t.adminTableCell} text-center`}>
                   <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
                 </td>
+                <td className={`${t.adminTableCell} text-center`}>
+                  {dm?.member_type === "student" && (
+                    <input
+                      type="checkbox"
+                      disabled={!iAmAdmin}
+                      checked={p.is_representative}
+                      onChange={() => toggleRepresentative(p.id, p.is_representative)}
+                      title="본인 학급(학년+반)의 교복 챌린지 등 체크를 할 수 있습니다."
+                    />
+                  )}
+                </td>
                 <td className={t.adminTableCell}>
                   {canModerate && (
                     <button onClick={() => setModeratingId(p.id)} className="text-red text-xs font-bold">
@@ -231,7 +265,7 @@ export default function AdminUsersPage() {
               </tr>
             );
           })}
-          {list.length === 0 && <tr><td colSpan={7} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
+          {list.length === 0 && <tr><td colSpan={8} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
       </AdminTable>
 
