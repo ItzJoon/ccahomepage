@@ -79,7 +79,14 @@ export default function EventSpecialDetailClient({
         <div className="bg-surface border border-border rounded-2xl p-4">
           <h2 className="text-lg font-bold mb-3">오늘 반별 현황</h2>
           {boardLoading ? (
-            <ListSkeleton rows={3} />
+            // 실제 현황판은 세로로 쌓인 목록이 아니라 짧고 네모난 반별 타일 그리드라,
+            // ListSkeleton의 긴 가로 막대 모양 그대로 쓰면 크기/모양이 많이 달라서
+            // 로딩이 끝날 때 눈에 띄게 레이아웃이 바뀌었다 — 실제 타일과 같은 크기/배치로.
+            <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 animate-pulse" aria-hidden>
+              {Array.from({ length: 8 }).map((_, i) => (
+                <div key={i} className="h-[52px] rounded-xl bg-[#F2F4F8] dark:bg-white/10" />
+              ))}
+            </div>
           ) : (
           <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
             {classes.map((c) => {

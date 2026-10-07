@@ -113,7 +113,11 @@ function EmptyState({ icon, title, desc, t }: { icon: string; title: string; des
 const ENABLE_HEADER_WEATHER_BG = process.env.NEXT_PUBLIC_ENABLE_HEADER_WEATHER_BG === "true";
 
 export default function HomeContent({ initialThemeKey }: { initialThemeKey?: HomeThemeKey }) {
-  const [userId, setUserId] = useState<string | null>(null);
+  // undefined = 아직 로그인 여부를 확인 중, null = 비로그인 확정, string = 로그인된 유저 id.
+  // 예전엔 null 하나로 "확인 중"과 "비로그인"을 같이 나타내서, 실제로는 로그인한
+  // 사용자한테도 로그인 확인이 끝나기 전 아주 짧은 순간 StreakBar가 "로그인하면 볼 수
+  // 있어요" 문구를 잘못 보여주는 깜빡임이 있었다.
+  const [userId, setUserId] = useState<string | null | undefined>(undefined);
   const { t } = useHomeTheme(initialThemeKey);
   const [feedTab, setFeedTab] = useState<"recent" | "popular">("recent");
   const [feedPeriod, setFeedPeriod] = useState<PostFeedPeriod>("today");
@@ -255,7 +259,10 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 <BlockTitle t={t} eyebrow="NOTICE" title="최신 공지" moreHref="/notices" />
                 <div className="flex-1 flex flex-col justify-center">
                   {homeLoading ? (
-                    <ListSkeleton rows={4} />
+                    // 실제 공지 한 줄(py-2.5 + 한 줄 텍스트) 높이에 맞춰 h-10으로 — 기존
+                    // ListSkeleton 기본값(h-16)은 테이블형 목록 페이지용이라 여기선 너무 커서
+                    // 로딩이 끝나고 실제 내용으로 바뀔 때 카드 높이가 눈에 띄게 줄어들었다.
+                    <ListSkeleton rows={4} rowClassName="h-10 rounded-lg bg-[#EEF1F6] dark:bg-white/5" />
                   ) : (
                   <ul className="list-none m-0 p-0">
                     {sortedNotices.slice(0, 5).map((n) => (
@@ -283,7 +290,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 <BlockTitle t={t} eyebrow="SCHEDULE" title="다가오는 일정" moreHref="/calendar" />
                 <div className="flex-1 flex flex-col justify-center">
                   {homeLoading ? (
-                    <ListSkeleton rows={3} />
+                    <ListSkeleton rows={3} rowClassName="h-11 rounded-lg bg-[#EEF1F6] dark:bg-white/5" />
                   ) : (
                   <div className="flex flex-col gap-2.5">
                     {upcoming.map((e) => (
@@ -315,7 +322,22 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 <BlockTitle t={t} eyebrow="NEWS" title="학생자치회 뉴스" moreHref="/news" />
                 <div className="flex-1 flex flex-col justify-center">
                   {homeLoading ? (
-                    <ListSkeleton rows={3} />
+                    // 실제 뉴스 카드는 세로로 쌓인 목록이 아니라 3열 카드 그리드라,
+                    // ListSkeleton의 세로 막대 모양을 그대로 쓰면 모양/크기가 많이 달라서
+                    // 로딩이 끝날 때 레이아웃이 눈에 띄게 바뀌었다 — 실제 카드(border
+                    // rounded-xl p-4)와 같은 틀 안에 같은 회색 톤(bg-[#EEF1F6]/animate-pulse)
+                    // 막대만 넣어 모양을 맞춘다.
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4" aria-hidden>
+                      {[0, 1, 2].map((i) => (
+                        <div key={i} className="border border-border rounded-xl p-4 animate-pulse">
+                          <div className="h-3 w-12 rounded bg-[#EEF1F6] dark:bg-white/5 mb-2.5" />
+                          <div className="h-4 w-4/5 rounded bg-[#EEF1F6] dark:bg-white/5 mb-2" />
+                          <div className="h-3 w-full rounded bg-[#EEF1F6] dark:bg-white/5 mb-1.5" />
+                          <div className="h-3 w-full rounded bg-[#EEF1F6] dark:bg-white/5 mb-1.5" />
+                          <div className="h-3 w-2/3 rounded bg-[#EEF1F6] dark:bg-white/5" />
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {news.slice(0, 3).map((n) => (
@@ -371,7 +393,15 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                   }
                 />
                 {homeLoading ? (
-                  <ListSkeleton rows={2} />
+                  // 급식표는 목록이 아니라 이미지 한 장이라(보통 세로로 긴 스캔본), 짧은
+                  // 막대 몇 개보다 실제 이미지 비율에 가까운 세로로 긴 영역을 잡아두는 쪽이
+                  // 로딩이 끝났을 때 카드 높이 변화를 훨씬 줄여준다. 관리자가 블록 높이를
+                  // 지정해뒀으면 그 값을, 아니면 세로로 긴 스캔본에 흔한 비율을 기본값으로.
+                  <div
+                    className="w-full rounded-lg bg-[#EEF1F6] dark:bg-white/5 animate-pulse"
+                    style={b.height_px ? { height: `${b.height_px - 60}px` } : { aspectRatio: "3 / 4" }}
+                    aria-hidden
+                  />
                 ) : thisMonth ? (
                   // 높이가 지정돼 있으면 이미지가 그 안에서 스크롤되게 해서(그 값이 없을 땐
                   // 기존처럼 이미지 원본 크기만큼 카드가 늘어남), 세로로 긴 급식표 이미지가
@@ -459,7 +489,7 @@ export default function HomeContent({ initialThemeKey }: { initialThemeKey?: Hom
                 />
                 <div className="flex-1 flex flex-col justify-center">
                   {homeLoading ? (
-                    <ListSkeleton rows={5} />
+                    <ListSkeleton rows={5} rowClassName="h-10 rounded-lg bg-[#EEF1F6] dark:bg-white/5" />
                   ) : (
                   <ul className="list-none m-0 p-0">
                     {feedItems.map((item) => (

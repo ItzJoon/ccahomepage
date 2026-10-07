@@ -46,6 +46,12 @@ export function useAttendance(userId: string | null) {
   }, [userId, supabase]);
 
   useEffect(() => {
+    // userId가 null -> 실제 유저 id로 바뀌는 순간(로그인 확인이 늦게 끝나는 경우),
+    // load()가 비동기로 새 값을 받아오기 전까지 loading이 이전 호출에서 이미 false로
+    // 내려가 있던 채로 남아있어서, 잠깐 streak=0 같은 초기값이 "로딩 완료"인 것처럼
+    // 잘못 보이는 깜빡임이 있었다 — userId가 바뀔 때마다 즉시 다시 loading 상태로
+    // 돌려놓는다.
+    setLoading(true);
     load();
   }, [load]);
 
