@@ -11,6 +11,15 @@
         ],
         "createdAt": "2026-10-06T07:17:43.265Z",
         "reason": "Agent: pre-existing green-theme heroCard border-l-8 copied verbatim from legacy homeTheme.ts during a pure file-split refactor (no value changed); green is a dormant brutalist alternate theme, not the live one"
+      },
+      {
+        "rule": "side-tab",
+        "value": "*",
+        "files": [
+          "src/components/admin/AdminCard.tsx"
+        ],
+        "createdAt": "2026-10-07T01:05:12.232Z",
+        "reason": "Agent: pre-existing border-l-4 selected-state structure from before this session (was already hardcoded border-l-blue); this turn only swapped its color source to a theme token, did not introduce the border width/pattern itself"
       }
     ]
   }

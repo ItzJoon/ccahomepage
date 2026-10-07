@@ -40,7 +40,7 @@ export const appleTheme: HomeThemeStyle = {
     "bg-appleBlue text-white font-bold text-sm rounded-full px-5 py-3 shadow-[0_10px_12px_rgba(37,99,235,0.15)]",
   heroSecondaryBtn: "border border-appleBlue text-appleBlue font-bold text-sm rounded-full px-5 py-3 bg-surface",
 
-  cardShape: "bg-surface rounded-[24px] shadow-[0_2px_5px_rgba(0,0,0,0.04)]",
+  cardShape: "bg-surface rounded-[24px] shadow-[0_4px_14px_rgba(0,0,0,0.06)]",
   sectionEyebrow: "text-appleMuted text-xs font-medium uppercase tracking-wide mb-1",
   sectionHeadingClass: "text-[18px] font-bold text-appleBlue tracking-tight",
   sectionAccentBar: "hidden",
@@ -74,14 +74,17 @@ export const appleTheme: HomeThemeStyle = {
   adminAsideBorder: "border-appleBorder",
   adminNavIndicator: "block ml-auto w-1 h-4 rounded bg-appleBlue",
 
-  dashStatCard: "bg-surface border border-appleBorder rounded-[20px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
-  dashStatCardWarn: "bg-surface border-[1.5px] border-appleAmber rounded-[20px] p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
+  adminCardSelectedBorder: "border-appleBlue",
+  adminCardSelectedAccent: "border-l-appleBlue bg-appleBlue/10",
+
+  dashStatCard: "bg-surface border border-appleBorder rounded-[20px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]",
+  dashStatCardWarn: "bg-surface border-[1.5px] border-appleAmber rounded-[20px] p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]",
   dashStatIconBg: "bg-appleBg rounded-full p-2",
   dashStatValue: "text-appleInk",
   dashStatValueWarn: "text-appleAmber",
   dashActionPrimary: "bg-appleBlue text-white font-bold text-sm rounded-full px-5 py-3 shadow-[0_4px_6px_rgba(37,99,235,0.15)]",
   dashActionSecondary: "border border-appleBorder text-appleInk font-bold text-sm rounded-full px-5 py-3 bg-surface",
-  dashActivityCard: "bg-surface border border-appleBorder rounded-3xl p-6 shadow-[0_2px_4px_rgba(0,0,0,0.04)]",
+  dashActivityCard: "bg-surface border border-appleBorder rounded-3xl p-6 shadow-[0_4px_12px_rgba(0,0,0,0.06)]",
   dashActivityTagNotice: "bg-appleBlue/[0.07] text-appleBlue",
   // 기존 text-appleGreen(#10b981)은 이 라이트 배경 위에서 대비 ~2.6:1로 WCAG AA(4.5:1)
   // 미달이었다. 다크모드 쪽(appleGreen dark 값 #34d399)은 이미 충분히 밝은 배경 대비라
@@ -97,7 +100,14 @@ export const appleTheme: HomeThemeStyle = {
   adminInput: "border border-appleBorder rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-appleBlue/20",
   adminTableHeaderCell: "text-left text-xs text-appleMuted font-bold uppercase tracking-wide border-b border-appleBorder p-2",
   adminTableRowHover: "hover:bg-appleBg",
-  adminTableRowActive: "bg-appleBlue/[0.07]",
+  // 기존 bg-appleBlue/[0.07]는 이 테마가 이미 전역적으로 파란 강조색을 많이 쓰고 있어서
+  // "선택된 행"이 나머지 화면에 묻혀 잘 안 보인다는 피드백으로 보강 — 배경을 더 진하게
+  // 하고, 테이블 행은 테두리로 구분하기 어려우니(각 셀이 따로 border를 가짐) inset
+  // box-shadow로 좌측에 또렷한 강조 바를 추가했다.
+  adminTableRowActive: "bg-appleBlue/10 shadow-[inset_3px_0_0_0_rgb(var(--apple-blue))]",
   adminTableCell: "p-2.5 border-b border-appleBorder text-sm",
-  adminEditPanel: "bg-surface border border-appleBorder rounded-2xl p-[18px] shadow-[0_2px_5px_rgba(0,0,0,0.04)]",
+  // 선택된 항목의 상세/수정 패널 — 목록과 구분되도록 좌측에 강조 바를 주고 그림자를
+  // 눈에 띄게 키워서 "지금 이게 열려 있다"는 게 한눈에 보이게 했다(기존엔 리스트와
+  // 거의 같은 수준의 옅은 그림자라 구분이 잘 안 됐다).
+  adminEditPanel: "bg-surface border border-appleBorder border-l-[3px] border-l-appleBlue rounded-2xl p-[18px] shadow-[0_8px_24px_rgba(0,0,0,0.08)]",
 };

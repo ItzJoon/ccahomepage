@@ -64,6 +64,11 @@ export interface HomeThemeStyle {
   adminAsideBorder: string;
   adminNavIndicator: string;
 
+  /** 모바일 카드 목록(AdminCard)에서 "지금 선택됨" 상태 — 바깥 테두리 색. */
+  adminCardSelectedBorder: string;
+  /** 모바일 카드 목록(AdminCard)에서 "지금 선택됨" 상태 — 좌측 강조 바 + 배경 틴트. */
+  adminCardSelectedAccent: string;
+
   dashStatCard: string;
   dashStatCardWarn: string;
   dashStatIconBg: string;

@@ -1,5 +1,7 @@
 "use client";
 
+import { useHomeTheme } from "@/hooks/useHomeTheme";
+
 /**
  * 관리자 표(테이블) 화면들을 640px 미만에서 카드형 목록으로 보여주기 위한 공용 조각들.
  *
@@ -35,16 +37,17 @@ export function AdminCard({
    * 0fr↔1fr로 트랜지션하는 방식이라 내용 높이를 몰라도 부드럽게 펼쳐지고 접힌다. */
   detail?: React.ReactNode;
 }) {
+  const { t } = useHomeTheme();
   return (
     <div
       className={`rounded-xl border overflow-hidden bg-surface transition-colors ${
-        selected ? "border-blue" : "border-border"
+        selected ? t.adminCardSelectedBorder : "border-border"
       } ${faded ? "opacity-60" : ""}`}
     >
       <div
         onClick={onClick}
         className={`flex flex-col gap-2 p-4 border-l-4 ${onClick ? "cursor-pointer" : ""} ${
-          selected ? "border-l-blue bg-[#EAF0FB] dark:bg-white/10" : "border-l-transparent"
+          selected ? t.adminCardSelectedAccent : "border-l-transparent"
         }`}
       >
         {children}
