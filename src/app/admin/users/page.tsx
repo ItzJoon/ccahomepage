@@ -14,6 +14,12 @@ import type { DirectoryMember, Profile } from "@/lib/types";
 
 const HOMEROOM_LABEL: Record<number, string> = { 1: "샬롬", 2: "헤세드", 3: "토브" };
 
+// 임원회/사법위원회는 부서 관리에서 자동 계산되는 읽기 전용 정보라 별도 컬럼으로 토글을
+// 둘 필요가 없다 — 따로 조작할 일이 없으니(어차피 못 씀) "명단 정보" 한 줄에 같이 보여준다.
+function orgLabel(p: Profile): string {
+  return [p.is_council && "임원회", p.is_judiciary && "사법위원회"].filter(Boolean).join(" · ");
+}
+
 export default function AdminUsersPage() {
   const supabase = createClient();
   const { t } = useHomeTheme();
@@ -123,6 +129,7 @@ export default function AdminUsersPage() {
                   <span>· 학생 · {dm.grade}학년 {dm.homeroom ? HOMEROOM_LABEL[dm.homeroom] : ""}</span>
                 )}
                 {dm?.member_type === "teacher" && <span>· 교사 · {dm.subject || "-"}</span>}
+                {orgLabel(p) && <span>· {orgLabel(p)}</span>}
               </AdminCardMeta>
               <div className="flex items-center justify-between gap-2 flex-wrap pt-2 mt-1 border-t border-border">
                 {canEdit || iAmDesigner ? (
@@ -140,14 +147,6 @@ export default function AdminUsersPage() {
                   </span>
                 )}
                 <div className="flex items-center gap-3 text-xs text-muted">
-                  <label className="flex items-center gap-1">
-                    <input type="checkbox" disabled checked={p.is_council} title="부서 관리에서 자동으로 계산됩니다." />
-                    임원회
-                  </label>
-                  <label className="flex items-center gap-1">
-                    <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
-                    사법위원회
-                  </label>
                   {dm?.member_type === "student" && (
                     <label className="flex items-center gap-1">
                       <input
@@ -182,12 +181,6 @@ export default function AdminUsersPage() {
             <th className={t.adminTableHeaderCell}>이메일</th>
             <th className={t.adminTableHeaderCell}>명단 정보</th>
             <th className={`${t.adminTableHeaderCell} w-40`}>권한</th>
-            <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 임원회 소속 부서 구성원으로 등록하면 자동으로 켜집니다.">
-              임원회
-            </th>
-            <th className={`${t.adminTableHeaderCell} w-20`} title="부서 관리에서 사법위원회 구성원으로 등록하면 자동으로 켜집니다.">
-              사법위원회
-            </th>
             <th className={`${t.adminTableHeaderCell} w-20`} title="본인 학급(학년+반)의 교복 챌린지 등 체크를 할 수 있습니다.">
               대의원
             </th>
@@ -215,6 +208,7 @@ export default function AdminUsersPage() {
                   {dm?.member_type === "student" &&
                     `학생 · ${dm.grade}학년 ${dm.homeroom ? HOMEROOM_LABEL[dm.homeroom] : ""}`}
                   {dm?.member_type === "teacher" && `교사 · ${dm.subject || "-"}`}
+                  {orgLabel(p) && ` · ${orgLabel(p)}`}
                 </td>
                 <td className={t.adminTableCell}>
                   {canEdit || iAmDesigner ? (
@@ -239,12 +233,6 @@ export default function AdminUsersPage() {
                   )}
                 </td>
                 <td className={`${t.adminTableCell} text-center`}>
-                  <input type="checkbox" disabled checked={p.is_council} title="부서 관리에서 자동으로 계산됩니다." />
-                </td>
-                <td className={`${t.adminTableCell} text-center`}>
-                  <input type="checkbox" disabled checked={p.is_judiciary} title="부서 관리에서 자동으로 계산됩니다." />
-                </td>
-                <td className={`${t.adminTableCell} text-center`}>
                   {dm?.member_type === "student" && (
                     <input
                       type="checkbox"
@@ -265,7 +253,7 @@ export default function AdminUsersPage() {
               </tr>
             );
           })}
-          {list.length === 0 && <tr><td colSpan={8} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
+          {list.length === 0 && <tr><td colSpan={6} className="text-muted text-center py-8 text-sm">사용자가 없습니다.</td></tr>}
         </tbody>
       </AdminTable>
 
